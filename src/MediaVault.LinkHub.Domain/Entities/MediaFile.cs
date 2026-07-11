@@ -1,0 +1,42 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using MediaVault.LinkHub.Domain.Common;
+
+namespace MediaVault.LinkHub.Domain.Entities;
+
+/// <summary>
+/// Archivo multimedia indexado por el módulo File &amp; Media Vault.
+/// </summary>
+public class MediaFile : EntityBase
+{
+    /// <summary>
+    /// Ruta absoluta del archivo en disco.
+    /// </summary>
+    public string Path { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string Extension { get; set; } = string.Empty;
+
+    public int VecesAbierto { get; set; }
+
+    public double RankingCalidad { get; set; }
+
+    public double RankingContenido { get; set; }
+
+    public double RankingGusto { get; set; }
+
+    public ICollection<VideoCategory> Categories { get; set; } = [];
+
+    /// <summary>
+    /// Promedio de los tres rankings (0-5 estrellas). No se persiste en base de datos.
+    /// </summary>
+    [NotMapped]
+    public double RankingGlobal =>
+        (RankingCalidad + RankingContenido + RankingGusto) / 3.0;
+
+    /// <summary>
+    /// Expresión reutilizable para consultas LINQ traducibles a SQL.
+    /// </summary>
+    public static double ComputeRankingGlobal(MediaFile file) =>
+        (file.RankingCalidad + file.RankingContenido + file.RankingGusto) / 3.0;
+}

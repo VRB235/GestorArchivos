@@ -1,0 +1,60 @@
+<UserControl x:Class="MediaVault.LinkHub.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+            <Border Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <TextBlock Text="Media Vault" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="Carpeta raíz de indexación"
+                               Style="{StaticResource LabelStyle}" />
+                    <TextBlock Text="Ruta fija desde la que se escanean imágenes y videos. Los cambios aplican a futuras indexaciones."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding MediaIndexRootPath, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,8,10" />
+                        <Button Grid.Column="1"
+                                Content="Examinar"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding BrowseMediaIndexFolderCommand}" />
+                    </Grid>
+                    <Button Content="Guardar configuración"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Command="{Binding SaveCommand}" />
+                    <TextBlock Text="{Binding SettingsFilePath, StringFormat='Archivo: {0}'}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               Margin="0,12,0,0"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Metadatos de Media Vault" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="Restablece rankings, contador de aperturas (vistas), asignaciones de categorías y el catálogo de categorías en todos los archivos indexados."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,12" />
+                    <Button Content="Limpiar metadatos multimedia"
+                            Style="{StaticResource DangerButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Command="{Binding ClearAllMediaMetadataCommand}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
