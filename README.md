@@ -246,6 +246,32 @@ dotnet build MediaVault.LinkHub.slnx
 
 ---
 
+## Publicación (ejecutable autocontenido)
+
+Genera un paquete **win-x64** que incluye el runtime .NET 8; no requiere SDK ni runtime instalado en el equipo destino (solo Windows 10/11 x64).
+
+```bash
+dotnet publish src/MediaVault.LinkHub.App/MediaVault.LinkHub.App.csproj ^
+  -c Release ^
+  -r win-x64 ^
+  --self-contained true ^
+  -o publish/win-x64
+```
+
+Perfil equivalente (Visual Studio o CLI):
+
+```bash
+dotnet publish src/MediaVault.LinkHub.App/MediaVault.LinkHub.App.csproj ^
+  -c Release ^
+  -p:PublishProfile=win-x64-self-contained
+```
+
+Salida: carpeta `publish/win-x64/` con el ejecutable `MediaVault.LinkHub.App.exe` y todas las dependencias (~190 MB). Copie la carpeta completa para distribuir la aplicación.
+
+> **Nota:** no use `PublishTrimmed` en WPF; puede romper reflexión y recursos XAML. VLC sigue siendo externo (opcional) en el equipo destino.
+
+---
+
 ## Ejecutar la aplicación
 
 ```bash
@@ -354,12 +380,12 @@ dotnet ef migrations remove ^
 | Infrastructure (EF Core, servicios, launchers) | ✅ Completado |
 | WPF App (MVVM, Sidebar, Views) | ✅ Completado |
 | Dashboard (LiveCharts2) | ✅ Completado |
+| Publicación autocontenida (win-x64) | ✅ Completado |
 
 ---
 
 ## Posibles mejoras futuras
 
-- Publicación como ejecutable autocontenido (`dotnet publish -r win-x64 --self-contained`).
 - Diálogos de confirmación antes de eliminar archivos/enlaces.
 - Búsqueda y filtrado en Media Vault.
 - Exportación de estadísticas del Dashboard (PNG/CSV).
