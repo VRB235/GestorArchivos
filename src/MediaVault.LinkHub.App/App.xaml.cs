@@ -2,6 +2,7 @@
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using MediaVault.LinkHub.App.ViewModels;
+using MediaVault.LinkHub.App.Security;
 using MediaVault.LinkHub.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,22 +16,48 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Evita que la app se cierre al cerrar el diálogo de PIN (antes de abrir MainWindow).
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
         LiveCharts.Configure(config =>
             config.AddSkiaSharp().AddDefaultMappers());
 
-        var services = new ServiceCollection();
-        services.AddMediaVaultLinkHubInfrastructure();
-        services.AddPresentation();
+        var securityGate = new Views.SecurityGateWindow();
+        if (securityGate.ShowDialog() != true)
+        {
+            Shutdown();
+            return;
+        }
 
-        Services = services.BuildServiceProvider();
+        AppSecurityContext.AccessMode = securityGate.AccessMode;
 
-        await Services.InitializeDatabaseAsync().ConfigureAwait(true);
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddMediaVaultLinkHubInfrastructure();
+            services.AddPresentation();
 
-        var mainViewModel = Services.GetRequiredService<MainViewModel>();
-        await mainViewModel.InitializeAsync().ConfigureAwait(true);
+            Services = services.BuildServiceProvider();
 
-        var mainWindow = Services.GetRequiredService<MainWindow>();
-        mainWindow.DataContext = mainViewModel;
-        mainWindow.Show();
+            await Services.InitializeDatabaseAsync().ConfigureAwait(true);
+
+            var mainViewModel = Services.GetRequiredService<MainViewModel>();
+            await mainViewModel.InitializeAsync().ConfigureAwait(true);
+
+            var mainWindow = Services.GetRequiredService<MainWindow>();
+            mainWindow.DataContext = mainViewModel;
+            mainWindow.Show();
+            MainWindow = mainWindow;
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"No se pudo iniciar la aplicación.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
+                "MediaVault & LinkHub",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown();
+        }
     }
 }

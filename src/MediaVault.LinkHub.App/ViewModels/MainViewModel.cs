@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MediaVault.LinkHub.App.Models;
 using MediaVault.LinkHub.App.Navigation;
+using MediaVault.LinkHub.App.Security;
 using MediaVault.LinkHub.App.ViewModels.Base;
 
 namespace MediaVault.LinkHub.App.ViewModels;
@@ -39,6 +40,8 @@ public partial class MainViewModel : ViewModelBase
 
     public string CurrentSubtitle =>
         (_navigationService.CurrentViewModel as INavigableViewModel)?.Subtitle ?? string.Empty;
+
+    public bool IsMaintenanceMode => AppSecurityContext.IsMaintenanceMode;
 
     public async Task InitializeAsync()
     {
