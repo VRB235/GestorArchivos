@@ -72,6 +72,8 @@ MediaVault.LinkHub.slnx
         ├── Charts/                          ← DashboardChartFactory (LiveCharts2)
         ├── Resources/Styles.xaml            ← Tema oscuro
         └── Converters/
+tests/
+└── MediaVault.LinkHub.Tests/                ← xUnit (servicios + DashboardChartFactory)
 ```
 
 ---
@@ -246,6 +248,21 @@ dotnet build MediaVault.LinkHub.slnx
 
 ---
 
+## Pruebas unitarias
+
+Proyecto `tests/MediaVault.LinkHub.Tests` (xUnit + FluentAssertions + SQLite en memoria):
+
+```bash
+dotnet test MediaVault.LinkHub.slnx -c Release
+```
+
+| Área | Cobertura principal |
+|------|---------------------|
+| **Servicios** | `QuickNoteService`, `VideoCategoryService`, `WebLinkService`, `DashboardService`, `MediaVaultService` |
+| **Gráficos** | `DashboardChartFactory` (series, ejes, filtros de datos vacíos) |
+
+---
+
 ## Publicación (ejecutable autocontenido)
 
 Genera un paquete **win-x64** que incluye el runtime .NET 8; no requiere SDK ni runtime instalado en el equipo destino (solo Windows 10/11 x64).
@@ -381,15 +398,14 @@ dotnet ef migrations remove ^
 | WPF App (MVVM, Sidebar, Views) | ✅ Completado |
 | Dashboard (LiveCharts2) | ✅ Completado |
 | Publicación autocontenida (win-x64) | ✅ Completado |
+| Confirmación antes de eliminar (archivos/enlaces) | ✅ Completado |
+| Búsqueda y filtrado en Media Vault | ✅ Completado |
+| Tests unitarios (servicios + gráficos) | ✅ Completado |
 
 ---
 
 ## Posibles mejoras futuras
 
-- Diálogos de confirmación antes de eliminar archivos/enlaces.
-- Búsqueda y filtrado en Media Vault.
-- Exportación de estadísticas del Dashboard (PNG/CSV).
-- Tests unitarios para servicios y `DashboardChartFactory`.
 
 ---
 

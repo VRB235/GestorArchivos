@@ -4,6 +4,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 using CommunityToolkit.Mvvm.Input;
 
+using MediaVault.LinkHub.App.Shell;
+
 using MediaVault.LinkHub.App.ViewModels.Base;
 
 using MediaVault.LinkHub.Application.Services;
@@ -24,15 +26,19 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
 
     private readonly IWebLinkService _webLinkService;
 
+    private readonly IAppDialogService _appDialogService;
+
     private List<WebLink> _allWebLinks = [];
 
 
 
-    public LinkManagerViewModel(IWebLinkService webLinkService)
+    public LinkManagerViewModel(IWebLinkService webLinkService, IAppDialogService appDialogService)
 
     {
 
         _webLinkService = webLinkService;
+
+        _appDialogService = appDialogService;
 
         Categories = new ObservableCollection<LinkCategory>(Enum.GetValues<LinkCategory>());
 
@@ -436,6 +442,20 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
     {
 
         if (SelectedWebLink is null)
+
+            return;
+
+
+
+        var linkName = SelectedWebLink.Nombre;
+
+        if (!_appDialogService.ConfirmYesNo(
+
+                "Confirmar eliminación",
+
+                $"¿Eliminar el enlace «{linkName}»?\n\nEsta acción no se puede deshacer.",
+
+                AppDialogKind.Warning))
 
             return;
 

@@ -21,6 +21,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="MediaVault.LinkHub.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Assets\app-icon.ico" />
     <Resource Include="Assets\app-icon.png" />
   </ItemGroup>

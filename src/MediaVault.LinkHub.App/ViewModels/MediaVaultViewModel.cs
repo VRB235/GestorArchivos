@@ -12,6 +12,7 @@ using MediaVault.LinkHub.Application.Media;
 using MediaVault.LinkHub.Application.Models.MediaVault;
 using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Domain.Entities;
+using MediaVault.LinkHub.Infrastructure.Media;
 
 using Microsoft.Win32;
 
@@ -59,6 +60,16 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
         SelectedSortDirection = SortDirections[0];
         SelectedSortOption = SortOptions[0];
+
+        MediaTypeFilters =
+        [
+            new BrowserMediaTypeFilterOption("Todos", BrowserMediaTypeFilter.All),
+            new BrowserMediaTypeFilterOption("Carpetas", BrowserMediaTypeFilter.Directories),
+            new BrowserMediaTypeFilterOption("Imágenes", BrowserMediaTypeFilter.Images),
+            new BrowserMediaTypeFilterOption("Videos", BrowserMediaTypeFilter.Videos)
+        ];
+
+        SelectedMediaTypeFilter = MediaTypeFilters[0];
     }
 
     public ObservableCollection<CategoryFilterTagItem> CategoryFilterTags { get; } = [];
@@ -75,11 +86,21 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     public ObservableCollection<BrowserSortDirectionOption> SortDirections { get; }
 
+    public ObservableCollection<BrowserMediaTypeFilterOption> MediaTypeFilters { get; }
+
     [ObservableProperty]
     private BrowserSortOption? _selectedSortOption;
 
     [ObservableProperty]
     private BrowserSortDirectionOption? _selectedSortDirection;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasActiveBrowserFilters))]
+    private string _searchText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasActiveBrowserFilters))]
+    private BrowserMediaTypeFilterOption? _selectedMediaTypeFilter;
 
     [ObservableProperty]
     private bool _showHiddenFilesAndFolders;
@@ -182,6 +203,24 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     public int SelectedFolderAverageRankingStars =>
         MediaFileRankingScale.ToDisplayStars(SelectedFolderAverageRanking ?? 0);
 
+    public bool HasActiveBrowserFilters =>
+        !string.IsNullOrWhiteSpace(SearchText)
+        || SelectedMediaTypeFilter?.Kind != BrowserMediaTypeFilter.All
+        || CategoryFilterTags.Any(tag => tag.IsSelected);
+
+    public string BrowserFilterSummary
+    {
+        get
+        {
+            var total = _directoryEntries.Count;
+            var visible = BrowserEntries.Count;
+
+            return visible == total && !HasActiveBrowserFilters
+                ? $"{total} elementos"
+                : $"{visible} de {total} elementos";
+        }
+    }
+
     public async Task InitializeAsync()
     {
         await LoadVideoCategoriesAsync().ConfigureAwait(true);
@@ -227,8 +266,11 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         }
     }
 
-    private void OnCategoryFilterChanged() =>
+    private void OnCategoryFilterChanged()
+    {
         ApplySortToBrowser();
+        NotifyBrowserFilterStateChanged();
+    }
 
     private void RebuildFileCategorySelections(IReadOnlyList<VideoCategory> categories, MediaFile? selectedFile)
     {
@@ -450,6 +492,24 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     partial void OnSelectedSortDirectionChanged(BrowserSortDirectionOption? value) =>
         ApplySortToBrowser();
 
+    partial void OnSearchTextChanged(string value) =>
+        ApplySortToBrowser();
+
+    partial void OnSelectedMediaTypeFilterChanged(BrowserMediaTypeFilterOption? value) =>
+        ApplySortToBrowser();
+
+    [RelayCommand(CanExecute = nameof(HasActiveBrowserFilters))]
+    private void ClearBrowserFilters()
+    {
+        SearchText = string.Empty;
+        SelectedMediaTypeFilter = MediaTypeFilters[0];
+
+        foreach (var tag in CategoryFilterTags)
+            tag.IsSelected = false;
+
+        ApplySortToBrowser();
+    }
+
     private void ApplySortToBrowser(int? reselectMediaFileId = null, string? reselectEntryPath = null)
     {
         if (SelectedSortOption is null || SelectedSortDirection is null)
@@ -462,7 +522,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             StringComparer.OrdinalIgnoreCase);
 
         var sortedEntries = SortEntries(
-            FilterEntriesByCategory(_directoryEntries, CategoryFilterTags),
+            ApplyBrowserFilters(_directoryEntries),
             SelectedSortOption.Field,
             SelectedSortDirection.IsAscending);
 
@@ -501,7 +561,24 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             ?? BrowserEntries.FirstOrDefault();
 
         QueueThumbnailLoads();
+        NotifyBrowserFilterStateChanged();
     }
+
+    private void NotifyBrowserFilterStateChanged()
+    {
+        OnPropertyChanged(nameof(BrowserFilterSummary));
+        OnPropertyChanged(nameof(HasActiveBrowserFilters));
+        ClearBrowserFiltersCommand.NotifyCanExecuteChanged();
+    }
+
+    private IReadOnlyList<MediaVaultBrowserEntry> ApplyBrowserFilters(
+        IReadOnlyList<MediaVaultBrowserEntry> entries) =>
+        FilterEntriesBySearch(
+                FilterEntriesByMediaType(
+                    FilterEntriesByCategory(entries, CategoryFilterTags),
+                    SelectedMediaTypeFilter?.Kind ?? BrowserMediaTypeFilter.All),
+                SearchText)
+            .ToList();
 
     private static bool ShouldPreserveThumbnail(MediaVaultBrowserEntry entry, ImageSource? thumbnail) =>
         thumbnail is not null
@@ -575,6 +652,45 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
             return entry.MediaFile.Categories.Any(category => selectedCategoryIds.Contains(category.Id));
         });
+    }
+
+    private static IEnumerable<MediaVaultBrowserEntry> FilterEntriesByMediaType(
+        IEnumerable<MediaVaultBrowserEntry> entries,
+        BrowserMediaTypeFilter filter) =>
+        filter switch
+        {
+            BrowserMediaTypeFilter.Directories => entries.Where(entry => entry.IsDirectory),
+            BrowserMediaTypeFilter.Images => entries.Where(entry =>
+                entry.IsDirectory || MediaFileExtensions.IsImage(entry.FullPath)),
+            BrowserMediaTypeFilter.Videos => entries.Where(entry =>
+                entry.IsDirectory || MediaFileExtensions.IsVideo(entry.FullPath)),
+            _ => entries
+        };
+
+    private static IEnumerable<MediaVaultBrowserEntry> FilterEntriesBySearch(
+        IEnumerable<MediaVaultBrowserEntry> entries,
+        string? searchText)
+    {
+        var term = searchText?.Trim();
+        if (string.IsNullOrEmpty(term))
+            return entries;
+
+        return entries.Where(entry => MatchesSearch(entry, term));
+    }
+
+    private static bool MatchesSearch(MediaVaultBrowserEntry entry, string term)
+    {
+        if (entry.Name.Contains(term, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (entry.IsDirectory)
+            return false;
+
+        if (entry.FileType.Contains(term, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var extension = Path.GetExtension(entry.FullPath);
+        return extension.Contains(term, StringComparison.OrdinalIgnoreCase);
     }
 
     private void NotifyFileCategoryStateChanged()
@@ -1007,3 +1123,13 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 public sealed record BrowserSortOption(string Label, MediaVaultBrowserSortField Field);
 
 public sealed record BrowserSortDirectionOption(string Label, bool IsAscending);
+
+public sealed record BrowserMediaTypeFilterOption(string Label, BrowserMediaTypeFilter Kind);
+
+public enum BrowserMediaTypeFilter
+{
+    All,
+    Directories,
+    Images,
+    Videos
+}

@@ -5,4 +5,7 @@
     <Project Path="src/MediaVault.LinkHub.Domain/MediaVault.LinkHub.Domain.csproj" />
     <Project Path="src/MediaVault.LinkHub.Infrastructure/MediaVault.LinkHub.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MediaVault.LinkHub.Tests/MediaVault.LinkHub.Tests.csproj" />
+  </Folder>
 </Solution>
