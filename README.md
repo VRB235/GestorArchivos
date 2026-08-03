@@ -119,7 +119,7 @@ tests/
 | `Id` | `int` | Identificador autogenerado |
 | `Nombre` | `string` | Nombre descriptivo del enlace |
 | `Url` | `string` | URL destino (única en BD) |
-| `LogoPath` | `string?` | Ruta local al logo/icono |
+| `LogoPath` | `string?` | Ruta al logo en el almacén de la app (`%LocalAppData%\...\WebLinkLogos\`); se copia al guardar |
 | `Categoria` | `LinkCategory` | `Oficial`, `Descarga`, `Gratis` |
 
 ### `MediaFile` — File & Media Vault

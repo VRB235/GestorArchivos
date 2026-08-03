@@ -31,7 +31,7 @@ public static class DependencyInjection
   }
 
   /// <summary>
-  /// Aplica migraciones pendientes al arrancar la aplicación.
+  /// Aplica migraciones pendientes y migra logos externos al almacén managed.
   /// </summary>
   public static async Task InitializeDatabaseAsync(this IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
   {
@@ -39,5 +39,8 @@ public static class DependencyInjection
     var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
     await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
     await context.InitializeAsync(cancellationToken).ConfigureAwait(false);
+
+    var webLinkService = scope.ServiceProvider.GetRequiredService<IWebLinkService>();
+    await webLinkService.MigrateExternalLogosAsync(cancellationToken).ConfigureAwait(false);
   }
 }
