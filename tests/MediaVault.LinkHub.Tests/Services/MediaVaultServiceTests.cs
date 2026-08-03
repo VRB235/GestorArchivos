@@ -138,6 +138,43 @@ public sealed class MediaVaultServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task MoveFileAsync_moves_indexed_file_and_updates_path()
+    {
+        var sourceDir = Path.Combine(_rootDirectory, "origen");
+        var destDir = Path.Combine(_rootDirectory, "destino");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(destDir);
+
+        var sourcePath = Path.Combine(sourceDir, "clip.mp4");
+        await File.WriteAllTextAsync(sourcePath, "video");
+        var indexed = await SeedIndexedFileAsync("clip.mp4", sourcePath, vecesAbierto: 2);
+
+        var moved = await _sut.MoveFileAsync(sourcePath, destDir, _rootDirectory);
+
+        moved.Should().NotBeNull();
+        moved!.Id.Should().Be(indexed.Id);
+        moved.VecesAbierto.Should().Be(2);
+        File.Exists(sourcePath).Should().BeFalse();
+        File.Exists(moved.Path).Should().BeTrue();
+        Path.GetDirectoryName(moved.Path).Should().Be(Path.GetFullPath(destDir));
+    }
+
+    [Fact]
+    public async Task MoveFileAsync_rejects_destination_outside_index_root()
+    {
+        var sourcePath = Path.Combine(_rootDirectory, "stay.mp4");
+        await File.WriteAllTextAsync(sourcePath, "video");
+
+        var outside = Path.Combine(Path.GetTempPath(), "MediaVaultOutsideMove", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);
+
+        var act = () => _sut.MoveFileAsync(sourcePath, outside, _rootDirectory);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*fuera del directorio*");
+    }
+
+    [Fact]
     public async Task ClearAllMediaMetadataAsync_resets_rankings_categories_and_open_counts()
     {
         await using var context = _contextFactory.CreateDbContext();

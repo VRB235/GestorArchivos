@@ -46,6 +46,16 @@ public interface IMediaVaultService
         string directoryName,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Mueve un archivo a otra carpeta dentro del root de indexación y actualiza el índice si existe.
+    /// </summary>
+    /// <returns>La entidad indexada actualizada, o <c>null</c> si el archivo no estaba en el índice.</returns>
+    Task<MediaFile?> MoveFileAsync(
+        string sourcePath,
+        string destinationDirectoryPath,
+        string indexRootPath,
+        CancellationToken cancellationToken = default);
+
     Task DeleteFileAsync(int id, CancellationToken cancellationToken = default);
 
     Task<MediaFile> UpdateRankingsAsync(

@@ -178,6 +178,9 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     public bool CanDeleteSelectedFile => SelectedBrowserEntryItem is { IsDirectory: false };
 
+    public bool CanMoveSelectedFile => SelectedBrowserEntryItem is { IsDirectory: false }
+        && !string.IsNullOrWhiteSpace(IndexRootPath);
+
     public bool IsSelectedFolder => SelectedBrowserEntry?.IsDirectory == true;
 
     public bool CanClearFolderIcon =>
@@ -727,6 +730,8 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
         OnPropertyChanged(nameof(CanDeleteSelectedFile));
         DeleteCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanMoveSelectedFile));
+        MoveCommand.NotifyCanExecuteChanged();
         NotifyFolderIconStateChanged();
 
         if (value is null)
@@ -1077,6 +1082,65 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 $"Indexados: {result.FilesIndexed} | Nuevos: {result.FilesAdded} | Actualizados: {result.FilesUpdated} | Omitidos: {result.FilesSkipped}";
             await BrowseDirectoryAsync(IndexRootPath).ConfigureAwait(true);
         }, "Indexando archivos...").ConfigureAwait(true);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMoveSelectedFile))]
+    private async Task MoveAsync()
+    {
+        if (SelectedBrowserEntryItem is not { IsDirectory: false })
+            return;
+
+        if (string.IsNullOrWhiteSpace(IndexRootPath) || !Directory.Exists(IndexRootPath))
+        {
+            ErrorMessage = "Configure una carpeta raíz válida en Configuración.";
+            return;
+        }
+
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Seleccionar carpeta destino",
+            InitialDirectory = CurrentDirectoryPath is { Length: > 0 } && Directory.Exists(CurrentDirectoryPath)
+                ? CurrentDirectoryPath
+                : IndexRootPath,
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.FolderName))
+            return;
+
+        var sourcePath = SelectedBrowserEntryItem.FullPath;
+        var destinationDirectory = dialog.FolderName;
+        var fileName = SelectedBrowserEntryItem.Name;
+
+        if (!_appDialogService.ConfirmYesNo(
+                "Confirmar movimiento",
+                $"¿Mover \"{fileName}\" a:\n{destinationDirectory}?",
+                AppDialogKind.Information))
+            return;
+
+        await ExecuteBusyAsync(async () =>
+        {
+            var moved = await _mediaVaultService.MoveFileAsync(
+                sourcePath,
+                destinationDirectory,
+                IndexRootPath).ConfigureAwait(true);
+
+            WindowsShellThumbnailProvider.ClearCache();
+
+            if (moved is not null)
+            {
+                await BrowseDirectoryAsync(
+                    destinationDirectory,
+                    reselectMediaFileId: moved.Id).ConfigureAwait(true);
+            }
+            else
+            {
+                await BrowseDirectoryAsync(
+                    destinationDirectory,
+                    reselectEntryPath: Path.Combine(Path.GetFullPath(destinationDirectory), fileName))
+                    .ConfigureAwait(true);
+            }
+        }, "Moviendo archivo...").ConfigureAwait(true);
     }
 
     [RelayCommand]

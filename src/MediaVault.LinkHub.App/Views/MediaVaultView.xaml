@@ -646,6 +646,10 @@
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         Command="{Binding RenameCommand}"
                                         IsEnabled="{Binding CanEditSelectedFile}" />
+                                <Button Content="Mover"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding MoveCommand}"
+                                        IsEnabled="{Binding CanMoveSelectedFile}" />
                                 <Button Content="Eliminar"
                                         Style="{StaticResource DangerButtonStyle}"
                                         Command="{Binding DeleteCommand}"

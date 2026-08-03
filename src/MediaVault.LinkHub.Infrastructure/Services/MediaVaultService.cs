@@ -323,6 +323,64 @@ public sealed class MediaVaultService : IMediaVaultService
     return Task.CompletedTask;
   }
 
+  public async Task<MediaFile?> MoveFileAsync(
+    string sourcePath,
+    string destinationDirectoryPath,
+    string indexRootPath,
+    CancellationToken cancellationToken = default)
+  {
+    if (string.IsNullOrWhiteSpace(sourcePath))
+      throw new ArgumentException("La ruta del archivo origen es obligatoria.", nameof(sourcePath));
+
+    if (string.IsNullOrWhiteSpace(destinationDirectoryPath))
+      throw new ArgumentException("La carpeta destino es obligatoria.", nameof(destinationDirectoryPath));
+
+    if (string.IsNullOrWhiteSpace(indexRootPath))
+      throw new ArgumentException("La ruta raíz de indexación es obligatoria.", nameof(indexRootPath));
+
+    var fullRootPath = Path.GetFullPath(indexRootPath);
+    var fullSourcePath = Path.GetFullPath(sourcePath);
+    var fullDestinationDirectory = Path.GetFullPath(destinationDirectoryPath);
+
+    EnsurePathIsWithinRoot(fullSourcePath, fullRootPath);
+    EnsurePathIsWithinRoot(fullDestinationDirectory, fullRootPath);
+
+    if (!File.Exists(fullSourcePath))
+      throw new FileNotFoundException("El archivo origen no existe.", fullSourcePath);
+
+    if (!Directory.Exists(fullDestinationDirectory))
+      throw new DirectoryNotFoundException($"No existe la carpeta destino: {fullDestinationDirectory}");
+
+    var sourceDirectory = Path.GetDirectoryName(fullSourcePath)
+      ?? throw new InvalidOperationException("No se pudo resolver el directorio del archivo origen.");
+
+    if (string.Equals(sourceDirectory, fullDestinationDirectory, StringComparison.OrdinalIgnoreCase))
+      throw new InvalidOperationException("El archivo ya se encuentra en la carpeta seleccionada.");
+
+    var fileName = Path.GetFileName(fullSourcePath);
+    var destinationPath = Path.GetFullPath(Path.Combine(fullDestinationDirectory, fileName));
+
+    if (File.Exists(destinationPath))
+      throw new IOException($"Ya existe un archivo llamado '{fileName}' en la carpeta destino.");
+
+    File.Move(fullSourcePath, destinationPath);
+
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+    var entity = await FindByPathIgnoreCaseAsync(
+        context.MediaFiles.Include(file => file.Categories),
+        fullSourcePath,
+        cancellationToken).ConfigureAwait(false);
+
+    if (entity is null)
+      return null;
+
+    entity.Path = destinationPath;
+    entity.Name = Path.GetFileName(destinationPath);
+    entity.Extension = Path.GetExtension(destinationPath);
+    await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    return entity;
+  }
+
   public async Task DeleteFileAsync(int id, CancellationToken cancellationToken = default)
   {
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
