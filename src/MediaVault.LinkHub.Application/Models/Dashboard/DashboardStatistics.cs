@@ -36,4 +36,11 @@ public sealed class DashboardStatistics
     public int TotalWebLinks { get; init; }
 
     public int TotalQuickNotes { get; init; }
+
+    /// <summary>Suma de <c>VecesAbierto</c> solo en videos.</summary>
+    public int TotalVideoOpens { get; init; }
+
+    public int VideosNeverOpened { get; init; }
+
+    public int VideosUnrated { get; init; }
 }

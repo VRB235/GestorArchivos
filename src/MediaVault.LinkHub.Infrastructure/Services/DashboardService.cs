@@ -155,8 +155,75 @@ public sealed class DashboardService : IDashboardService
       TotalVideos = videos.Count,
       TotalPhotos = photos.Count,
       TotalWebLinks = totalWebLinks,
-      TotalQuickNotes = totalQuickNotes
+      TotalQuickNotes = totalQuickNotes,
+      TotalVideoOpens = videos.Sum(file => file.VecesAbierto),
+      VideosNeverOpened = videos.Count(file => file.VecesAbierto <= 0),
+      VideosUnrated = videos.Count(file => file.RankingGlobal <= 0)
     };
+  }
+
+  public async Task<MediaFileViewStats?> GetVideoRecommendationAsync(
+    int? excludeMediaFileId = null,
+    CancellationToken cancellationToken = default)
+  {
+    var videos = await LoadVideoStatsAsync(cancellationToken).ConfigureAwait(false);
+    return VideoRecommendation.PickWeighted(videos, excludeMediaFileId);
+  }
+
+  public async Task<MediaFileViewStats?> GetRankedVideoRecommendationAsync(
+    IReadOnlyCollection<int> excludeMediaFileIds,
+    CancellationToken cancellationToken = default)
+  {
+    var videos = await LoadVideoStatsAsync(cancellationToken).ConfigureAwait(false);
+    return RankedVideoRecommendation.PickByStarTiers(videos, excludeMediaFileIds);
+  }
+
+  public async Task<MediaFileViewStats?> GetVideoStatsByIdAsync(
+    int mediaFileId,
+    CancellationToken cancellationToken = default)
+  {
+    var videos = await LoadVideoStatsAsync(cancellationToken).ConfigureAwait(false);
+    return videos.FirstOrDefault(file => file.Id == mediaFileId);
+  }
+
+  private async Task<List<MediaFileViewStats>> LoadVideoStatsAsync(CancellationToken cancellationToken)
+  {
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var rows = await context.MediaFiles
+      .AsNoTracking()
+      .Include(file => file.Categories)
+      .Select(file => new
+      {
+        file.Id,
+        file.Name,
+        file.Extension,
+        file.Path,
+        file.VecesAbierto,
+        file.RankingCalidad,
+        file.RankingContenido,
+        file.RankingGusto,
+        CategoryNames = file.Categories
+          .OrderBy(category => category.Name)
+          .Select(category => category.Name)
+          .ToList()
+      })
+      .ToListAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    return rows
+      .Select(row => MapToStats(
+        row.Id,
+        row.Name,
+        row.Extension,
+        row.Path,
+        row.VecesAbierto,
+        row.RankingCalidad,
+        row.RankingContenido,
+        row.RankingGusto,
+        FormatCategoryNames(row.CategoryNames)))
+      .Where(file => file.IsVideo)
+      .ToList();
   }
 
   private static MediaFileViewStats MapToStats(

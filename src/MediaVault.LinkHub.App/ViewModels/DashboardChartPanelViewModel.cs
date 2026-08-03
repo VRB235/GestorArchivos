@@ -24,6 +24,9 @@ public partial class DashboardChartPanelViewModel : ObservableObject
 
     public bool IsPie { get; init; }
 
+    /// <summary>Si el expander de esta sección inicia expandido.</summary>
+    public bool IsExpanded { get; init; }
+
     [ObservableProperty]
     private bool _hasData;
 

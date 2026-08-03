@@ -20,6 +20,7 @@ public static class DependencyInjection
       options.UseSqlite(SqliteDatabasePathProvider.BuildConnectionString(databasePath)));
 
     services.AddSingleton<IAppSettingsService, JsonAppSettingsService>();
+    services.AddSingleton<IRankedVideoRecommendationSession, RankedVideoRecommendationSession>();
 
     services.AddTransient<IWebLinkService, WebLinkService>();
     services.AddTransient<IMediaVaultService, MediaVaultService>();

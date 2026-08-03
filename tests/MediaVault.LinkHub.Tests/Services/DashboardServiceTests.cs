@@ -53,6 +53,36 @@ public sealed class DashboardServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetStatisticsAsync_computes_video_open_and_unrated_metrics()
+    {
+        await SeedDashboardDataAsync();
+
+        var stats = await _sut.GetStatisticsAsync();
+
+        stats.TotalVideos.Should().Be(2);
+        stats.TotalVideoOpens.Should().Be(19);
+        stats.VideosNeverOpened.Should().Be(0);
+        stats.VideosUnrated.Should().Be(1);
+        stats.Top10MostViewedVideos.Select(file => file.Name).Should().ContainInOrder(
+            "popular.mp4",
+            "medio.mp4");
+    }
+
+    [Fact]
+    public async Task GetVideoRecommendationAsync_excludes_requested_id_when_possible()
+    {
+        await SeedDashboardDataAsync();
+
+        var first = await _sut.GetVideoRecommendationAsync();
+        first.Should().NotBeNull();
+
+        var second = await _sut.GetVideoRecommendationAsync(excludeMediaFileId: first!.Id);
+        second.Should().NotBeNull();
+        second!.Id.Should().NotBe(first.Id);
+        second.IsVideo.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetTop10MostViewedAsync_delegates_to_statistics()
     {
         await SeedDashboardDataAsync();
@@ -61,6 +91,49 @@ public sealed class DashboardServiceTests : IDisposable
 
         top.Should().HaveCount(3);
         top[0].VecesAbierto.Should().Be(12);
+    }
+
+    [Fact]
+    public async Task GetRankedVideoRecommendationAsync_skips_excluded_and_only_returns_ranked()
+    {
+        await using var context = _contextFactory.CreateDbContext();
+        context.MediaFiles.AddRange(
+            new MediaFile
+            {
+                Path = @"C:\vault\five.mp4",
+                Name = "five.mp4",
+                Extension = ".mp4",
+                RankingCalidad = 5,
+                RankingContenido = 5,
+                RankingGusto = 5
+            },
+            new MediaFile
+            {
+                Path = @"C:\vault\four.mp4",
+                Name = "four.mp4",
+                Extension = ".mp4",
+                RankingCalidad = 4,
+                RankingContenido = 4,
+                RankingGusto = 4
+            },
+            new MediaFile
+            {
+                Path = @"C:\vault\unrated.mp4",
+                Name = "unrated.mp4",
+                Extension = ".mp4"
+            });
+        await context.SaveChangesAsync();
+
+        var fiveStar = await _sut.GetRankedVideoRecommendationAsync([]);
+        fiveStar.Should().NotBeNull();
+        fiveStar!.Name.Should().Be("five.mp4");
+
+        var next = await _sut.GetRankedVideoRecommendationAsync([fiveStar.Id]);
+        next.Should().NotBeNull();
+        next!.Name.Should().Be("four.mp4");
+
+        var none = await _sut.GetRankedVideoRecommendationAsync([fiveStar.Id, next.Id]);
+        none.Should().BeNull();
     }
 
     private async Task SeedDashboardDataAsync()
