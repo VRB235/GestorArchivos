@@ -1,0 +1,249 @@
+<UserControl x:Class="MediaVault.LinkHub.App.Views.LinkManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:converters="clr-namespace:MediaVault.LinkHub.App.Converters"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <converters:WebLinkLogoImageConverter x:Key="WebLinkLogoImageConverter" />
+        <converters:WebLinkTileBrushConverter x:Key="WebLinkTileBrushConverter" />
+        <converters:LinkCategoryGlyphConverter x:Key="LinkCategoryGlyphConverter" />
+        <converters:DateTimeLocalConverter x:Key="DateTimeLocalConverter" />
+
+        <Style x:Key="LinkTileListBoxItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="TileBorder"
+                                Background="Transparent"
+                                BorderBrush="{StaticResource AccentBrush}"
+                                BorderThickness="0"
+                                CornerRadius="12"
+                                Padding="6"
+                                Margin="6">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TileBorder" Property="Background" Value="#243B63" />
+                                <Setter TargetName="TileBorder" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TileBorder" Property="Background" Value="#1A2233" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,8,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Abrir incógnito"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Command="{Binding OpenCommand}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <TextBlock Text="Filtrar por categoría"
+                                   Style="{StaticResource LabelStyle}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0" />
+                        <ComboBox ItemsSource="{Binding CategoryFilters}"
+                                  SelectedItem="{Binding SelectedCategoryFilter}"
+                                  DisplayMemberPath="Label"
+                                  Width="220"
+                                  Margin="0" />
+                    </StackPanel>
+                </StackPanel>
+
+                <ListBox x:Name="LinksListBox"
+                         ItemsSource="{Binding WebLinks}"
+                         SelectedItem="{Binding SelectedWebLink}"
+                         ItemContainerStyle="{StaticResource LinkTileListBoxItemStyle}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         MouseDoubleClick="LinksListBox_MouseDoubleClick"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Width="118" HorizontalAlignment="Center">
+                                    <Grid Width="96" Height="96" Margin="0,0,0,8">
+                                        <Border CornerRadius="12"
+                                                Background="{Binding Converter={StaticResource WebLinkTileBrushConverter}}" />
+
+                                        <Image Source="{Binding Converter={StaticResource WebLinkLogoImageConverter}}"
+                                               Stretch="UniformToFill"
+                                               Margin="2">
+                                            <Image.Clip>
+                                                <RectangleGeometry RadiusX="10" RadiusY="10" Rect="0,0,92,92" />
+                                            </Image.Clip>
+                                        </Image>
+
+                                        <TextBlock Text="{Binding Categoria, Converter={StaticResource LinkCategoryGlyphConverter}}"
+                                                   FontSize="28"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="#E5E7EB">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding LogoPath}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding LogoPath}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+
+                                    <TextBlock Text="{Binding Nombre}"
+                                               TextWrapping="Wrap"
+                                               TextAlignment="Center"
+                                               FontWeight="SemiBold"
+                                               MaxHeight="40"
+                                               TextTrimming="CharacterEllipsis" />
+
+                                    <TextBlock Text="{Binding Categoria}"
+                                               TextAlignment="Center"
+                                               FontSize="11"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,2,0,0" />
+
+                                    <TextBlock Text="{Binding FechaUltimaActualizacion, Converter={StaticResource DateTimeLocalConverter}, TargetNullValue='Sin registrar'}"
+                                               TextAlignment="Center"
+                                               FontSize="10"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="8,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Detalle del enlace" Style="{StaticResource SectionTitleStyle}" />
+
+                    <Border Width="96"
+                            Height="96"
+                            CornerRadius="12"
+                            Margin="0,0,0,12"
+                            HorizontalAlignment="Left"
+                            Background="{Binding SelectedWebLink, Converter={StaticResource WebLinkTileBrushConverter}}">
+                        <Grid>
+                            <Image Source="{Binding SelectedWebLink, Converter={StaticResource WebLinkLogoImageConverter}}"
+                                   Stretch="UniformToFill"
+                                   Margin="2">
+                                <Image.Clip>
+                                    <RectangleGeometry RadiusX="10" RadiusY="10" Rect="0,0,92,92" />
+                                </Image.Clip>
+                            </Image>
+                            <TextBlock Text="{Binding Categoria, Converter={StaticResource LinkCategoryGlyphConverter}}"
+                                       FontSize="28"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="#E5E7EB">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding LogoPath}" Value="{x:Null}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding LogoPath}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="Nombre" Style="{StaticResource LabelStyle}" />
+                    <TextBox Text="{Binding Nombre, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="URL" Style="{StaticResource LabelStyle}" />
+                    <TextBox Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Categoría" Style="{StaticResource LabelStyle}" />
+                    <ComboBox ItemsSource="{Binding Categories}"
+                              SelectedItem="{Binding Categoria}" />
+
+                    <TextBlock Text="Logo (ruta local)" Style="{StaticResource LabelStyle}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding LogoPath, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,8,10" />
+                        <Button Grid.Column="1"
+                                Content="Examinar"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding BrowseLogoCommand}" />
+                    </Grid>
+
+                    <TextBlock Text="Última visita (usuario)" Style="{StaticResource LabelStyle}" />
+                    <TextBlock Text="Registre cuándo revisó el sitio tras abrirlo en el navegador."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+
+                    <DatePicker SelectedDate="{Binding FechaVisitaSeleccionada}"
+                                Margin="0,0,0,8" />
+
+                    <TextBlock Text="{Binding FechaUltimaActualizacionTexto}"
+                               Foreground="{StaticResource AccentBrush}"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,8" />
+
+                    <WrapPanel Margin="0,0,0,12">
+                        <Button Content="Marcar visitado ahora"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Command="{Binding MarkAsVisitedCommand}" />
+                        <Button Content="Limpiar fecha"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding ClearVisitDateCommand}" />
+                    </WrapPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Guardar" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding SaveCommand}" />
+                        <Button Content="Nuevo" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding ClearFormCommand}" />
+                        <Button Content="Eliminar" Style="{StaticResource DangerButtonStyle}" Command="{Binding DeleteCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

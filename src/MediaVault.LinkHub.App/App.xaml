@@ -1,0 +1,35 @@
+﻿<Application x:Class="MediaVault.LinkHub.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MediaVault.LinkHub.App.ViewModels"
+             xmlns:views="clr-namespace:MediaVault.LinkHub.App.Views"
+             xmlns:converters="clr-namespace:MediaVault.LinkHub.App.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+
+            <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+                <views:DashboardView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:LinkManagerViewModel}">
+                <views:LinkManagerView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:MediaVaultViewModel}">
+                <views:MediaVaultView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:VideoCategoryManagerViewModel}">
+                <views:VideoCategoryManagerView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ScratchpadViewModel}">
+                <views:ScratchpadView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+                <views:SettingsView />
+            </DataTemplate>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

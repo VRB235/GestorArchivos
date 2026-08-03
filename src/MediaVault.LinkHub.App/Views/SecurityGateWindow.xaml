@@ -1,0 +1,86 @@
+<Window x:Class="MediaVault.LinkHub.App.Views.SecurityGateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:MediaVault.LinkHub.App.Converters"
+        Title="Acceso seguro"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        Width="420"
+        Height="Auto"
+        SizeToContent="Height"
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+    </Window.Resources>
+    <Border Background="{StaticResource SurfaceBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="28">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,18">
+                <TextBlock Text="{Binding Title}"
+                           Style="{StaticResource SectionTitleStyle}"
+                           FontSize="20" />
+                <TextBlock Text="{Binding Subtitle}"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,8,0,0"
+                           LineHeight="20" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1"
+                        x:Name="PinPanel"
+                        Visibility="{Binding IsPasswordStep, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                <TextBlock Text="PIN de seguridad"
+                           Style="{StaticResource LabelStyle}" />
+                <PasswordBox x:Name="PinBox"
+                             Margin="0,6,0,0"
+                             MaxLength="16"
+                             KeyDown="InputBox_KeyDown" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1"
+                        x:Name="PasswordPanel"
+                        Visibility="{Binding IsPasswordStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Contraseña"
+                           Style="{StaticResource LabelStyle}" />
+                <PasswordBox x:Name="PasswordBox"
+                             Margin="0,6,0,0"
+                             KeyDown="InputBox_KeyDown" />
+            </StackPanel>
+
+            <Border Grid.Row="2"
+                    Background="#2A1F1F"
+                    BorderBrush="{StaticResource DangerBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="10,8"
+                    Margin="0,14,0,0"
+                    Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}">
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="#FCA5A5"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <Button Grid.Row="3"
+                    Content="{Binding PrimaryActionLabel}"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Margin="0,18,0,0"
+                    Padding="16,10"
+                    HorizontalAlignment="Stretch"
+                    Click="SubmitButton_Click" />
+        </Grid>
+    </Border>
+</Window>

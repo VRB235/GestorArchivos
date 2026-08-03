@@ -1,0 +1,169 @@
+<UserControl x:Class="MediaVault.LinkHub.App.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+             xmlns:charts="clr-namespace:MediaVault.LinkHub.App.Charts"
+             xmlns:lvccore="clr-namespace:LiveChartsCore.Measure;assembly=LiveChartsCore"
+             xmlns:controls="clr-namespace:MediaVault.LinkHub.App.Controls"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <DataTemplate x:Key="DashboardBarChartTemplate">
+            <lvc:CartesianChart Height="320"
+                                Background="Transparent"
+                                Series="{Binding Series}"
+                                XAxes="{Binding XAxes}"
+                                YAxes="{Binding YAxes}"
+                                DrawMarginFrame="{Binding DrawMarginFrame}"
+                                LegendPosition="Hidden"
+                                FindingStrategy="ExactMatch"
+                                TooltipPosition="{x:Static lvccore:TooltipPosition.Hidden}"
+                                Cursor="Hand" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="DashboardPieChartTemplate">
+            <lvc:PieChart Height="320"
+                          Background="Transparent"
+                          Series="{Binding Series}"
+                          LegendPosition="Right"
+                          LegendTextPaint="#9CA3AF"
+                          TooltipTextPaint="#F3F4F6"
+                          TooltipBackgroundPaint="#1C1F2B" />
+        </DataTemplate>
+
+        <charts:DashboardChartTemplateSelector x:Key="DashboardChartTemplateSelector"
+                                             BarChartTemplate="{StaticResource DashboardBarChartTemplate}"
+                                             PieChartTemplate="{StaticResource DashboardPieChartTemplate}" />
+
+        <DataTemplate x:Key="DashboardChartSectionTemplate">
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitleStyle}" />
+
+                    <TextBlock Text="{Binding FileOpenHint}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               Margin="0,0,0,8"
+                               Visibility="{Binding SupportsFileOpen, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                    <Grid Visibility="{Binding HasData, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <ContentControl Grid.Column="0"
+                                        Content="{Binding}"
+                                        ContentTemplateSelector="{StaticResource DashboardChartTemplateSelector}" />
+
+                        <Border Grid.Column="1"
+                                Width="136"
+                                Margin="12,0,0,0"
+                                VerticalAlignment="Center"
+                                Background="#1C1F2B"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="8"
+                                Visibility="{Binding ShowHoverPreview, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel>
+                                <Image Source="{Binding HoverPreview}"
+                                       Width="120"
+                                       Height="120"
+                                       Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Text="{Binding HoverPreviewCaption}"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           FontSize="11"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Margin="0,6,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <TextBlock Text="{Binding EmptyMessage}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,12,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasData}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <WrapPanel Margin="0,0,0,16">
+                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="Archivos" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="{Binding TotalMediaFiles}" FontSize="28" FontWeight="Bold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="Videos" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="{Binding TotalVideos}" FontSize="28" FontWeight="Bold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="Fotos" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="{Binding TotalPhotos}" FontSize="28" FontWeight="Bold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="Enlaces" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="{Binding TotalWebLinks}" FontSize="28" FontWeight="Bold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="Notas" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="{Binding TotalQuickNotes}" FontSize="28" FontWeight="Bold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="Ranking global" Style="{StaticResource LabelStyle}" />
+                        <controls:StarRatingControl Rating="{Binding AverageGlobalRankingStars, Mode=OneWay}"
+                                                    IsInteractive="False"
+                                                    Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,0">
+                    <StackPanel>
+                        <TextBlock Text="Ranking videos" Style="{StaticResource LabelStyle}" />
+                        <controls:StarRatingControl Rating="{Binding AverageVideoRankingStars, Mode=OneWay}"
+                                                    IsInteractive="False"
+                                                    Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardBorderStyle}" Width="190">
+                    <StackPanel>
+                        <TextBlock Text="Ranking fotos" Style="{StaticResource LabelStyle}" />
+                        <controls:StarRatingControl Rating="{Binding AveragePhotoRankingStars, Mode=OneWay}"
+                                                    IsInteractive="False"
+                                                    Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <ItemsControl ItemsSource="{Binding ChartSections}"
+                          ItemTemplate="{StaticResource DashboardChartSectionTemplate}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
