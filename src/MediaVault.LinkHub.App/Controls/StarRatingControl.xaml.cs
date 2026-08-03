@@ -14,7 +14,10 @@ public partial class StarRatingControl : UserControl
             nameof(Rating),
             typeof(int),
             typeof(StarRatingControl),
-            new FrameworkPropertyMetadata(0, OnRatingChanged));
+            new FrameworkPropertyMetadata(
+                0,
+                FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+                OnRatingChanged));
 
     public static readonly DependencyProperty IsInteractiveProperty =
         DependencyProperty.Register(

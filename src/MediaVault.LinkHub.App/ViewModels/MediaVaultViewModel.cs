@@ -758,6 +758,10 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 RankingGusto = 0;
                 OnPropertyChanged(nameof(CanEditSelectedFile));
                 NotifyFileCategoryStateChanged();
+
+                if (MediaFileExtensions.IsSupported(value.FullPath))
+                    _ = EnsureSelectedFileIndexedAsync(value.FullPath);
+
                 return;
             }
 
@@ -774,6 +778,90 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         {
             _suppressRankingPersistence = false;
         }
+    }
+
+    private async Task EnsureSelectedFileIndexedAsync(string filePath)
+    {
+        try
+        {
+            ErrorMessage = null;
+            var mediaFile = await _mediaVaultService.EnsureIndexedAsync(filePath).ConfigureAwait(true);
+            if (SelectedBrowserEntryItem is null
+                || !string.Equals(SelectedBrowserEntryItem.FullPath, filePath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            await BrowseDirectoryAsync(CurrentDirectoryPath, reselectMediaFileId: mediaFile.Id).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private void ApplyUpdatedMediaFileLocally(MediaFile updated)
+    {
+        if (SelectedMediaFile?.Id == updated.Id)
+            SelectedMediaFile = updated;
+
+        for (var index = 0; index < _directoryEntries.Count; index++)
+        {
+            var entry = _directoryEntries[index];
+            if (entry.IsDirectory || entry.MediaFile is null || entry.MediaFile.Id != updated.Id)
+                continue;
+
+            _directoryEntries[index] = new MediaVaultBrowserEntry
+            {
+                Name = entry.Name,
+                FullPath = entry.FullPath,
+                IsDirectory = false,
+                FileType = entry.FileType,
+                CreatedAtUtc = entry.CreatedAtUtc,
+                ModifiedAtUtc = entry.ModifiedAtUtc,
+                MediaFile = updated,
+                CustomIconPath = entry.CustomIconPath
+            };
+            break;
+        }
+
+        if (SelectedBrowserEntryItem?.MediaFile?.Id == updated.Id)
+        {
+            var index = BrowserEntries.IndexOf(SelectedBrowserEntryItem);
+            if (index >= 0)
+            {
+                var refreshed = new MediaVaultBrowserEntryItem(
+                    new MediaVaultBrowserEntry
+                    {
+                        Name = SelectedBrowserEntryItem.Name,
+                        FullPath = SelectedBrowserEntryItem.FullPath,
+                        IsDirectory = false,
+                        FileType = SelectedBrowserEntryItem.FileType,
+                        CreatedAtUtc = SelectedBrowserEntryItem.Entry.CreatedAtUtc,
+                        ModifiedAtUtc = SelectedBrowserEntryItem.Entry.ModifiedAtUtc,
+                        MediaFile = updated,
+                        CustomIconPath = SelectedBrowserEntryItem.Entry.CustomIconPath
+                    })
+                {
+                    Thumbnail = SelectedBrowserEntryItem.Thumbnail
+                };
+
+                BrowserEntries[index] = refreshed;
+                _suppressRankingPersistence = true;
+                _suppressCategoryPersistence = true;
+                try
+                {
+                    SelectedBrowserEntryItem = refreshed;
+                }
+                finally
+                {
+                    _suppressRankingPersistence = false;
+                    _suppressCategoryPersistence = false;
+                }
+            }
+        }
+
+        ApplyCurrentDirectoryRanking(_directoryEntries);
     }
 
     partial void OnRankingCalidadChanged(int value) => _ = PersistRankingsIfNeededAsync();
@@ -1038,18 +1126,19 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         if (SelectedMediaFile is null)
             return;
 
-        var fileId = SelectedMediaFile.Id;
-        var currentDirectory = CurrentDirectoryPath;
-
         try
         {
             ErrorMessage = null;
-            await _mediaVaultService.UpdateRankingsAsync(
-                fileId,
+            var updated = await _mediaVaultService.UpdateRankingsAsync(
+                SelectedMediaFile.Id,
                 MediaFileRankingScale.ToStorage(RankingCalidad),
                 MediaFileRankingScale.ToStorage(RankingContenido),
                 MediaFileRankingScale.ToStorage(RankingGusto)).ConfigureAwait(true);
-            await BrowseDirectoryAsync(currentDirectory, reselectMediaFileId: fileId).ConfigureAwait(true);
+
+            ApplyUpdatedMediaFileLocally(updated);
+            OnPropertyChanged(nameof(RankingGlobal));
+            OnPropertyChanged(nameof(RankingGlobalStars));
+            OnPropertyChanged(nameof(HasFileRanking));
         }
         catch (Exception ex)
         {
@@ -1100,8 +1189,6 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         if (SelectedMediaFile is null || !CanAssignVideoCategory)
             return;
 
-        var fileId = SelectedMediaFile.Id;
-        var currentDirectory = CurrentDirectoryPath;
         var categoryIds = FileCategorySelections
             .Where(item => item.IsSelected)
             .Select(item => item.CategoryId)
@@ -1110,8 +1197,10 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         try
         {
             ErrorMessage = null;
-            await _mediaVaultService.UpdateCategoriesAsync(fileId, categoryIds).ConfigureAwait(true);
-            await BrowseDirectoryAsync(currentDirectory, reselectMediaFileId: fileId).ConfigureAwait(true);
+            var updated = await _mediaVaultService.UpdateCategoriesAsync(SelectedMediaFile.Id, categoryIds)
+                .ConfigureAwait(true);
+            ApplyUpdatedMediaFileLocally(updated);
+            SyncFileCategorySelections(updated);
         }
         catch (Exception ex)
         {

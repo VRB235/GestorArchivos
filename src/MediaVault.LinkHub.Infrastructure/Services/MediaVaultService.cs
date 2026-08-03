@@ -158,19 +158,7 @@ public sealed class MediaVaultService : IMediaVaultService
       .Select(Path.GetFullPath)
       .ToList();
 
-    Dictionary<string, MediaFile> indexedByPath = new(StringComparer.OrdinalIgnoreCase);
-    if (filePaths.Count > 0)
-    {
-      await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-      var indexedFiles = await context.MediaFiles
-        .AsNoTracking()
-        .Include(file => file.Categories)
-        .Where(file => filePaths.Contains(file.Path))
-        .ToListAsync(cancellationToken)
-        .ConfigureAwait(false);
-
-      indexedByPath = indexedFiles.ToDictionary(file => file.Path, StringComparer.OrdinalIgnoreCase);
-    }
+    var indexedByPath = await LoadIndexedFilesByPathAsync(filePaths, cancellationToken).ConfigureAwait(false);
 
     foreach (var filePath in filePaths)
     {
@@ -231,10 +219,47 @@ public sealed class MediaVaultService : IMediaVaultService
     var normalizedPath = Path.GetFullPath(path);
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
-    return await context.MediaFiles
-      .AsNoTracking()
-      .FirstOrDefaultAsync(file => file.Path == normalizedPath, cancellationToken)
-      .ConfigureAwait(false);
+    return await FindByPathIgnoreCaseAsync(
+        context.MediaFiles.AsNoTracking().Include(file => file.Categories),
+        normalizedPath,
+        cancellationToken).ConfigureAwait(false);
+  }
+
+  /// <summary>
+  /// Garantiza que un archivo multimedia exista en el índice SQLite (crea el registro si falta).
+  /// </summary>
+  public async Task<MediaFile> EnsureIndexedAsync(string filePath, CancellationToken cancellationToken = default)
+  {
+    if (string.IsNullOrWhiteSpace(filePath))
+      throw new ArgumentException("La ruta del archivo es obligatoria.", nameof(filePath));
+
+    var normalizedPath = Path.GetFullPath(filePath);
+    if (!File.Exists(normalizedPath))
+      throw new FileNotFoundException("No se encontró el archivo a indexar.", normalizedPath);
+
+    if (!MediaFileExtensions.IsSupported(normalizedPath))
+      throw new InvalidOperationException("Solo se pueden indexar archivos de imagen o video soportados.");
+
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var existing = await FindByPathIgnoreCaseAsync(
+        context.MediaFiles.Include(file => file.Categories),
+        normalizedPath,
+        cancellationToken).ConfigureAwait(false);
+
+    if (existing is not null)
+      return existing;
+
+    var entity = new MediaFile
+    {
+      Path = normalizedPath,
+      Name = Path.GetFileName(normalizedPath),
+      Extension = Path.GetExtension(normalizedPath)
+    };
+
+    context.MediaFiles.Add(entity);
+    await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    return entity;
   }
 
   public async Task<MediaFile> RenameFileAsync(
@@ -334,6 +359,8 @@ public sealed class MediaVaultService : IMediaVaultService
     entity.RankingGusto = rankingGusto;
 
     await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+    await context.Entry(entity).Collection(file => file.Categories).LoadAsync(cancellationToken).ConfigureAwait(false);
     return entity;
   }
 
@@ -445,6 +472,66 @@ public sealed class MediaVaultService : IMediaVaultService
   {
     if (value is < 0 or > MediaFileRankingScale.MaxStars)
       throw new ArgumentOutOfRangeException(paramName, "El ranking debe estar entre 0 y 5 estrellas.");
+  }
+
+  private async Task<Dictionary<string, MediaFile>> LoadIndexedFilesByPathAsync(
+    IReadOnlyList<string> filePaths,
+    CancellationToken cancellationToken)
+  {
+    var indexedByPath = new Dictionary<string, MediaFile>(StringComparer.OrdinalIgnoreCase);
+    if (filePaths.Count == 0)
+      return indexedByPath;
+
+    var filePathSet = filePaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    // SQLite compara strings con sensibilidad a mayúsculas; se carga y empareja en memoria.
+    var indexedFiles = await context.MediaFiles
+      .AsNoTracking()
+      .Include(file => file.Categories)
+      .ToListAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    foreach (var file in indexedFiles)
+    {
+      string normalized;
+      try
+      {
+        normalized = Path.GetFullPath(file.Path);
+      }
+      catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+      {
+        continue;
+      }
+
+      if (!filePathSet.Contains(normalized))
+        continue;
+
+      indexedByPath.TryAdd(normalized, file);
+    }
+
+    return indexedByPath;
+  }
+
+  private static async Task<MediaFile?> FindByPathIgnoreCaseAsync(
+    IQueryable<MediaFile> query,
+    string normalizedPath,
+    CancellationToken cancellationToken)
+  {
+    var exact = await query
+      .FirstOrDefaultAsync(file => file.Path == normalizedPath, cancellationToken)
+      .ConfigureAwait(false);
+    if (exact is not null)
+      return exact;
+
+    var fileName = Path.GetFileName(normalizedPath);
+    var candidates = await query
+      .Where(file => file.Name == fileName)
+      .ToListAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    return candidates.FirstOrDefault(file =>
+      string.Equals(Path.GetFullPath(file.Path), normalizedPath, StringComparison.OrdinalIgnoreCase));
   }
 
   private static void EnsurePathIsWithinRoot(string fullPath, string fullRootPath)

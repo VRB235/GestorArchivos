@@ -88,6 +88,39 @@ public sealed class MediaVaultServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ListDirectoryEntriesAsync_matches_indexed_path_ignoring_case()
+    {
+        var filePath = Path.Combine(_rootDirectory, "CaseClip.mp4");
+        await File.WriteAllTextAsync(filePath, "video");
+
+        var storedPath = filePath.ToLowerInvariant();
+        await SeedIndexedFileAsync("CaseClip.mp4", storedPath, vecesAbierto: 2);
+
+        var entries = await _sut.ListDirectoryEntriesAsync(_rootDirectory, _rootDirectory);
+
+        entries.Should().Contain(entry =>
+            !entry.IsDirectory
+            && entry.Name == "CaseClip.mp4"
+            && entry.MediaFile != null
+            && entry.MediaFile.VecesAbierto == 2);
+    }
+
+    [Fact]
+    public async Task EnsureIndexedAsync_creates_missing_media_file_record()
+    {
+        var filePath = Path.Combine(_rootDirectory, "new-index.mp4");
+        await File.WriteAllTextAsync(filePath, "video");
+
+        var created = await _sut.EnsureIndexedAsync(filePath);
+
+        created.Id.Should().BeGreaterThan(0);
+        created.Path.Should().Be(Path.GetFullPath(filePath));
+
+        var again = await _sut.EnsureIndexedAsync(filePath);
+        again.Id.Should().Be(created.Id);
+    }
+
+    [Fact]
     public async Task ClearAllMediaMetadataAsync_resets_rankings_categories_and_open_counts()
     {
         await using var context = _contextFactory.CreateDbContext();

@@ -31,6 +31,11 @@ public interface IMediaVaultService
 
     Task<MediaFile?> GetByPathAsync(string path, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Garantiza que un archivo multimedia exista en el índice (lo crea si aún no está).
+    /// </summary>
+    Task<MediaFile> EnsureIndexedAsync(string filePath, CancellationToken cancellationToken = default);
+
     Task<MediaFile> RenameFileAsync(
         int id,
         string newName,
