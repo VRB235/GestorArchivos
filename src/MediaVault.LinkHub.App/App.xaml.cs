@@ -22,6 +22,10 @@ public partial class App : System.Windows.Application
         LiveCharts.Configure(config =>
             config.AddSkiaSharp().AddDefaultMappers());
 
+#if DEBUG
+        // En desarrollo (Debug) se omite PIN/contraseña para agilizar iteración.
+        AppSecurityContext.AccessMode = SecurityAccessMode.Full;
+#else
         var securityGate = new Views.SecurityGateWindow();
         if (securityGate.ShowDialog() != true)
         {
@@ -30,6 +34,7 @@ public partial class App : System.Windows.Application
         }
 
         AppSecurityContext.AccessMode = securityGate.AccessMode;
+#endif
 
         try
         {

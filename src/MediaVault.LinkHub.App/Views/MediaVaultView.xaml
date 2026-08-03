@@ -418,6 +418,14 @@
                                                FontSize="11"
                                                Foreground="{StaticResource TextSecondaryBrush}"
                                                Margin="0,2,0,0" />
+
+                                    <TextBlock Text="{Binding OpenCountLabel}"
+                                               TextAlignment="Center"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               Margin="0,2,0,0"
+                                               Visibility="{Binding ShowOpenCount, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -547,6 +555,14 @@
                             <TextBlock Text="Nuevo nombre" Style="{StaticResource LabelStyle}" />
                             <TextBox Text="{Binding NewFileName, UpdateSourceTrigger=PropertyChanged}"
                                      IsEnabled="{Binding CanEditSelectedFile}" />
+
+                            <StackPanel Margin="0,0,0,12"
+                                        Visibility="{Binding CanEditSelectedFile, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Aperturas" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="{Binding SelectedMediaFile.VecesAbierto, StringFormat={}{0} veces}"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,0" />
+                            </StackPanel>
 
                             <StackPanel Margin="0,0,0,12"
                                         Visibility="{Binding ShowFileCategorySection, Converter={StaticResource BooleanToVisibilityConverter}}">

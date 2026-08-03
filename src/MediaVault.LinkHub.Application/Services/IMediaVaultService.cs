@@ -68,8 +68,9 @@ public interface IMediaVaultService
     /// <summary>
     /// Ejecuta el archivo e incrementa <see cref="MediaFile.VecesAbierto"/>.
     /// </summary>
+    /// <returns>La entidad actualizada, o <c>null</c> si no se pudo abrir.</returns>
     /// <param name="preferVlc">Si es true, intenta abrir con VLC cuando esté instalado.</param>
-    Task<bool> OpenFileAsync(
+    Task<MediaFile?> OpenFileAsync(
         int id,
         bool preferVlc = false,
         CancellationToken cancellationToken = default);

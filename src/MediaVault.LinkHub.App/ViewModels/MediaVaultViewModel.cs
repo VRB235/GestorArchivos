@@ -49,7 +49,8 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             new BrowserSortOption("Nombre", MediaVaultBrowserSortField.Name),
             new BrowserSortOption("Fecha de creación", MediaVaultBrowserSortField.Created),
             new BrowserSortOption("Fecha de actualización", MediaVaultBrowserSortField.Modified),
-            new BrowserSortOption("Tipo de archivo", MediaVaultBrowserSortField.FileType)
+            new BrowserSortOption("Tipo de archivo", MediaVaultBrowserSortField.FileType),
+            new BrowserSortOption("Veces abierto", MediaVaultBrowserSortField.OpenCount)
         ];
 
         SortDirections =
@@ -486,8 +487,18 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         return result;
     }
 
-    partial void OnSelectedSortOptionChanged(BrowserSortOption? value) =>
+    partial void OnSelectedSortOptionChanged(BrowserSortOption? value)
+    {
+        if (value?.Field == MediaVaultBrowserSortField.OpenCount
+            && SortDirections.Count > 1
+            && SelectedSortDirection?.IsAscending == true)
+        {
+            SelectedSortDirection = SortDirections.FirstOrDefault(option => !option.IsAscending)
+                ?? SelectedSortDirection;
+        }
+
         ApplySortToBrowser();
+    }
 
     partial void OnSelectedSortDirectionChanged(BrowserSortDirectionOption? value) =>
         ApplySortToBrowser();
@@ -613,6 +624,11 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                     .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
                 : query.OrderByDescending(entry => entry.FileType, StringComparer.OrdinalIgnoreCase)
                     .ThenByDescending(entry => entry.Name, StringComparer.OrdinalIgnoreCase),
+            MediaVaultBrowserSortField.OpenCount => ascending
+                ? query.OrderBy(entry => entry.MediaFile?.VecesAbierto ?? 0)
+                    .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                : query.OrderByDescending(entry => entry.MediaFile?.VecesAbierto ?? 0)
+                    .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase),
             _ => ascending
                 ? query.OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
                 : query.OrderByDescending(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
@@ -919,22 +935,29 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     private async Task OpenBrowserFileAsync(MediaVaultBrowserEntryItem item)
     {
-        if (item.MediaFile is not null)
+        if (!File.Exists(item.FullPath))
         {
-            var fileId = item.MediaFile.Id;
-            var currentDirectory = CurrentDirectoryPath;
+            ErrorMessage = "El archivo no existe.";
+            return;
+        }
 
+        // Multimedia: siempre indexar + OpenFileAsync para incrementar VecesAbierto.
+        if (MediaFileExtensions.IsSupported(item.FullPath))
+        {
             try
             {
                 ErrorMessage = null;
-                var opened = await _mediaVaultService.OpenFileAsync(fileId).ConfigureAwait(true);
-                if (!opened)
+                var mediaFile = item.MediaFile
+                    ?? await _mediaVaultService.EnsureIndexedAsync(item.FullPath).ConfigureAwait(true);
+
+                var opened = await _mediaVaultService.OpenFileAsync(mediaFile.Id).ConfigureAwait(true);
+                if (opened is null)
                 {
                     ErrorMessage = "No se pudo abrir el archivo.";
                     return;
                 }
 
-                await BrowseDirectoryAsync(currentDirectory, reselectMediaFileId: fileId).ConfigureAwait(true);
+                ApplyUpdatedMediaFileLocally(opened);
             }
             catch (Exception ex)
             {
@@ -944,12 +967,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             return;
         }
 
-        if (!File.Exists(item.FullPath))
-        {
-            ErrorMessage = "El archivo no existe.";
-            return;
-        }
-
+        // Archivos no multimedia: apertura nativa sin contador.
         try
         {
             ErrorMessage = null;
@@ -1152,16 +1170,13 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         if (SelectedMediaFile is null)
             return;
 
-        var fileId = SelectedMediaFile.Id;
-        var currentDirectory = CurrentDirectoryPath;
-
         await ExecuteBusyAsync(async () =>
         {
-            var opened = await _mediaVaultService.OpenFileAsync(fileId).ConfigureAwait(true);
-            if (!opened)
+            var opened = await _mediaVaultService.OpenFileAsync(SelectedMediaFile.Id).ConfigureAwait(true);
+            if (opened is null)
                 throw new InvalidOperationException("No se pudo abrir el archivo.");
 
-            await BrowseDirectoryAsync(currentDirectory, reselectMediaFileId: fileId).ConfigureAwait(true);
+            ApplyUpdatedMediaFileLocally(opened);
         }, "Abriendo archivo...").ConfigureAwait(true);
     }
 
@@ -1171,16 +1186,13 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         if (SelectedMediaFile is null)
             return;
 
-        var fileId = SelectedMediaFile.Id;
-        var currentDirectory = CurrentDirectoryPath;
-
         await ExecuteBusyAsync(async () =>
         {
-            var opened = await _mediaVaultService.OpenFileAsync(fileId, preferVlc: true).ConfigureAwait(true);
-            if (!opened)
+            var opened = await _mediaVaultService.OpenFileAsync(SelectedMediaFile.Id, preferVlc: true).ConfigureAwait(true);
+            if (opened is null)
                 throw new InvalidOperationException("No se pudo abrir el archivo con VLC.");
 
-            await BrowseDirectoryAsync(currentDirectory, reselectMediaFileId: fileId).ConfigureAwait(true);
+            ApplyUpdatedMediaFileLocally(opened);
         }, "Abriendo con VLC...").ConfigureAwait(true);
     }
 

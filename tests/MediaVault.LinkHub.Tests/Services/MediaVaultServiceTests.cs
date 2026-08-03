@@ -106,18 +106,35 @@ public sealed class MediaVaultServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EnsureIndexedAsync_creates_missing_media_file_record()
+    public async Task OpenFileAsync_increments_veces_abierto()
     {
-        var filePath = Path.Combine(_rootDirectory, "new-index.mp4");
+        var filePath = Path.Combine(_rootDirectory, "opened.jpg");
+        await File.WriteAllTextAsync(filePath, "image");
+        var indexed = await SeedIndexedFileAsync("opened.jpg", filePath);
+
+        var opened = await _sut.OpenFileAsync(indexed.Id);
+
+        opened.Should().NotBeNull();
+        opened!.VecesAbierto.Should().Be(1);
+
+        var again = await _sut.OpenFileAsync(indexed.Id);
+        again.Should().NotBeNull();
+        again!.VecesAbierto.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task EnsureIndexedAsync_then_OpenFileAsync_counts_first_open()
+    {
+        var filePath = Path.Combine(_rootDirectory, "first-open.mp4");
         await File.WriteAllTextAsync(filePath, "video");
 
-        var created = await _sut.EnsureIndexedAsync(filePath);
+        var indexed = await _sut.EnsureIndexedAsync(filePath);
+        indexed.VecesAbierto.Should().Be(0);
 
-        created.Id.Should().BeGreaterThan(0);
-        created.Path.Should().Be(Path.GetFullPath(filePath));
+        var opened = await _sut.OpenFileAsync(indexed.Id);
 
-        var again = await _sut.EnsureIndexedAsync(filePath);
-        again.Id.Should().Be(created.Id);
+        opened.Should().NotBeNull();
+        opened!.VecesAbierto.Should().Be(1);
     }
 
     [Fact]

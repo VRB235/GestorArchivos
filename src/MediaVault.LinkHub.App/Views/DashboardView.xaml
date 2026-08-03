@@ -37,10 +37,16 @@
                                              PieChartTemplate="{StaticResource DashboardPieChartTemplate}" />
 
         <DataTemplate x:Key="DashboardChartSectionTemplate">
-            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
-                <StackPanel>
-                    <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitleStyle}" />
+            <Expander Style="{StaticResource DashboardExpanderStyle}"
+                      IsExpanded="False">
+                <Expander.Header>
+                    <TextBlock Text="{Binding Title}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                </Expander.Header>
 
+                <StackPanel>
                     <TextBlock Text="{Binding FileOpenHint}"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="11"
@@ -99,68 +105,78 @@
                         </TextBlock.Style>
                     </TextBlock>
                 </StackPanel>
-            </Border>
+            </Expander>
         </DataTemplate>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
-            <WrapPanel Margin="0,0,0,16">
-                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
-                    <StackPanel>
-                        <TextBlock Text="Archivos" Style="{StaticResource LabelStyle}" />
-                        <TextBlock Text="{Binding TotalMediaFiles}" FontSize="28" FontWeight="Bold" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
-                    <StackPanel>
-                        <TextBlock Text="Videos" Style="{StaticResource LabelStyle}" />
-                        <TextBlock Text="{Binding TotalVideos}" FontSize="28" FontWeight="Bold" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
-                    <StackPanel>
-                        <TextBlock Text="Fotos" Style="{StaticResource LabelStyle}" />
-                        <TextBlock Text="{Binding TotalPhotos}" FontSize="28" FontWeight="Bold" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
-                    <StackPanel>
-                        <TextBlock Text="Enlaces" Style="{StaticResource LabelStyle}" />
-                        <TextBlock Text="{Binding TotalWebLinks}" FontSize="28" FontWeight="Bold" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,0">
-                    <StackPanel>
-                        <TextBlock Text="Notas" Style="{StaticResource LabelStyle}" />
-                        <TextBlock Text="{Binding TotalQuickNotes}" FontSize="28" FontWeight="Bold" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,0">
-                    <StackPanel>
-                        <TextBlock Text="Ranking global" Style="{StaticResource LabelStyle}" />
-                        <controls:StarRatingControl Rating="{Binding AverageGlobalRankingStars, Mode=OneWay}"
-                                                    IsInteractive="False"
-                                                    Margin="0,4,0,0" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,0">
-                    <StackPanel>
-                        <TextBlock Text="Ranking videos" Style="{StaticResource LabelStyle}" />
-                        <controls:StarRatingControl Rating="{Binding AverageVideoRankingStars, Mode=OneWay}"
-                                                    IsInteractive="False"
-                                                    Margin="0,4,0,0" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardBorderStyle}" Width="190">
-                    <StackPanel>
-                        <TextBlock Text="Ranking fotos" Style="{StaticResource LabelStyle}" />
-                        <controls:StarRatingControl Rating="{Binding AveragePhotoRankingStars, Mode=OneWay}"
-                                                    IsInteractive="False"
-                                                    Margin="0,4,0,0" />
-                    </StackPanel>
-                </Border>
-            </WrapPanel>
+            <Expander Style="{StaticResource DashboardExpanderStyle}"
+                      IsExpanded="False">
+                <Expander.Header>
+                    <TextBlock Text="Resumen"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                </Expander.Header>
+
+                <WrapPanel>
+                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
+                        <StackPanel>
+                            <TextBlock Text="Archivos" Style="{StaticResource LabelStyle}" />
+                            <TextBlock Text="{Binding TotalMediaFiles}" FontSize="28" FontWeight="Bold" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
+                        <StackPanel>
+                            <TextBlock Text="Videos" Style="{StaticResource LabelStyle}" />
+                            <TextBlock Text="{Binding TotalVideos}" FontSize="28" FontWeight="Bold" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
+                        <StackPanel>
+                            <TextBlock Text="Fotos" Style="{StaticResource LabelStyle}" />
+                            <TextBlock Text="{Binding TotalPhotos}" FontSize="28" FontWeight="Bold" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
+                        <StackPanel>
+                            <TextBlock Text="Enlaces" Style="{StaticResource LabelStyle}" />
+                            <TextBlock Text="{Binding TotalWebLinks}" FontSize="28" FontWeight="Bold" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
+                        <StackPanel>
+                            <TextBlock Text="Notas" Style="{StaticResource LabelStyle}" />
+                            <TextBlock Text="{Binding TotalQuickNotes}" FontSize="28" FontWeight="Bold" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,12">
+                        <StackPanel>
+                            <TextBlock Text="Ranking global" Style="{StaticResource LabelStyle}" />
+                            <controls:StarRatingControl Rating="{Binding AverageGlobalRankingStars, Mode=OneWay}"
+                                                        IsInteractive="False"
+                                                        Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,12">
+                        <StackPanel>
+                            <TextBlock Text="Ranking videos" Style="{StaticResource LabelStyle}" />
+                            <controls:StarRatingControl Rating="{Binding AverageVideoRankingStars, Mode=OneWay}"
+                                                        IsInteractive="False"
+                                                        Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,12">
+                        <StackPanel>
+                            <TextBlock Text="Ranking fotos" Style="{StaticResource LabelStyle}" />
+                            <controls:StarRatingControl Rating="{Binding AveragePhotoRankingStars, Mode=OneWay}"
+                                                        IsInteractive="False"
+                                                        Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                </WrapPanel>
+            </Expander>
 
             <ItemsControl ItemsSource="{Binding ChartSections}"
                           ItemTemplate="{StaticResource DashboardChartSectionTemplate}" />

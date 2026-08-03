@@ -35,6 +35,14 @@ public partial class MediaVaultBrowserEntryItem : ObservableObject
 
     public static bool IsVideoPath(string path) => MediaFileExtensions.IsVideo(path);
 
+    public int VecesAbierto => MediaFile?.VecesAbierto ?? 0;
+
+    public bool ShowOpenCount => MediaFile is not null;
+
+    public string OpenCountLabel => VecesAbierto == 1
+        ? "1 apertura"
+        : $"{VecesAbierto} aperturas";
+
     public bool ShowThumbnailLoading => IsVideo && IsThumbnailLoading && Thumbnail is null;
 
     partial void OnIsThumbnailLoadingChanged(bool value) =>

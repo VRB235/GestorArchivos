@@ -201,7 +201,7 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         await ExecuteBusyAsync(async () =>
         {
             var opened = await _mediaVaultService.OpenFileAsync(fileId).ConfigureAwait(true);
-            if (!opened)
+            if (opened is null)
                 throw new InvalidOperationException("No se pudo abrir el archivo. Verifique que exista en disco.");
 
             await ReloadAsync().ConfigureAwait(true);

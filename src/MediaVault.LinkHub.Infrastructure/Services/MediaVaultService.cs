@@ -449,23 +449,26 @@ public sealed class MediaVaultService : IMediaVaultService
     return entity;
   }
 
-  public async Task<bool> OpenFileAsync(
+  public async Task<MediaFile?> OpenFileAsync(
     int id,
     bool preferVlc = false,
     CancellationToken cancellationToken = default)
   {
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
-    var entity = await context.MediaFiles.FirstOrDefaultAsync(file => file.Id == id, cancellationToken).ConfigureAwait(false);
+    var entity = await context.MediaFiles
+      .Include(file => file.Categories)
+      .FirstOrDefaultAsync(file => file.Id == id, cancellationToken)
+      .ConfigureAwait(false);
     if (entity is null || !File.Exists(entity.Path))
-      return false;
+      return null;
 
     if (!MediaFileLauncher.TryOpen(entity.Path, preferVlc))
-      return false;
+      return null;
 
     entity.VecesAbierto++;
     await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    return true;
+    return entity;
   }
 
   private static void ValidateRanking(double value, string paramName)
