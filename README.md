@@ -155,11 +155,16 @@ MediaFile.ComputeRankingGlobal(file)
 
 ## Esquema SQLite
 
-**Ubicación:**
+**Ubicación por ambiente** (Debug y Release no comparten datos):
 
-```
-%LocalAppData%\MediaVaultLinkHub\mediavault_linkhub.db
-```
+| Ambiente | Carpeta | Cuándo |
+|----------|---------|--------|
+| **Production** | `%LocalAppData%\MediaVaultLinkHub\` | `Release` / `dotnet publish` |
+| **Development** | `%LocalAppData%\MediaVaultLinkHub.Development\` | `Debug` / F5 |
+
+Base de datos: `mediavault_linkhub.db` (mismo nombre en ambas carpetas).
+
+Opcional: forzar ambiente con la variable `MEDIAVAULT_ENVIRONMENT=Development|Production`.
 
 | Tabla | Índices relevantes |
 |-------|-------------------|
