@@ -101,11 +101,14 @@ public sealed class BrowserThumbnailLoader
 
     private async Task LoadDirectoryThumbnailAsync(MediaVaultBrowserEntryItem item, int generation)
     {
-        if (string.IsNullOrWhiteSpace(item.Entry.CustomIconPath))
-            return;
+        ImageSource? thumbnail = await Task.Run(() =>
+            FolderSessionPicturePicker.TryLoadSessionThumbnail(item.FullPath)).ConfigureAwait(false);
 
-        var thumbnail = await Task.Run(() =>
-            LocalImageLoader.TryLoad(item.Entry.CustomIconPath)).ConfigureAwait(false);
+        if (thumbnail is null && !string.IsNullOrWhiteSpace(item.Entry.CustomIconPath))
+        {
+            thumbnail = await Task.Run(() =>
+                LocalImageLoader.TryLoad(item.Entry.CustomIconPath)).ConfigureAwait(false);
+        }
 
         if (generation != Volatile.Read(ref _activeGeneration))
             return;

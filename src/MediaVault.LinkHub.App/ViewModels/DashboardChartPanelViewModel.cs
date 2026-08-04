@@ -75,7 +75,15 @@ public partial class DashboardChartPanelViewModel : ObservableObject
         var file = MediaFiles[index];
         var generation = ++_hoverPreviewGeneration;
 
-        var thumbnail = await WindowsShellThumbnailProvider
+        ImageSource? thumbnail = null;
+        var folderPath = System.IO.Path.GetDirectoryName(file.Path);
+        if (!string.IsNullOrWhiteSpace(folderPath))
+        {
+            thumbnail = await Task.Run(() =>
+                FolderSessionPicturePicker.TryLoadSessionThumbnail(folderPath, 160)).ConfigureAwait(true);
+        }
+
+        thumbnail ??= await WindowsShellThumbnailProvider
             .GetThumbnailAsync(file.Path, isDirectory: false, 160)
             .ConfigureAwait(true);
 

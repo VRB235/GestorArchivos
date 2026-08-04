@@ -14,8 +14,15 @@ public sealed class MediaVaultBrowserThumbnailConverter : IValueConverter
         if (value is not MediaVaultBrowserEntry entry)
             return null;
 
-        if (entry.IsDirectory && !string.IsNullOrWhiteSpace(entry.CustomIconPath))
-            return LocalImageLoader.TryLoad(entry.CustomIconPath);
+        if (entry.IsDirectory)
+        {
+            var sessionPicture = FolderSessionPicturePicker.TryLoadSessionThumbnail(entry.FullPath);
+            if (sessionPicture is not null)
+                return sessionPicture;
+
+            if (!string.IsNullOrWhiteSpace(entry.CustomIconPath))
+                return LocalImageLoader.TryLoad(entry.CustomIconPath);
+        }
 
         return WindowsShellThumbnailProvider.GetThumbnail(entry.FullPath, entry.IsDirectory);
     }

@@ -458,7 +458,7 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
     }
 
     /// <summary>
-    /// Usa el icono personalizado de la carpeta del video; si no hay, miniatura shell de esa carpeta.
+    /// Prioridad: imagen aleatoria de Pictures (sesión) → icono de carpeta → miniatura shell.
     /// </summary>
     private async Task<ImageSource?> LoadParentFolderThumbnailAsync(string videoPath, int size)
     {
@@ -474,6 +474,11 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         {
             return null;
         }
+
+        var sessionPicture = await Task.Run(() =>
+            FolderSessionPicturePicker.TryLoadSessionThumbnail(folderPath, size)).ConfigureAwait(true);
+        if (sessionPicture is not null)
+            return sessionPicture;
 
         var iconPath = await _appSettingsService.GetFolderIconPathAsync(folderPath).ConfigureAwait(true);
         if (!string.IsNullOrWhiteSpace(iconPath) && File.Exists(iconPath))
