@@ -1,6 +1,6 @@
 # MediaVault & LinkHub
 
-Aplicación de escritorio para Windows orientada a la gestión de enlaces web, indexación de archivos multimedia locales, estadísticas del sistema y notas rápidas.
+Aplicación de escritorio para Windows orientada a la gestión de enlaces web, indexación de archivos multimedia locales, etiquetado (categorías, actrices, productoras), estadísticas del sistema y notas rápidas.
 
 Desarrollada con **.NET 8**, **C#**, **WPF**, **SQLite** y **LiveCharts2**, siguiendo el patrón **MVVM limpio**.
 
@@ -8,14 +8,18 @@ Desarrollada con **.NET 8**, **C#**, **WPF**, **SQLite** y **LiveCharts2**, sigu
 
 ## Módulos principales
 
-La aplicación incluye un **menú lateral fijo (Sidebar)** para navegar entre cuatro módulos:
+La aplicación incluye un **menú lateral fijo (Sidebar)** para navegar entre los módulos:
 
 | Módulo | Descripción |
 |--------|-------------|
-| **Dashboard & Estadísticas** | KPIs y gráficos LiveCharts2 (Top 10, distribución de enlaces, ranking promedio). |
-| **Link Manager** | CRUD de enlaces web con apertura en navegador predeterminado (modo incógnito). |
-| **File & Media Vault** | Explorador recursivo que indexa carpetas y archivos (imágenes y videos). |
+| **Dashboard & Estadísticas** | KPIs (archivos, aperturas, sin abrir/sin ranking), gráficos LiveCharts2 colapsables, recomendaciones regenerables (mixta y por estrellas). |
+| **Link Manager** | CRUD de enlaces web, logos locales, productoras, apertura **siempre en Firefox** (ventana normal). |
+| **File & Media Vault** | Explorador de carpetas/archivos, rankings, categorías/actrices/productoras por video, mover archivos, miniaturas. |
+| **Categorías** | Catálogo de categorías de video (asignación desde Media Vault). |
+| **Actrices** | CRUD de actrices y búsqueda de videos con filtros OR/AND (actrices, categorías, productoras); doble clic abre el video. |
+| **Productoras** | Catálogo de productoras/fuentes (asociables a videos y a enlaces). |
 | **Scratchpad** | Notas rápidas de texto con operaciones CRUD simples. |
+| **Configuración** | Ruta raíz de indexación y limpieza de metadatos multimedia. |
 
 ---
 
@@ -43,12 +47,18 @@ MediaVault.LinkHub.slnx
     │   └── Entities/
     │       ├── WebLink.cs
     │       ├── MediaFile.cs
+    │       ├── VideoCategory.cs
+    │       ├── Actress.cs
+    │       ├── Producer.cs
     │       └── QuickNote.cs
     │
     ├── MediaVault.LinkHub.Application/      ← Contratos de servicio y DTOs
     │   ├── Services/
     │   │   ├── IWebLinkService.cs
     │   │   ├── IMediaVaultService.cs
+    │   │   ├── IVideoCategoryService.cs
+    │   │   ├── IActressService.cs
+    │   │   ├── IProducerService.cs
     │   │   ├── IDashboardService.cs
     │   │   └── IQuickNoteService.cs
     │   └── Models/
@@ -58,8 +68,8 @@ MediaVault.LinkHub.slnx
     ├── MediaVault.LinkHub.Infrastructure/   ← EF Core, SQLite, servicios
     │   ├── Configurations/
     │   ├── Data/                            ← DbContext, migraciones
-    │   ├── Launchers/                       ← Process.Start (navegador, VLC)
-    │   ├── Media/                           ← Extensiones soportadas
+    │   ├── Launchers/                       ← Firefox, VLC, apertura nativa
+    │   ├── Media/                           ← Extensiones, logos, VLC path
     │   ├── Services/                        ← Implementaciones CRUD
     │   └── DependencyInjection.cs
     │
@@ -69,6 +79,7 @@ MediaVault.LinkHub.slnx
         ├── Navigation/                      ← INavigationService
         ├── ViewModels/                      ← ViewModels por módulo
         ├── Views/                           ← Vistas XAML
+        ├── Shell/                           ← Miniaturas, Pictures, diálogos
         ├── Charts/                          ← DashboardChartFactory (LiveCharts2)
         ├── Resources/Styles.xaml            ← Tema oscuro
         └── Converters/
@@ -101,12 +112,16 @@ tests/
 
 ### ViewModels
 
-| ViewModel | Servicio inyectado |
-|-----------|-------------------|
-| `DashboardViewModel` | `IDashboardService` |
-| `LinkManagerViewModel` | `IWebLinkService` |
-| `MediaVaultViewModel` | `IMediaVaultService` |
+| ViewModel | Servicio(s) principal(es) |
+|-----------|---------------------------|
+| `DashboardViewModel` | `IDashboardService`, `IMediaVaultService` |
+| `LinkManagerViewModel` | `IWebLinkService`, `IProducerService` |
+| `MediaVaultViewModel` | `IMediaVaultService`, categorías/actrices/productoras |
+| `VideoCategoryManagerViewModel` | `IVideoCategoryService` |
+| `ActressesViewModel` | `IActressService`, filtros + apertura de videos |
+| `ProducerManagerViewModel` | `IProducerService` |
 | `ScratchpadViewModel` | `IQuickNoteService` |
+| `SettingsViewModel` | `IAppSettingsService`, `IMediaVaultService` |
 
 ---
 
@@ -121,6 +136,8 @@ tests/
 | `Url` | `string` | URL destino (única en BD) |
 | `LogoPath` | `string?` | Ruta al logo en el almacén de la app (`%LocalAppData%\...\WebLinkLogos\`); se copia al guardar |
 | `Categoria` | `LinkCategory` | `Oficial`, `Descarga`, `Gratis` |
+| `FechaUltimaActualizacion` | `DateTime?` | Visita/revisión marcada por el usuario |
+| `Producers` | M:N | Productoras asociadas al sitio |
 
 ### `MediaFile` — File & Media Vault
 
@@ -135,6 +152,9 @@ tests/
 | `RankingContenido` | `double` | Estrellas 0–5 |
 | `RankingGusto` | `double` | Estrellas 0–5 |
 | `RankingGlobal` | `double` | **Calculado** — promedio de los 3 anteriores (escala 0–5) |
+| `Categories` | M:N | Categorías de video |
+| `Actresses` | M:N | Actrices asociadas |
+| `Producers` | M:N | Productoras asociadas |
 
 > `RankingGlobal` es `[NotMapped]`. Para LINQ traducible a SQL:
 
@@ -142,6 +162,10 @@ tests/
 MediaFile.ComputeRankingGlobal(file)
 // o: (f.RankingCalidad + f.RankingContenido + f.RankingGusto) / 3.0
 ```
+
+### `VideoCategory` / `Actress` / `Producer`
+
+Catálogos con `Name`, `SortOrder` y relaciones M:N con `MediaFile`. `Producer` también se relaciona con `WebLink`.
 
 ### `QuickNote` — Scratchpad
 
@@ -166,10 +190,14 @@ Base de datos: `mediavault_linkhub.db` (mismo nombre en ambas carpetas).
 
 Opcional: forzar ambiente con la variable `MEDIAVAULT_ENVIRONMENT=Development|Production`.
 
-| Tabla | Índices relevantes |
-|-------|-------------------|
+| Tabla / unión | Índices / notas |
+|---------------|-----------------|
 | `WebLinks` | `Url` (único), `Categoria` |
 | `MediaFiles` | `Path` (único), `VecesAbierto`, `Extension` |
+| `VideoCategories` | nombre |
+| `Actresses` / `Producers` | nombre |
+| `MediaFileVideoCategory`, `MediaFileActresses`, `MediaFileProducers` | M:N videos |
+| `WebLinkProducers` | M:N enlaces ↔ productoras |
 | `QuickNotes` | `FechaCreacion` |
 
 ---
@@ -178,17 +206,40 @@ Opcional: forzar ambiente con la variable `MEDIAVAULT_ENVIRONMENT=Development|Pr
 
 | Interfaz | Implementación | Destacado |
 |----------|----------------|-----------|
-| `IWebLinkService` | `WebLinkService` | CRUD + `OpenInBrowserAsync` (incógnito) |
-| `IMediaVaultService` | `MediaVaultService` | Indexación recursiva, rename, VLC |
-| `IDashboardService` | `DashboardService` | Top 10, distribución, promedio rankings |
+| `IWebLinkService` | `WebLinkService` | CRUD + logos + productoras + `OpenInBrowserAsync` (Firefox) |
+| `IMediaVaultService` | `MediaVaultService` | Indexación, rankings, mover archivos, etiquetas, VLC |
+| `IVideoCategoryService` | `VideoCategoryService` | CRUD de categorías |
+| `IActressService` | `ActressService` | CRUD + `FindVideosByFiltersAsync` (OR/AND) |
+| `IProducerService` | `ProducerService` | CRUD de productoras |
+| `IDashboardService` | `DashboardService` | KPIs, tops, distribución, recomendaciones |
 | `IQuickNoteService` | `QuickNoteService` | CRUD de notas |
 
 ### Lanzamiento de procesos (`Process.Start`)
 
 | Componente | Comportamiento |
 |------------|----------------|
-| `BrowserLauncher` | Detecta navegador predeterminado vía registro Windows; flags `--inprivate`, `--incognito`, `-private-window` según motor; fallback a rutas conocidas |
+| `BrowserLauncher` | Abre la URL en **Firefox** (ventana normal). Busca en rutas típicas y en el registro de Mozilla; si no hay Firefox, cae al shell. |
 | `MediaFileLauncher` | Apertura nativa con `UseShellExecute` o forzando **VLC** si `preferVlc = true` |
+
+---
+
+## Miniaturas y carpeta `Pictures`
+
+Al iniciar la sesión, por cada carpeta de medios se elige **una imagen al azar** de `{carpeta}/Pictures` y se reutiliza durante el proceso (Dashboard, Actrices, explorador del Vault).
+
+Prioridad de miniatura de carpeta: **Pictures (sesión)** → icono personalizado → miniatura de Shell.
+
+Estructura esperada:
+
+```text
+CarpetaDelContenido/
+  Pictures/
+    img1.jpg
+    img2.png
+  video.mp4
+```
+
+Extensiones admitidas: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`.
 
 ---
 
@@ -200,20 +251,20 @@ Opcional: forzar ambiente con la variable `MEDIAVAULT_ENVIRONMENT=Development|Pr
 LiveChartsCore.SkiaSharpView.WPF 2.0.5
 ```
 
-### Gráficos implementados
+### Capacidades
 
-| Gráfico | Control | Serie | Fuente de datos |
-|---------|---------|-------|-----------------|
-| Top 10 más vistos | `CartesianChart` | `RowSeries<int>` | `MediaFileViewStats.VecesAbierto` |
-| Enlaces por categoría | `PieChart` | `PieSeries<int>` | `CategoryDistributionItem` |
-| Ranking global | `CartesianChart` | `ColumnSeries<double>` | Promedio 0–5 estrellas del sistema |
+- KPIs: totales, aperturas de video, videos nunca abiertos, videos sin ranking.
+- Gráficos colapsables (Top vistas, distribución por categoría, rankings).
+- Recomendación mixta ponderada (regenerable).
+- Recomendación por tiers de estrellas (5→1) con exclusión de sesión.
+- Vista previa al pasar el mouse sobre series de archivos.
 
 ### Flujo de datos
 
 ```
 IDashboardService.GetStatisticsAsync()
         ↓
-DashboardViewModel.UpdateCharts()
+DashboardViewModel
         ↓
 DashboardChartFactory  →  ObservableCollection<ISeries>
         ↓
@@ -229,14 +280,15 @@ LiveCharts.Configure(config =>
 
 ### Estados vacíos
 
-Si no hay datos, el Dashboard muestra mensajes orientativos en lugar de gráficos vacíos (`HasTopViewsData`, `HasCategoryData`).
+Si no hay datos, el Dashboard muestra mensajes orientativos en lugar de gráficos vacíos.
 
 ---
 
 ## Requisitos previos
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Windows 10/11 (WPF + registro de navegador predeterminado)
+- Windows 10/11 (WPF)
+- **Firefox** recomendado para Link Manager (apertura de enlaces)
 - [EF Core CLI](https://learn.microsoft.com/ef/core/cli/dotnet) (solo para migraciones):
 
 ```bash
@@ -263,7 +315,7 @@ dotnet test MediaVault.LinkHub.slnx -c Release
 
 | Área | Cobertura principal |
 |------|---------------------|
-| **Servicios** | `QuickNoteService`, `VideoCategoryService`, `WebLinkService`, `DashboardService`, `MediaVaultService` |
+| **Servicios** | `QuickNoteService`, `VideoCategoryService`, `ActressService`, `WebLinkService`, `DashboardService`, `MediaVaultService` |
 | **Gráficos** | `DashboardChartFactory` (series, ejes, filtros de datos vacíos) |
 
 ---
@@ -307,12 +359,16 @@ Al iniciar, la aplicación:
 3. Aplica migraciones SQLite pendientes.
 4. Abre `MainWindow` con el Dashboard como vista inicial.
 
-### Flujo recomendado para probar el Dashboard
+> En **Debug**, el gate de seguridad no bloquea el arranque. En **Release**, aplica el flujo de acceso configurado.
 
-1. **Media Vault** → seleccionar carpeta → **Indexar** archivos multimedia.
-2. Abrir archivos (botón **Abrir** o **VLC**) para incrementar `VecesAbierto`.
-3. **Link Manager** → crear enlaces en distintas categorías.
-4. **Dashboard** → **Actualizar** para ver los gráficos.
+### Flujo recomendado para probar
+
+1. **Configuración** → definir carpeta raíz de indexación.
+2. **Media Vault** → explorar / indexar; asignar categorías, actrices y productoras; abrir videos para incrementar `VecesAbierto`.
+3. Opcional: colocar imágenes en `{carpeta}/Pictures` y reiniciar la app para ver miniaturas de sesión.
+4. **Actrices** → filtrar por actrices/categorías/productoras; doble clic para abrir.
+5. **Link Manager** → crear enlaces, asociar productoras; **Abrir en Firefox**.
+6. **Dashboard** → **Actualizar** / regenerar recomendaciones.
 
 ---
 
@@ -385,32 +441,31 @@ dotnet ef migrations remove ^
 |----------|--------|
 | `EntityBase` con `Id` común | Homogeneidad entre entidades |
 | `LinkCategory` como `string` en SQLite | Legibilidad en herramientas de BD |
+| Relaciones M:N (categorías/actrices/productoras) | Etiquetado flexible sin duplicar archivos |
 | `IDbContextFactory<AppDbContext>` | Contexto por operación; seguro en WPF |
 | Servicios **Transient** | Compatible con contenedor DI raíz de WPF |
+| Datos Debug vs Release aislados | Evitar contaminar datos de producción al desarrollar |
+| `BrowserLauncher` → Firefox fijo | Comportamiento predecible al abrir enlaces |
+| Miniaturas `Pictures` cacheadas por proceso | Variedad al reiniciar sin costar I/O en cada vista |
 | `DashboardChartFactory` separado | ViewModel limpio; series reutilizables |
-| `net8.0-windows` en Infrastructure | Registro Windows para navegador incógnito |
 | Tema oscuro en `Styles.xaml` | Coherencia visual con gráficos SkiaSharp |
 
 ---
 
 ## Estado actual del proyecto
 
-| Capa | Estado |
-|------|--------|
-| Domain (entidades, enums) | ✅ Completado |
-| Application (interfaces, DTOs) | ✅ Completado |
-| Infrastructure (EF Core, servicios, launchers) | ✅ Completado |
-| WPF App (MVVM, Sidebar, Views) | ✅ Completado |
-| Dashboard (LiveCharts2) | ✅ Completado |
-| Publicación autocontenida (win-x64) | ✅ Completado |
-| Confirmación antes de eliminar (archivos/enlaces) | ✅ Completado |
-| Búsqueda y filtrado en Media Vault | ✅ Completado |
-| Tests unitarios (servicios + gráficos) | ✅ Completado |
-
----
-
-## Posibles mejoras futuras
-
+| Capacidad | Estado |
+|-----------|--------|
+| Domain / Application / Infrastructure / WPF | ✅ |
+| Dashboard (KPIs, charts, recomendaciones) | ✅ |
+| Link Manager (CRUD, logos, productoras, Firefox) | ✅ |
+| Media Vault (indexación, rankings, mover, etiquetas) | ✅ |
+| Categorías / Actrices / Productoras | ✅ |
+| Miniaturas desde `Pictures` (sesión) | ✅ |
+| Aislamiento datos Debug/Release | ✅ |
+| Publicación autocontenida (win-x64) | ✅ |
+| Confirmación antes de eliminar | ✅ |
+| Tests unitarios (servicios + gráficos) | ✅ |
 
 ---
 
@@ -418,6 +473,7 @@ dotnet ef migrations remove ^
 
 - Las advertencias **NU1701** al compilar (OpenTK / SkiaSharp.Views.WPF) son dependencias transitivas de LiveCharts2 y no impiden la ejecución.
 - VLC es opcional; si no está instalado, la apertura usa el visor predeterminado de Windows.
+- Si Firefox no está instalado, la apertura de enlaces intenta el manejador de URL del sistema como respaldo.
 
 ---
 
