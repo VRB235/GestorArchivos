@@ -55,7 +55,7 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="Abrir incógnito"
+                        <Button Content="Abrir en Firefox"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Command="{Binding OpenCommand}" />
                     </StackPanel>

@@ -210,7 +210,7 @@ public sealed class WebLinkService : IWebLinkService
         if (entity is null)
             return false;
 
-        return BrowserLauncher.TryOpenInPrivateWindow(entity.Url);
+        return BrowserLauncher.TryOpenInFirefox(entity.Url);
     }
 
     /// <summary>

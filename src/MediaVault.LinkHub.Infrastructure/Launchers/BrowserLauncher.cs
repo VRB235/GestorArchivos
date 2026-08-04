@@ -1,42 +1,29 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
 namespace MediaVault.LinkHub.Infrastructure.Launchers;
 
 /// <summary>
-/// Abre URLs en el navegador predeterminado en modo privado/incógnito (Windows).
+/// Abre URLs en Firefox (ventana normal) en Windows.
 /// </summary>
 internal static class BrowserLauncher
 {
-  private static readonly (string ExecutablePath, string ArgumentPrefix)[] FallbackBrowsers =
+  private static readonly string[] FirefoxCandidates =
   [
-    (@"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", "--inprivate"),
-    (@"C:\Program Files\Microsoft\Edge\Application\msedge.exe", "--inprivate"),
-    (@"C:\Program Files\Google\Chrome\Application\chrome.exe", "--incognito"),
-    (@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", "--incognito"),
-    (@"C:\Program Files\Mozilla Firefox\firefox.exe", "-private-window"),
-    (@"C:\Program Files (x86)\Mozilla Firefox\firefox.exe", "-private-window"),
-    (@"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe", "--incognito"),
-    (@"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe", "--incognito")
+    @"C:\Program Files\Mozilla Firefox\firefox.exe",
+    @"C:\Program Files (x86)\Mozilla Firefox\firefox.exe"
   ];
 
-  public static bool TryOpenInPrivateWindow(string url)
+  public static bool TryOpenInFirefox(string url)
   {
     if (!TryNormalizeUrl(url, out var normalizedUrl))
       return false;
 
     if (OperatingSystem.IsWindows())
     {
-      if (TryOpenWithDefaultBrowserIncognito(normalizedUrl))
-        return true;
-
-      foreach (var (executablePath, argumentPrefix) in FallbackBrowsers)
+      foreach (var executablePath in EnumerateFirefoxExecutables())
       {
-        if (!File.Exists(executablePath))
-          continue;
-
-        if (TryStartProcess(executablePath, $"{argumentPrefix} \"{normalizedUrl}\""))
+        if (TryStartProcess(executablePath, $"\"{normalizedUrl}\""))
           return true;
       }
     }
@@ -44,62 +31,51 @@ internal static class BrowserLauncher
     return TryShellOpen(normalizedUrl);
   }
 
-  private static bool TryOpenWithDefaultBrowserIncognito(string url)
+  private static IEnumerable<string> EnumerateFirefoxExecutables()
   {
-    var progId = GetDefaultBrowserProgId();
-    if (string.IsNullOrWhiteSpace(progId))
-      return false;
+    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-    var executable = GetExecutableFromProgId(progId);
-    if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))
-      return false;
+    foreach (var candidate in FirefoxCandidates)
+    {
+      if (File.Exists(candidate) && seen.Add(candidate))
+        yield return candidate;
+    }
 
-    var arguments = BuildIncognitoArguments(progId, url);
-    return arguments is not null && TryStartProcess(executable, arguments);
+    var fromRegistry = TryGetFirefoxFromRegistry();
+    if (!string.IsNullOrWhiteSpace(fromRegistry)
+        && File.Exists(fromRegistry)
+        && seen.Add(fromRegistry))
+    {
+      yield return fromRegistry;
+    }
   }
 
-  private static string? GetDefaultBrowserProgId()
+  private static string? TryGetFirefoxFromRegistry()
   {
     if (!OperatingSystem.IsWindows())
       return null;
 
-    using var userChoice = Registry.CurrentUser.OpenSubKey(
-      @"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice");
+    string[] keys =
+    [
+      @"SOFTWARE\Mozilla\Mozilla Firefox",
+      @"SOFTWARE\WOW6432Node\Mozilla\Mozilla Firefox"
+    ];
 
-    return userChoice?.GetValue("ProgId") as string;
-  }
+    foreach (var keyPath in keys)
+    {
+      using var key = Registry.LocalMachine.OpenSubKey(keyPath);
+      if (key is null)
+        continue;
 
-  private static string? GetExecutableFromProgId(string progId)
-  {
-    using var commandKey = Registry.ClassesRoot.OpenSubKey($@"{progId}\shell\open\command");
-    var command = commandKey?.GetValue(null) as string;
-    if (string.IsNullOrWhiteSpace(command))
-      return null;
+      var currentVersion = key.GetValue("CurrentVersion") as string;
+      if (string.IsNullOrWhiteSpace(currentVersion))
+        continue;
 
-    var match = Regex.Match(command, "^\"([^\"]+)\"");
-    if (match.Success)
-      return match.Groups[1].Value;
-
-    var firstToken = command.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-    return firstToken?.Trim('"');
-  }
-
-  private static string? BuildIncognitoArguments(string progId, string url)
-  {
-    var browserId = progId.ToUpperInvariant();
-    var quotedUrl = $"\"{url}\"";
-
-    if (browserId.Contains("CHROME", StringComparison.Ordinal) || browserId.Contains("BRAVE", StringComparison.Ordinal))
-      return $"--incognito {quotedUrl}";
-
-    if (browserId.Contains("EDGE", StringComparison.Ordinal) || browserId.Contains("MSEDGE", StringComparison.Ordinal))
-      return $"--inprivate {quotedUrl}";
-
-    if (browserId.Contains("FIREFOX", StringComparison.Ordinal))
-      return $"-private-window {quotedUrl}";
-
-    if (browserId.Contains("OPERA", StringComparison.Ordinal))
-      return $"--private {quotedUrl}";
+      using var mainKey = key.OpenSubKey($@"{currentVersion}\Main");
+      var pathToExe = mainKey?.GetValue("PathToExe") as string;
+      if (!string.IsNullOrWhiteSpace(pathToExe))
+        return pathToExe;
+    }
 
     return null;
   }

@@ -52,7 +52,7 @@ public interface IWebLinkService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Abre la URL en el navegador predeterminado en modo incógnito/privado.
+    /// Abre la URL en Firefox (ventana normal).
     /// </summary>
     Task<bool> OpenInBrowserAsync(int id, CancellationToken cancellationToken = default);
 

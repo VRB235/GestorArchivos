@@ -39,7 +39,7 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
 
     public string Title => "Link Manager";
 
-    public string Subtitle => "Gestión de enlaces web con apertura en modo incógnito";
+    public string Subtitle => "Gestión de enlaces web con apertura en Firefox";
 
     public ObservableCollection<LinkCategory> Categories { get; }
 
@@ -351,7 +351,7 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
         {
             var opened = await _webLinkService.OpenInBrowserAsync(linkId).ConfigureAwait(true);
             if (!opened)
-                throw new InvalidOperationException("No se pudo abrir el enlace en el navegador.");
+                throw new InvalidOperationException("No se pudo abrir el enlace en Firefox.");
         }, "Abriendo enlace...").ConfigureAwait(true);
     }
 }
