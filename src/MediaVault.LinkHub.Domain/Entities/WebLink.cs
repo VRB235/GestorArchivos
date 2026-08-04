@@ -25,4 +25,9 @@ public class WebLink : EntityBase
     /// Fecha en que el usuario marcó haber visitado/revisado el sitio (no es timestamp de BD).
     /// </summary>
     public DateTime? FechaUltimaActualizacion { get; set; }
+
+    /// <summary>
+    /// Productoras/fuentes asociadas a este sitio.
+    /// </summary>
+    public ICollection<Producer> Producers { get; set; } = [];
 }

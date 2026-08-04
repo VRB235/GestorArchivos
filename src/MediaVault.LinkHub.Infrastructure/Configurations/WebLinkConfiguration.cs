@@ -40,5 +40,9 @@ internal sealed class WebLinkConfiguration : IEntityTypeConfiguration<WebLink>
             .IsUnique();
 
         builder.HasIndex(link => link.Categoria);
+
+        builder.HasMany(link => link.Producers)
+            .WithMany(producer => producer.WebLinks)
+            .UsingEntity(j => j.ToTable("WebLinkProducers"));
     }
 }

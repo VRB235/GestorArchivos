@@ -30,6 +30,7 @@ public sealed class WebLinkService : IWebLinkService
 
         return await context.WebLinks
             .AsNoTracking()
+            .Include(link => link.Producers)
             .OrderBy(link => link.FechaUltimaActualizacion ?? DateTime.MaxValue)
             .ThenBy(link => link.Nombre)
             .ToListAsync(cancellationToken)
@@ -44,6 +45,7 @@ public sealed class WebLinkService : IWebLinkService
 
         return await context.WebLinks
             .AsNoTracking()
+            .Include(link => link.Producers)
             .Where(link => link.Categoria == categoria)
             .OrderBy(link => link.FechaUltimaActualizacion ?? DateTime.MaxValue)
             .ThenBy(link => link.Nombre)
@@ -54,7 +56,11 @@ public sealed class WebLinkService : IWebLinkService
     public async Task<WebLink?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        return await context.WebLinks.AsNoTracking().FirstOrDefaultAsync(link => link.Id == id, cancellationToken).ConfigureAwait(false);
+        return await context.WebLinks
+            .AsNoTracking()
+            .Include(link => link.Producers)
+            .FirstOrDefaultAsync(link => link.Id == id, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<WebLink> CreateAsync(
@@ -115,6 +121,55 @@ public sealed class WebLinkService : IWebLinkService
             _logoStorage.TryDeleteManaged(previousLogoPath);
 
         return entity;
+    }
+
+    public async Task<WebLink> UpdateProducersAsync(
+        int id,
+        IReadOnlyCollection<int> producerIds,
+        CancellationToken cancellationToken = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        var entity = await context.WebLinks
+            .Include(link => link.Producers)
+            .FirstOrDefaultAsync(link => link.Id == id, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new KeyNotFoundException($"No se encontró el enlace con Id {id}.");
+
+        var distinctIds = producerIds.Distinct().ToList();
+
+        if (distinctIds.Count > 0)
+        {
+            var existingIds = await context.Producers
+                .Where(producer => distinctIds.Contains(producer.Id))
+                .Select(producer => producer.Id)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (existingIds.Count != distinctIds.Count)
+                throw new KeyNotFoundException("Una o más productoras seleccionadas no existen.");
+        }
+
+        entity.Producers.Clear();
+
+        if (distinctIds.Count > 0)
+        {
+            var producers = await context.Producers
+                .Where(producer => distinctIds.Contains(producer.Id))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var producer in producers)
+                entity.Producers.Add(producer);
+        }
+
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return await context.WebLinks
+            .AsNoTracking()
+            .Include(link => link.Producers)
+            .FirstAsync(link => link.Id == id, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<WebLink> MarkAsUserUpdatedAsync(

@@ -23,6 +23,8 @@ public partial class MainViewModel : ViewModelBase
             new NavigationItem { Title = "Link Manager", Icon = "🔗", Target = "links" },
             new NavigationItem { Title = "Media Vault", Icon = "🗂️", Target = "vault" },
             new NavigationItem { Title = "Categorías", Icon = "🏷️", Target = "categories" },
+            new NavigationItem { Title = "Actrices", Icon = "🎭", Target = "actresses" },
+            new NavigationItem { Title = "Productoras", Icon = "🏭", Target = "producers" },
             new NavigationItem { Title = "Scratchpad", Icon = "📝", Target = "notes" },
             new NavigationItem { Title = "Configuración", Icon = "⚙️", Target = "settings" }
         ];
@@ -70,6 +72,12 @@ public partial class MainViewModel : ViewModelBase
                 break;
             case "categories":
                 await _navigationService.NavigateToAsync<VideoCategoryManagerViewModel>().ConfigureAwait(true);
+                break;
+            case "actresses":
+                await _navigationService.NavigateToAsync<ActressesViewModel>().ConfigureAwait(true);
+                break;
+            case "producers":
+                await _navigationService.NavigateToAsync<ProducerManagerViewModel>().ConfigureAwait(true);
                 break;
             case "notes":
                 await _navigationService.NavigateToAsync<ScratchpadViewModel>().ConfigureAwait(true);

@@ -27,6 +27,8 @@ public static class DependencyInjection
     services.AddTransient<IDashboardService, DashboardService>();
     services.AddTransient<IQuickNoteService, QuickNoteService>();
     services.AddTransient<IVideoCategoryService, VideoCategoryService>();
+    services.AddTransient<IActressService, ActressService>();
+    services.AddTransient<IProducerService, ProducerService>();
 
     return services;
   }

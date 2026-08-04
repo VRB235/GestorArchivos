@@ -22,6 +22,8 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 {
     private readonly IMediaVaultService _mediaVaultService;
     private readonly IVideoCategoryService _videoCategoryService;
+    private readonly IActressService _actressService;
+    private readonly IProducerService _producerService;
     private readonly IAppSettingsService _appSettingsService;
     private readonly IAppDialogService _appDialogService;
     private readonly BrowserThumbnailLoader _thumbnailLoader;
@@ -29,17 +31,23 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     private int _thumbnailGeneration;
     private bool _suppressRankingPersistence;
     private bool _suppressCategoryPersistence;
+    private bool _suppressActressPersistence;
+    private bool _suppressProducerPersistence;
     private bool _suppressShowHiddenPersistence;
 
     public MediaVaultViewModel(
         IMediaVaultService mediaVaultService,
         IVideoCategoryService videoCategoryService,
+        IActressService actressService,
+        IProducerService producerService,
         IAppSettingsService appSettingsService,
         IAppDialogService appDialogService,
         BrowserThumbnailLoader thumbnailLoader)
     {
         _mediaVaultService = mediaVaultService;
         _videoCategoryService = videoCategoryService;
+        _actressService = actressService;
+        _producerService = producerService;
         _appSettingsService = appSettingsService;
         _appDialogService = appDialogService;
         _thumbnailLoader = thumbnailLoader;
@@ -73,9 +81,11 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         SelectedMediaTypeFilter = MediaTypeFilters[0];
     }
 
-    public ObservableCollection<CategoryFilterTagItem> CategoryFilterTags { get; } = [];
-
     public ObservableCollection<FileCategorySelectionItem> FileCategorySelections { get; } = [];
+
+    public ObservableCollection<FileActressSelectionItem> FileActressSelections { get; } = [];
+
+    public ObservableCollection<FileProducerSelectionItem> FileProducerSelections { get; } = [];
 
     public string Title => "File & Media Vault";
 
@@ -171,7 +181,27 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     public bool ShowFileCategorySection => SelectedMediaFile is not null;
 
+    public bool ShowFileActressSection =>
+        SelectedMediaFile is not null
+        && MediaFileExtensions.IsVideo(SelectedMediaFile.Path);
+
     public bool CanAssignVideoCategory => CanEditSelectedFile;
+
+    public bool CanAssignActress => CanEditSelectedFile && ShowFileActressSection;
+
+    public bool ShowFileProducerSection => ShowFileActressSection;
+
+    public bool CanAssignProducer => CanEditSelectedFile && ShowFileProducerSection;
+
+    public string FileActressHint =>
+        FileActressSelections.Count == 0
+            ? "Cree actrices en el módulo Actrices para asignarlas aquí."
+            : "Pulse para asignar o quitar. Filtro global OR en la vista Actrices.";
+
+    public string FileProducerHint =>
+        FileProducerSelections.Count == 0
+            ? "Cree productoras en el módulo Productoras para asignarlas aquí."
+            : "Pulse para asignar o quitar. Filtro global OR en la vista Actrices.";
 
     public string FileCategoryHint =>
         "Pulse un tag para asignar o quitar. Gestione la lista en el módulo «Categorías».";
@@ -209,8 +239,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     public bool HasActiveBrowserFilters =>
         !string.IsNullOrWhiteSpace(SearchText)
-        || SelectedMediaTypeFilter?.Kind != BrowserMediaTypeFilter.All
-        || CategoryFilterTags.Any(tag => tag.IsSelected);
+        || SelectedMediaTypeFilter?.Kind != BrowserMediaTypeFilter.All;
 
     public string BrowserFilterSummary
     {
@@ -228,6 +257,8 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     public async Task InitializeAsync()
     {
         await LoadVideoCategoriesAsync().ConfigureAwait(true);
+        await LoadActressesAsync().ConfigureAwait(true);
+        await LoadProducersAsync().ConfigureAwait(true);
         await LoadIndexRootPathAsync().ConfigureAwait(true);
         await BrowseDirectoryAsync(IndexRootPath).ConfigureAwait(true);
     }
@@ -235,45 +266,19 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     private async Task LoadVideoCategoriesAsync()
     {
         var categories = await _videoCategoryService.GetAllAsync().ConfigureAwait(true);
-        RebuildCategoryFilterTags(categories);
         RebuildFileCategorySelections(categories, SelectedMediaFile);
     }
 
-    private void RebuildCategoryFilterTags(IReadOnlyList<VideoCategory> categories)
+    private async Task LoadActressesAsync()
     {
-        var previouslySelected = CategoryFilterTags
-            .Where(tag => tag.IsSelected)
-            .Select(tag => tag.CategoryId)
-            .ToHashSet();
-
-        CategoryFilterTags.Clear();
-
-        var uncategorizedTag = new CategoryFilterTagItem
-        {
-            CategoryId = VideoCategoryFilterOption.UncategorizedSentinel,
-            Name = "Sin categoría",
-            IsSelected = previouslySelected.Contains(VideoCategoryFilterOption.UncategorizedSentinel)
-        };
-        uncategorizedTag.SelectionChanged = OnCategoryFilterChanged;
-        CategoryFilterTags.Add(uncategorizedTag);
-
-        foreach (var category in categories)
-        {
-            var tag = new CategoryFilterTagItem
-            {
-                CategoryId = category.Id,
-                Name = category.Name,
-                IsSelected = previouslySelected.Contains(category.Id)
-            };
-            tag.SelectionChanged = OnCategoryFilterChanged;
-            CategoryFilterTags.Add(tag);
-        }
+        var actresses = await _actressService.GetAllAsync().ConfigureAwait(true);
+        RebuildFileActressSelections(actresses, SelectedMediaFile);
     }
 
-    private void OnCategoryFilterChanged()
+    private async Task LoadProducersAsync()
     {
-        ApplySortToBrowser();
-        NotifyBrowserFilterStateChanged();
+        var producers = await _producerService.GetAllAsync().ConfigureAwait(true);
+        RebuildFileProducerSelections(producers, SelectedMediaFile);
     }
 
     private void RebuildFileCategorySelections(IReadOnlyList<VideoCategory> categories, MediaFile? selectedFile)
@@ -307,6 +312,78 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         finally
         {
             _suppressCategoryPersistence = false;
+        }
+    }
+
+    private void RebuildFileActressSelections(IReadOnlyList<Actress> actresses, MediaFile? selectedFile)
+    {
+        var selectedIds = selectedFile?.Actresses.Select(actress => actress.Id).ToHashSet() ?? [];
+
+        FileActressSelections.Clear();
+        foreach (var actress in actresses)
+        {
+            var item = new FileActressSelectionItem
+            {
+                ActressId = actress.Id,
+                Name = actress.Name,
+                IsSelected = selectedIds.Contains(actress.Id)
+            };
+            item.SelectionChanged = () => _ = PersistActressesIfNeededAsync();
+            FileActressSelections.Add(item);
+        }
+
+        OnPropertyChanged(nameof(FileActressHint));
+    }
+
+    private void SyncFileActressSelections(MediaFile? mediaFile)
+    {
+        var selectedIds = mediaFile?.Actresses.Select(actress => actress.Id).ToHashSet() ?? [];
+
+        _suppressActressPersistence = true;
+        try
+        {
+            foreach (var item in FileActressSelections)
+                item.IsSelected = selectedIds.Contains(item.ActressId);
+        }
+        finally
+        {
+            _suppressActressPersistence = false;
+        }
+    }
+
+    private void RebuildFileProducerSelections(IReadOnlyList<Producer> producers, MediaFile? selectedFile)
+    {
+        var selectedIds = selectedFile?.Producers.Select(producer => producer.Id).ToHashSet() ?? [];
+
+        FileProducerSelections.Clear();
+        foreach (var producer in producers)
+        {
+            var item = new FileProducerSelectionItem
+            {
+                ProducerId = producer.Id,
+                Name = producer.Name,
+                IsSelected = selectedIds.Contains(producer.Id)
+            };
+            item.SelectionChanged = () => _ = PersistProducersIfNeededAsync();
+            FileProducerSelections.Add(item);
+        }
+
+        OnPropertyChanged(nameof(FileProducerHint));
+    }
+
+    private void SyncFileProducerSelections(MediaFile? mediaFile)
+    {
+        var selectedIds = mediaFile?.Producers.Select(producer => producer.Id).ToHashSet() ?? [];
+
+        _suppressProducerPersistence = true;
+        try
+        {
+            foreach (var item in FileProducerSelections)
+                item.IsSelected = selectedIds.Contains(item.ProducerId);
+        }
+        finally
+        {
+            _suppressProducerPersistence = false;
         }
     }
 
@@ -517,10 +594,6 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     {
         SearchText = string.Empty;
         SelectedMediaTypeFilter = MediaTypeFilters[0];
-
-        foreach (var tag in CategoryFilterTags)
-            tag.IsSelected = false;
-
         ApplySortToBrowser();
     }
 
@@ -589,7 +662,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         IReadOnlyList<MediaVaultBrowserEntry> entries) =>
         FilterEntriesBySearch(
                 FilterEntriesByMediaType(
-                    FilterEntriesByCategory(entries, CategoryFilterTags),
+                    entries,
                     SelectedMediaTypeFilter?.Kind ?? BrowserMediaTypeFilter.All),
                 SearchText)
             .ToList();
@@ -640,39 +713,6 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         return query.ToList();
     }
 
-    private static IEnumerable<MediaVaultBrowserEntry> FilterEntriesByCategory(
-        IEnumerable<MediaVaultBrowserEntry> entries,
-        IReadOnlyList<CategoryFilterTagItem> filterTags)
-    {
-        var selectedCategoryIds = filterTags
-            .Where(tag => tag.IsSelected && tag.CategoryId > VideoCategoryFilterOption.UncategorizedSentinel)
-            .Select(tag => tag.CategoryId)
-            .ToHashSet();
-
-        var includeUncategorized = filterTags.Any(tag =>
-            tag.IsSelected && tag.CategoryId == VideoCategoryFilterOption.UncategorizedSentinel);
-
-        if (selectedCategoryIds.Count == 0 && !includeUncategorized)
-            return entries;
-
-        return entries.Where(entry =>
-        {
-            if (entry.IsDirectory)
-                return false;
-
-            if (entry.MediaFile is null)
-                return includeUncategorized;
-
-            if (entry.MediaFile.Categories.Count == 0)
-                return includeUncategorized;
-
-            if (selectedCategoryIds.Count == 0)
-                return false;
-
-            return entry.MediaFile.Categories.Any(category => selectedCategoryIds.Contains(category.Id));
-        });
-    }
-
     private static IEnumerable<MediaVaultBrowserEntry> FilterEntriesByMediaType(
         IEnumerable<MediaVaultBrowserEntry> entries,
         BrowserMediaTypeFilter filter) =>
@@ -717,6 +757,12 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         OnPropertyChanged(nameof(CanAssignVideoCategory));
         OnPropertyChanged(nameof(ShowFileCategorySection));
         OnPropertyChanged(nameof(FileCategoryHint));
+        OnPropertyChanged(nameof(CanAssignActress));
+        OnPropertyChanged(nameof(ShowFileActressSection));
+        OnPropertyChanged(nameof(FileActressHint));
+        OnPropertyChanged(nameof(CanAssignProducer));
+        OnPropertyChanged(nameof(ShowFileProducerSection));
+        OnPropertyChanged(nameof(FileProducerHint));
     }
 
     private void NotifyNavigationChanged() =>
@@ -791,6 +837,8 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             RankingContenido = MediaFileRankingScale.ToStars(value.MediaFile.RankingContenido);
             RankingGusto = MediaFileRankingScale.ToStars(value.MediaFile.RankingGusto);
             SyncFileCategorySelections(value.MediaFile);
+            SyncFileActressSelections(value.MediaFile);
+            SyncFileProducerSelections(value.MediaFile);
 
             OnPropertyChanged(nameof(CanEditSelectedFile));
             NotifyFileCategoryStateChanged();
@@ -824,7 +872,12 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     private void ApplyUpdatedMediaFileLocally(MediaFile updated)
     {
         if (SelectedMediaFile?.Id == updated.Id)
+        {
             SelectedMediaFile = updated;
+            SyncFileCategorySelections(updated);
+            SyncFileActressSelections(updated);
+            SyncFileProducerSelections(updated);
+        }
 
         for (var index = 0; index < _directoryEntries.Count; index++)
         {
@@ -870,6 +923,8 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 BrowserEntries[index] = refreshed;
                 _suppressRankingPersistence = true;
                 _suppressCategoryPersistence = true;
+                _suppressActressPersistence = true;
+                _suppressProducerPersistence = true;
                 try
                 {
                     SelectedBrowserEntryItem = refreshed;
@@ -878,6 +933,8 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 {
                     _suppressRankingPersistence = false;
                     _suppressCategoryPersistence = false;
+                    _suppressActressPersistence = false;
+                    _suppressProducerPersistence = false;
                 }
             }
         }
@@ -897,6 +954,22 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             return;
 
         await SaveFileCategoriesAsync().ConfigureAwait(true);
+    }
+
+    private async Task PersistActressesIfNeededAsync()
+    {
+        if (_suppressActressPersistence || SelectedMediaFile is null || !CanAssignActress)
+            return;
+
+        await SaveFileActressesAsync().ConfigureAwait(true);
+    }
+
+    private async Task PersistProducersIfNeededAsync()
+    {
+        if (_suppressProducerPersistence || SelectedMediaFile is null || !CanAssignProducer)
+            return;
+
+        await SaveFileProducersAsync().ConfigureAwait(true);
     }
 
     private async Task PersistRankingsIfNeededAsync()
@@ -1277,6 +1350,54 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 .ConfigureAwait(true);
             ApplyUpdatedMediaFileLocally(updated);
             SyncFileCategorySelections(updated);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task SaveFileActressesAsync()
+    {
+        if (SelectedMediaFile is null || !CanAssignActress)
+            return;
+
+        var actressIds = FileActressSelections
+            .Where(item => item.IsSelected)
+            .Select(item => item.ActressId)
+            .ToList();
+
+        try
+        {
+            ErrorMessage = null;
+            var updated = await _mediaVaultService.UpdateActressesAsync(SelectedMediaFile.Id, actressIds)
+                .ConfigureAwait(true);
+            ApplyUpdatedMediaFileLocally(updated);
+            SyncFileActressSelections(updated);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task SaveFileProducersAsync()
+    {
+        if (SelectedMediaFile is null || !CanAssignProducer)
+            return;
+
+        var producerIds = FileProducerSelections
+            .Where(item => item.IsSelected)
+            .Select(item => item.ProducerId)
+            .ToList();
+
+        try
+        {
+            ErrorMessage = null;
+            var updated = await _mediaVaultService.UpdateProducersAsync(SelectedMediaFile.Id, producerIds)
+                .ConfigureAwait(true);
+            ApplyUpdatedMediaFileLocally(updated);
+            SyncFileProducerSelections(updated);
         }
         catch (Exception ex)
         {

@@ -40,6 +40,14 @@ internal sealed class MediaFileConfiguration : IEntityTypeConfiguration<MediaFil
             .WithMany(category => category.MediaFiles)
             .UsingEntity(j => j.ToTable("MediaFileCategories"));
 
+        builder.HasMany(file => file.Actresses)
+            .WithMany(actress => actress.MediaFiles)
+            .UsingEntity(j => j.ToTable("MediaFileActresses"));
+
+        builder.HasMany(file => file.Producers)
+            .WithMany(producer => producer.MediaFiles)
+            .UsingEntity(j => j.ToTable("MediaFileProducers"));
+
         builder.HasIndex(file => file.Path)
             .IsUnique();
 

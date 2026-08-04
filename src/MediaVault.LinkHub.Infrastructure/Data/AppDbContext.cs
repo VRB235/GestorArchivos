@@ -22,6 +22,10 @@ public class AppDbContext : DbContext
 
     public DbSet<VideoCategory> VideoCategories => Set<VideoCategory>();
 
+    public DbSet<Actress> Actresses => Set<Actress>();
+
+    public DbSet<Producer> Producers => Set<Producer>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -30,6 +34,8 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new MediaFileConfiguration());
         modelBuilder.ApplyConfiguration(new QuickNoteConfiguration());
         modelBuilder.ApplyConfiguration(new VideoCategoryConfiguration());
+        modelBuilder.ApplyConfiguration(new ActressConfiguration());
+        modelBuilder.ApplyConfiguration(new ProducerConfiguration());
     }
 
     /// <summary>

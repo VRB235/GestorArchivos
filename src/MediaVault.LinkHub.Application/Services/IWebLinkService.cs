@@ -36,6 +36,14 @@ public interface IWebLinkService
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Asocia productoras/fuentes a un enlace web (reemplaza el conjunto actual).
+    /// </summary>
+    Task<WebLink> UpdateProducersAsync(
+        int id,
+        IReadOnlyCollection<int> producerIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Marca manualmente la fecha de última visita/revisión del sitio por el usuario.
     /// </summary>
     Task<WebLink> MarkAsUserUpdatedAsync(

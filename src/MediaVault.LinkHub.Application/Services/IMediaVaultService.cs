@@ -75,6 +75,33 @@ public interface IMediaVaultService
         IReadOnlyCollection<int> categoryIds,
         CancellationToken cancellationToken = default);
 
+    Task<MediaFile> UpdateActressesAsync(
+        int id,
+        IReadOnlyCollection<int> actressIds,
+        CancellationToken cancellationToken = default);
+
+    Task<MediaFile> UpdateProducersAsync(
+        int id,
+        IReadOnlyCollection<int> producerIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Videos indexados filtrados por actrices, categorías y/o productoras.
+    /// Dentro de cada dimensión el criterio es OR; entre dimensiones es AND.
+    /// </summary>
+    Task<IReadOnlyList<MediaFile>> FindVideosByFiltersAsync(
+        IReadOnlyCollection<int> actressIds,
+        IReadOnlyCollection<int> categoryIds,
+        IReadOnlyCollection<int> producerIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Videos indexados que tienen al menos una de las actrices indicadas (filtro OR).
+    /// </summary>
+    Task<IReadOnlyList<MediaFile>> FindVideosByActressIdsAsync(
+        IReadOnlyCollection<int> actressIds,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Ejecuta el archivo e incrementa <see cref="MediaFile.VecesAbierto"/>.
     /// </summary>

@@ -3,6 +3,7 @@ using System;
 using MediaVault.LinkHub.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260803234622_AddActresses")]
+    partial class AddActresses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
@@ -30,21 +33,6 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                     b.HasIndex("MediaFilesId");
 
                     b.ToTable("MediaFileActresses", (string)null);
-                });
-
-            modelBuilder.Entity("MediaFileProducer", b =>
-                {
-                    b.Property<int>("MediaFilesId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ProducersId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("MediaFilesId", "ProducersId");
-
-                    b.HasIndex("ProducersId");
-
-                    b.ToTable("MediaFileProducers", (string)null);
                 });
 
             modelBuilder.Entity("MediaFileVideoCategory", b =>
@@ -141,32 +129,6 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                     b.ToTable("MediaFiles", (string)null);
                 });
 
-            modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.Producer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.HasIndex("SortOrder");
-
-                    b.ToTable("Producers", (string)null);
-                });
-
             modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.QuickNote", b =>
                 {
                     b.Property<int>("Id")
@@ -257,21 +219,6 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                     b.ToTable("WebLinks", (string)null);
                 });
 
-            modelBuilder.Entity("ProducerWebLink", b =>
-                {
-                    b.Property<int>("ProducersId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("WebLinksId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("ProducersId", "WebLinksId");
-
-                    b.HasIndex("WebLinksId");
-
-                    b.ToTable("WebLinkProducers", (string)null);
-                });
-
             modelBuilder.Entity("ActressMediaFile", b =>
                 {
                     b.HasOne("MediaVault.LinkHub.Domain.Entities.Actress", null)
@@ -287,21 +234,6 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MediaFileProducer", b =>
-                {
-                    b.HasOne("MediaVault.LinkHub.Domain.Entities.MediaFile", null)
-                        .WithMany()
-                        .HasForeignKey("MediaFilesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MediaVault.LinkHub.Domain.Entities.Producer", null)
-                        .WithMany()
-                        .HasForeignKey("ProducersId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("MediaFileVideoCategory", b =>
                 {
                     b.HasOne("MediaVault.LinkHub.Domain.Entities.VideoCategory", null)
@@ -313,21 +245,6 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                     b.HasOne("MediaVault.LinkHub.Domain.Entities.MediaFile", null)
                         .WithMany()
                         .HasForeignKey("MediaFilesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ProducerWebLink", b =>
-                {
-                    b.HasOne("MediaVault.LinkHub.Domain.Entities.Producer", null)
-                        .WithMany()
-                        .HasForeignKey("ProducersId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MediaVault.LinkHub.Domain.Entities.WebLink", null)
-                        .WithMany()
-                        .HasForeignKey("WebLinksId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

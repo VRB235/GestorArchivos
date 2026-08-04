@@ -74,6 +74,21 @@ public sealed class WebLinkServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateProducersAsync_associates_producers_to_link()
+    {
+        var producerService = new ProducerService(_contextFactory);
+        var studio = await producerService.CreateAsync("Studio Link");
+        var link = await _sut.CreateAsync("Portal", "https://portal.test", LinkCategory.Oficial);
+
+        var updated = await _sut.UpdateProducersAsync(link.Id, [studio.Id]);
+
+        updated.Producers.Should().ContainSingle(producer => producer.Name == "Studio Link");
+
+        var cleared = await _sut.UpdateProducersAsync(link.Id, []);
+        cleared.Producers.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task CreateAsync_copies_logo_into_managed_storage_and_survives_source_deletion()
     {
         var source = CreateTempImage("source-logo.png");

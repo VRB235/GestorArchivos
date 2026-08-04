@@ -100,8 +100,8 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
         if (!_appDialogService.ConfirmYesNo(
                 "Confirmar limpieza de metadatos",
                 "¿Restablecer todos los metadatos de seguimiento?\n\n" +
-                "Se borrarán rankings, contador de aperturas, asignaciones de categorías y " +
-                "el catálogo de categorías de todos los archivos indexados. " +
+                "Se borrarán rankings, contador de aperturas, asignaciones de categorías/actrices/productoras y " +
+                "los catálogos correspondientes. " +
                 "Los archivos en disco no se eliminan. Esta acción no se puede deshacer.",
                 AppDialogKind.Warning))
             return;
@@ -118,7 +118,11 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
             result.HasChanges
                 ? $"Archivos restablecidos: {result.FilesUpdated}\n" +
                   $"Asignaciones de categoría eliminadas: {result.CategoryLinksRemoved}\n" +
-                  $"Categorías eliminadas: {result.CategoriesDeleted}"
+                  $"Categorías eliminadas: {result.CategoriesDeleted}\n" +
+                  $"Asignaciones de actriz eliminadas: {result.ActressLinksRemoved}\n" +
+                  $"Actrices eliminadas: {result.ActressesDeleted}\n" +
+                  $"Asignaciones de productora eliminadas: {result.ProducerLinksRemoved}\n" +
+                  $"Productoras eliminadas: {result.ProducersDeleted}"
                 : "No había metadatos de seguimiento que restablecer.");
     }
 }

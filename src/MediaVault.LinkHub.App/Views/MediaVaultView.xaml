@@ -310,30 +310,6 @@
                         <CheckBox Content="Mostrar archivos y carpetas ocultos"
                                   IsChecked="{Binding ShowHiddenFilesAndFolders}"
                                   Margin="0,8,0,0" />
-                        <StackPanel Margin="0,8,0,0">
-                            <TextBlock Text="Filtrar por categorías"
-                                       Style="{StaticResource LabelStyle}" />
-                            <ItemsControl ItemsSource="{Binding CategoryFilterTags}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <ToggleButton Style="{StaticResource CategoryTagToggleStyle}"
-                                                      Content="{Binding Name}"
-                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                      Margin="0,0,6,6" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock Text="Sin tags activos se muestran carpetas y archivos. Pulse uno o más tags para filtrar archivos por categoría."
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="11"
-                                       TextWrapping="Wrap"
-                                       Margin="0,2,0,0" />
-                        </StackPanel>
                     </StackPanel>
 
                     <ListBox x:Name="BrowserListBox"
@@ -584,6 +560,60 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <TextBlock Text="{Binding FileCategoryHint}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,0" />
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,0,12"
+                                        Visibility="{Binding ShowFileActressSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Actrices" Style="{StaticResource LabelStyle}" />
+                                <ItemsControl ItemsSource="{Binding FileActressSelections}"
+                                              Margin="0,0,0,4">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <ToggleButton Style="{StaticResource CategoryTagToggleStyle}"
+                                                          Content="{Binding Name}"
+                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                          IsEnabled="{Binding DataContext.CanAssignActress, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          Margin="0,0,6,6" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{Binding FileActressHint}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,0" />
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,0,12"
+                                        Visibility="{Binding ShowFileProducerSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Productoras" Style="{StaticResource LabelStyle}" />
+                                <ItemsControl ItemsSource="{Binding FileProducerSelections}"
+                                              Margin="0,0,0,4">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <ToggleButton Style="{StaticResource CategoryTagToggleStyle}"
+                                                          Content="{Binding Name}"
+                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                          IsEnabled="{Binding DataContext.CanAssignProducer, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          Margin="0,0,6,6" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{Binding FileProducerHint}"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            FontSize="11"
                                            TextWrapping="Wrap"

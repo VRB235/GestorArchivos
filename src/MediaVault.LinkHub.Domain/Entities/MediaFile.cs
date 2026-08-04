@@ -27,6 +27,10 @@ public class MediaFile : EntityBase
 
     public ICollection<VideoCategory> Categories { get; set; } = [];
 
+    public ICollection<Actress> Actresses { get; set; } = [];
+
+    public ICollection<Producer> Producers { get; set; } = [];
+
     /// <summary>
     /// Promedio de los tres rankings (0-5 estrellas). No se persiste en base de datos.
     /// </summary>

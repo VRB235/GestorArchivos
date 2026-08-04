@@ -220,7 +220,7 @@ public sealed class MediaVaultService : IMediaVaultService
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
     return await FindByPathIgnoreCaseAsync(
-        context.MediaFiles.AsNoTracking().Include(file => file.Categories),
+        context.MediaFiles.AsNoTracking().Include(file => file.Categories).Include(file => file.Actresses).Include(file => file.Producers),
         normalizedPath,
         cancellationToken).ConfigureAwait(false);
   }
@@ -243,7 +243,7 @@ public sealed class MediaVaultService : IMediaVaultService
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
     var existing = await FindByPathIgnoreCaseAsync(
-        context.MediaFiles.Include(file => file.Categories),
+        context.MediaFiles.Include(file => file.Categories).Include(file => file.Actresses).Include(file => file.Producers),
         normalizedPath,
         cancellationToken).ConfigureAwait(false);
 
@@ -367,7 +367,7 @@ public sealed class MediaVaultService : IMediaVaultService
 
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
     var entity = await FindByPathIgnoreCaseAsync(
-        context.MediaFiles.Include(file => file.Categories),
+        context.MediaFiles.Include(file => file.Categories).Include(file => file.Actresses).Include(file => file.Producers),
         fullSourcePath,
         cancellationToken).ConfigureAwait(false);
 
@@ -419,6 +419,8 @@ public sealed class MediaVaultService : IMediaVaultService
     await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
     await context.Entry(entity).Collection(file => file.Categories).LoadAsync(cancellationToken).ConfigureAwait(false);
+    await context.Entry(entity).Collection(file => file.Actresses).LoadAsync(cancellationToken).ConfigureAwait(false);
+    await context.Entry(entity).Collection(file => file.Producers).LoadAsync(cancellationToken).ConfigureAwait(false);
     return entity;
   }
 
@@ -432,6 +434,22 @@ public sealed class MediaVaultService : IMediaVaultService
       .ConfigureAwait(false);
 
     var categoriesDeleted = await context.VideoCategories
+      .ExecuteDeleteAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    var actressLinksRemoved = await context.Database
+      .ExecuteSqlRawAsync("DELETE FROM MediaFileActresses", cancellationToken)
+      .ConfigureAwait(false);
+
+    var actressesDeleted = await context.Actresses
+      .ExecuteDeleteAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    var producerLinksRemoved = await context.Database
+      .ExecuteSqlRawAsync("DELETE FROM MediaFileProducers", cancellationToken)
+      .ConfigureAwait(false);
+
+    var producersDeleted = await context.Producers
       .ExecuteDeleteAsync(cancellationToken)
       .ConfigureAwait(false);
 
@@ -456,7 +474,11 @@ public sealed class MediaVaultService : IMediaVaultService
     {
       FilesUpdated = filesUpdated,
       CategoryLinksRemoved = categoryLinksRemoved,
-      CategoriesDeleted = categoriesDeleted
+      CategoriesDeleted = categoriesDeleted,
+      ActressLinksRemoved = actressLinksRemoved,
+      ActressesDeleted = actressesDeleted,
+      ProducerLinksRemoved = producerLinksRemoved,
+      ProducersDeleted = producersDeleted
     };
   }
 
@@ -468,7 +490,7 @@ public sealed class MediaVaultService : IMediaVaultService
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
     var entity = await context.MediaFiles
-      .Include(file => file.Categories)
+      .Include(file => file.Categories).Include(file => file.Actresses).Include(file => file.Producers)
       .FirstOrDefaultAsync(file => file.Id == id, cancellationToken)
       .ConfigureAwait(false)
       ?? throw new KeyNotFoundException($"No se encontró el archivo con Id {id}.");
@@ -507,6 +529,149 @@ public sealed class MediaVaultService : IMediaVaultService
     return entity;
   }
 
+  public async Task<MediaFile> UpdateActressesAsync(
+    int id,
+    IReadOnlyCollection<int> actressIds,
+    CancellationToken cancellationToken = default)
+  {
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var entity = await context.MediaFiles
+      .Include(file => file.Categories)
+      .Include(file => file.Actresses).Include(file => file.Producers)
+      .FirstOrDefaultAsync(file => file.Id == id, cancellationToken)
+      .ConfigureAwait(false)
+      ?? throw new KeyNotFoundException($"No se encontró el archivo con Id {id}.");
+
+    if (!MediaFileExtensions.IsVideo(entity.Path))
+      throw new InvalidOperationException("Solo los videos indexados pueden tener actrices asignadas.");
+
+    var distinctIds = actressIds.Distinct().ToList();
+
+    if (distinctIds.Count > 0)
+    {
+      var existingIds = await context.Actresses
+        .Where(actress => distinctIds.Contains(actress.Id))
+        .Select(actress => actress.Id)
+        .ToListAsync(cancellationToken)
+        .ConfigureAwait(false);
+
+      if (existingIds.Count != distinctIds.Count)
+        throw new KeyNotFoundException("Una o más actrices seleccionadas no existen.");
+    }
+
+    entity.Actresses.Clear();
+
+    if (distinctIds.Count > 0)
+    {
+      var actresses = await context.Actresses
+        .Where(actress => distinctIds.Contains(actress.Id))
+        .ToListAsync(cancellationToken)
+        .ConfigureAwait(false);
+
+      foreach (var actress in actresses)
+        entity.Actresses.Add(actress);
+    }
+
+    await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    return entity;
+  }
+
+  public async Task<MediaFile> UpdateProducersAsync(
+    int id,
+    IReadOnlyCollection<int> producerIds,
+    CancellationToken cancellationToken = default)
+  {
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var entity = await context.MediaFiles
+      .Include(file => file.Categories)
+      .Include(file => file.Actresses)
+      .Include(file => file.Producers)
+      .FirstOrDefaultAsync(file => file.Id == id, cancellationToken)
+      .ConfigureAwait(false)
+      ?? throw new KeyNotFoundException($"No se encontró el archivo con Id {id}.");
+
+    if (!MediaFileExtensions.IsVideo(entity.Path))
+      throw new InvalidOperationException("Solo los videos indexados pueden tener productoras asignadas.");
+
+    var distinctIds = producerIds.Distinct().ToList();
+
+    if (distinctIds.Count > 0)
+    {
+      var existingIds = await context.Producers
+        .Where(producer => distinctIds.Contains(producer.Id))
+        .Select(producer => producer.Id)
+        .ToListAsync(cancellationToken)
+        .ConfigureAwait(false);
+
+      if (existingIds.Count != distinctIds.Count)
+        throw new KeyNotFoundException("Una o más productoras seleccionadas no existen.");
+    }
+
+    entity.Producers.Clear();
+
+    if (distinctIds.Count > 0)
+    {
+      var producers = await context.Producers
+        .Where(producer => distinctIds.Contains(producer.Id))
+        .ToListAsync(cancellationToken)
+        .ConfigureAwait(false);
+
+      foreach (var producer in producers)
+        entity.Producers.Add(producer);
+    }
+
+    await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    return entity;
+  }
+
+  public Task<IReadOnlyList<MediaFile>> FindVideosByActressIdsAsync(
+    IReadOnlyCollection<int> actressIds,
+    CancellationToken cancellationToken = default) =>
+    FindVideosByFiltersAsync(actressIds, categoryIds: [], producerIds: [], cancellationToken);
+
+  public async Task<IReadOnlyList<MediaFile>> FindVideosByFiltersAsync(
+    IReadOnlyCollection<int> actressIds,
+    IReadOnlyCollection<int> categoryIds,
+    IReadOnlyCollection<int> producerIds,
+    CancellationToken cancellationToken = default)
+  {
+    var distinctActressIds = actressIds.Distinct().ToList();
+    var distinctCategoryIds = categoryIds.Distinct().ToList();
+    var distinctProducerIds = producerIds.Distinct().ToList();
+
+    if (distinctActressIds.Count == 0 && distinctCategoryIds.Count == 0 && distinctProducerIds.Count == 0)
+      return [];
+
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var query = context.MediaFiles
+      .AsNoTracking()
+      .Include(file => file.Categories)
+      .Include(file => file.Actresses)
+      .Include(file => file.Producers)
+      .AsQueryable();
+
+    if (distinctActressIds.Count > 0)
+      query = query.Where(file => file.Actresses.Any(actress => distinctActressIds.Contains(actress.Id)));
+
+    if (distinctCategoryIds.Count > 0)
+      query = query.Where(file => file.Categories.Any(category => distinctCategoryIds.Contains(category.Id)));
+
+    if (distinctProducerIds.Count > 0)
+      query = query.Where(file => file.Producers.Any(producer => distinctProducerIds.Contains(producer.Id)));
+
+    var files = await query
+      .OrderBy(file => file.Name)
+      .ToListAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    return files
+      .Where(file => MediaFileExtensions.IsVideo(file.Path))
+      .ToList();
+  }
+
   public async Task<MediaFile?> OpenFileAsync(
     int id,
     bool preferVlc = false,
@@ -515,7 +680,7 @@ public sealed class MediaVaultService : IMediaVaultService
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
     var entity = await context.MediaFiles
-      .Include(file => file.Categories)
+      .Include(file => file.Categories).Include(file => file.Actresses).Include(file => file.Producers)
       .FirstOrDefaultAsync(file => file.Id == id, cancellationToken)
       .ConfigureAwait(false);
     if (entity is null || !File.Exists(entity.Path))
@@ -549,7 +714,7 @@ public sealed class MediaVaultService : IMediaVaultService
     // SQLite compara strings con sensibilidad a mayúsculas; se carga y empareja en memoria.
     var indexedFiles = await context.MediaFiles
       .AsNoTracking()
-      .Include(file => file.Categories)
+      .Include(file => file.Categories).Include(file => file.Actresses).Include(file => file.Producers)
       .ToListAsync(cancellationToken)
       .ConfigureAwait(false);
 

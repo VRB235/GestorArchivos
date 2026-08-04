@@ -11,6 +11,20 @@ public sealed class MediaMetadataResetResult
 
     public int CategoriesDeleted { get; init; }
 
+    public int ActressLinksRemoved { get; init; }
+
+    public int ActressesDeleted { get; init; }
+
+    public int ProducerLinksRemoved { get; init; }
+
+    public int ProducersDeleted { get; init; }
+
     public bool HasChanges =>
-        FilesUpdated > 0 || CategoryLinksRemoved > 0 || CategoriesDeleted > 0;
+        FilesUpdated > 0
+        || CategoryLinksRemoved > 0
+        || CategoriesDeleted > 0
+        || ActressLinksRemoved > 0
+        || ActressesDeleted > 0
+        || ProducerLinksRemoved > 0
+        || ProducersDeleted > 0;
 }

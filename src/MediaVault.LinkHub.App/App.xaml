@@ -24,6 +24,12 @@
             <DataTemplate DataType="{x:Type vm:VideoCategoryManagerViewModel}">
                 <views:VideoCategoryManagerView />
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ActressesViewModel}">
+                <views:ActressesView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ProducerManagerViewModel}">
+                <views:ProducerManagerView />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:ScratchpadViewModel}">
                 <views:ScratchpadView />
             </DataTemplate>

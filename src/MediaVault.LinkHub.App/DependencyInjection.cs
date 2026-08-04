@@ -17,6 +17,8 @@ public static class DependencyInjection
         services.AddTransient<LinkManagerViewModel>();
         services.AddTransient<MediaVaultViewModel>();
         services.AddTransient<VideoCategoryManagerViewModel>();
+        services.AddTransient<ActressesViewModel>();
+        services.AddTransient<ProducerManagerViewModel>();
         services.AddTransient<DashboardViewModel>();
         services.AddTransient<ScratchpadViewModel>();
         services.AddTransient<SettingsViewModel>();
