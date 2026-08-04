@@ -196,7 +196,7 @@ Opcional: forzar ambiente con la variable `MEDIAVAULT_ENVIRONMENT=Development|Pr
 | `MediaFiles` | `Path` (único), `VecesAbierto`, `Extension` |
 | `VideoCategories` | nombre |
 | `Actresses` / `Producers` | nombre |
-| `MediaFileVideoCategory`, `MediaFileActresses`, `MediaFileProducers` | M:N videos |
+| `MediaFileCategories`, `MediaFileActresses`, `MediaFileProducers` | M:N videos |
 | `WebLinkProducers` | M:N enlaces ↔ productoras |
 | `QuickNotes` | `FechaCreacion` |
 
