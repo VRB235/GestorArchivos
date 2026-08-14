@@ -11,9 +11,14 @@ public sealed class DashboardServiceTests : IDisposable
 {
     private readonly TestDbContextFactory _contextFactory = new();
     private readonly DashboardService _sut;
+    private readonly string _mediaRoot;
 
-    public DashboardServiceTests() =>
+    public DashboardServiceTests()
+    {
         _sut = new DashboardService(_contextFactory);
+        _mediaRoot = Path.Combine(Path.GetTempPath(), "MediaVaultLinkHubTests", "dashboard", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_mediaRoot);
+    }
 
     [Fact]
     public async Task GetStatisticsAsync_builds_top10_by_views_and_link_distribution()
@@ -83,6 +88,43 @@ public sealed class DashboardServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetVideoRecommendationAsync_skips_videos_missing_on_disk()
+    {
+        var existing = CreateTempMedia("exists.mp4");
+        await using (var context = _contextFactory.CreateDbContext())
+        {
+            context.MediaFiles.AddRange(
+                new MediaFile
+                {
+                    Path = existing,
+                    Name = "exists.mp4",
+                    Extension = ".mp4",
+                    RankingCalidad = 5,
+                    RankingContenido = 5,
+                    RankingGusto = 5
+                },
+                new MediaFile
+                {
+                    Path = Path.Combine(_mediaRoot, "missing-file.mp4"),
+                    Name = "missing-file.mp4",
+                    Extension = ".mp4",
+                    RankingCalidad = 5,
+                    RankingContenido = 5,
+                    RankingGusto = 5
+                });
+            await context.SaveChangesAsync();
+        }
+
+        for (var i = 0; i < 8; i++)
+        {
+            var recommendation = await _sut.GetVideoRecommendationAsync();
+            recommendation.Should().NotBeNull();
+            recommendation!.Name.Should().Be("exists.mp4");
+            recommendation.Path.Should().Be(existing);
+        }
+    }
+
+    [Fact]
     public async Task GetTop10MostViewedAsync_delegates_to_statistics()
     {
         await SeedDashboardDataAsync();
@@ -100,7 +142,7 @@ public sealed class DashboardServiceTests : IDisposable
         context.MediaFiles.AddRange(
             new MediaFile
             {
-                Path = @"C:\vault\five.mp4",
+                Path = CreateTempMedia("five.mp4"),
                 Name = "five.mp4",
                 Extension = ".mp4",
                 RankingCalidad = 5,
@@ -109,7 +151,7 @@ public sealed class DashboardServiceTests : IDisposable
             },
             new MediaFile
             {
-                Path = @"C:\vault\four.mp4",
+                Path = CreateTempMedia("four.mp4"),
                 Name = "four.mp4",
                 Extension = ".mp4",
                 RankingCalidad = 4,
@@ -118,7 +160,7 @@ public sealed class DashboardServiceTests : IDisposable
             },
             new MediaFile
             {
-                Path = @"C:\vault\unrated.mp4",
+                Path = CreateTempMedia("unrated.mp4"),
                 Name = "unrated.mp4",
                 Extension = ".mp4"
             });
@@ -155,7 +197,7 @@ public sealed class DashboardServiceTests : IDisposable
 
         var popularVideo = new MediaFile
         {
-            Path = @"C:\vault\popular.mp4",
+            Path = CreateTempMedia("popular.mp4"),
             Name = "popular.mp4",
             Extension = ".mp4",
             VecesAbierto = 12,
@@ -169,14 +211,14 @@ public sealed class DashboardServiceTests : IDisposable
             popularVideo,
             new MediaFile
             {
-                Path = @"C:\vault\foto.jpg",
+                Path = CreateTempMedia("foto.jpg"),
                 Name = "foto.jpg",
                 Extension = ".jpg",
                 VecesAbierto = 5
             },
             new MediaFile
             {
-                Path = @"C:\vault\medio.mp4",
+                Path = CreateTempMedia("medio.mp4"),
                 Name = "medio.mp4",
                 Extension = ".mp4",
                 VecesAbierto = 7
@@ -185,5 +227,24 @@ public sealed class DashboardServiceTests : IDisposable
         await context.SaveChangesAsync();
     }
 
-    public void Dispose() => _contextFactory.Dispose();
+    private string CreateTempMedia(string fileName)
+    {
+        var path = Path.Combine(_mediaRoot, fileName);
+        File.WriteAllBytes(path, [0x00, 0x01, 0x02, 0x03]);
+        return path;
+    }
+
+    public void Dispose()
+    {
+        _contextFactory.Dispose();
+        try
+        {
+            if (Directory.Exists(_mediaRoot))
+                Directory.Delete(_mediaRoot, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Best-effort cleanup in tests.
+        }
+    }
 }

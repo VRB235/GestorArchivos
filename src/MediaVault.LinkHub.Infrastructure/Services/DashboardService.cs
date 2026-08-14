@@ -223,6 +223,7 @@ public sealed class DashboardService : IDashboardService
         row.RankingGusto,
         FormatCategoryNames(row.CategoryNames)))
       .Where(file => file.IsVideo)
+      .Where(file => !string.IsNullOrWhiteSpace(file.Path) && File.Exists(file.Path))
       .ToList();
   }
 
