@@ -17,6 +17,21 @@ public class WebLink : EntityBase
     /// </summary>
     public string? LogoPath { get; set; }
 
+    /// <summary>
+    /// Zoom del logo en el tile (1 = ajuste por defecto; mayor = acercar / recortar más).
+    /// </summary>
+    public double LogoZoom { get; set; } = 1.0;
+
+    /// <summary>
+    /// Desplazamiento horizontal del logo (-1 izquierda … 1 derecha) dentro del recorte.
+    /// </summary>
+    public double LogoOffsetX { get; set; }
+
+    /// <summary>
+    /// Desplazamiento vertical del logo (-1 arriba … 1 abajo) dentro del recorte.
+    /// </summary>
+    public double LogoOffsetY { get; set; }
+
     public LinkCategory Categoria { get; set; } = LinkCategory.Oficial;
 
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;

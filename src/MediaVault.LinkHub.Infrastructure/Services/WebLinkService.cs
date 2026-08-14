@@ -1,6 +1,7 @@
 using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Domain.Entities;
 using MediaVault.LinkHub.Domain.Enums;
+using MediaVault.LinkHub.Domain.Media;
 using MediaVault.LinkHub.Infrastructure.Data;
 using MediaVault.LinkHub.Infrastructure.Launchers;
 using MediaVault.LinkHub.Infrastructure.Media;
@@ -69,6 +70,9 @@ public sealed class WebLinkService : IWebLinkService
         LinkCategory categoria,
         string? logoPath = null,
         DateTime? fechaUltimaActualizacionUsuario = null,
+        double logoZoom = 1.0,
+        double logoOffsetX = 0.0,
+        double logoOffsetY = 0.0,
         CancellationToken cancellationToken = default)
     {
         ValidateLinkInput(nombre, url);
@@ -81,6 +85,9 @@ public sealed class WebLinkService : IWebLinkService
             Url = NormalizeUrl(url),
             Categoria = categoria,
             LogoPath = ResolvePersistedLogoPath(logoPath),
+            LogoZoom = WebLinkLogoFit.ClampZoom(logoZoom),
+            LogoOffsetX = WebLinkLogoFit.ClampOffset(logoOffsetX),
+            LogoOffsetY = WebLinkLogoFit.ClampOffset(logoOffsetY),
             FechaCreacion = DateTime.UtcNow,
             FechaUltimaActualizacion = NormalizeUserVisitDate(fechaUltimaActualizacionUsuario)
         };
@@ -97,6 +104,9 @@ public sealed class WebLinkService : IWebLinkService
         LinkCategory categoria,
         string? logoPath = null,
         DateTime? fechaUltimaActualizacionUsuario = null,
+        double logoZoom = 1.0,
+        double logoOffsetX = 0.0,
+        double logoOffsetY = 0.0,
         CancellationToken cancellationToken = default)
     {
         ValidateLinkInput(nombre, url);
@@ -113,6 +123,9 @@ public sealed class WebLinkService : IWebLinkService
         entity.Url = NormalizeUrl(url);
         entity.Categoria = categoria;
         entity.LogoPath = nextLogoPath;
+        entity.LogoZoom = WebLinkLogoFit.ClampZoom(logoZoom);
+        entity.LogoOffsetX = WebLinkLogoFit.ClampOffset(logoOffsetX);
+        entity.LogoOffsetY = WebLinkLogoFit.ClampOffset(logoOffsetY);
         entity.FechaUltimaActualizacion = NormalizeUserVisitDate(fechaUltimaActualizacionUsuario);
 
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

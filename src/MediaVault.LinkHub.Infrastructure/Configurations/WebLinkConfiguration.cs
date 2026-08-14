@@ -23,6 +23,18 @@ internal sealed class WebLinkConfiguration : IEntityTypeConfiguration<WebLink>
         builder.Property(link => link.LogoPath)
             .HasMaxLength(1024);
 
+        builder.Property(link => link.LogoZoom)
+            .IsRequired()
+            .HasDefaultValue(1.0);
+
+        builder.Property(link => link.LogoOffsetX)
+            .IsRequired()
+            .HasDefaultValue(0.0);
+
+        builder.Property(link => link.LogoOffsetY)
+            .IsRequired()
+            .HasDefaultValue(0.0);
+
         builder.Property(link => link.Categoria)
             .IsRequired()
             .HasConversion<string>()

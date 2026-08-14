@@ -154,6 +154,39 @@ public sealed class WebLinkServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateAsync_persists_and_clamps_logo_fit()
+    {
+        var source = CreateTempImage("fit-logo.png");
+
+        var created = await _sut.CreateAsync(
+            "Con ajuste",
+            "https://fit.test",
+            LinkCategory.Oficial,
+            source,
+            logoZoom: 9,
+            logoOffsetX: -2,
+            logoOffsetY: 1.5);
+
+        created.LogoZoom.Should().Be(4.0);
+        created.LogoOffsetX.Should().Be(-1.0);
+        created.LogoOffsetY.Should().Be(1.0);
+
+        var updated = await _sut.UpdateAsync(
+            created.Id,
+            created.Nombre,
+            created.Url,
+            created.Categoria,
+            created.LogoPath,
+            logoZoom: 2.5,
+            logoOffsetX: 0.25,
+            logoOffsetY: -0.5);
+
+        updated.LogoZoom.Should().Be(2.5);
+        updated.LogoOffsetX.Should().Be(0.25);
+        updated.LogoOffsetY.Should().Be(-0.5);
+    }
+
+    [Fact]
     public async Task MigrateExternalLogosAsync_copies_existing_external_paths()
     {
         var external = CreateTempImage("external.png");

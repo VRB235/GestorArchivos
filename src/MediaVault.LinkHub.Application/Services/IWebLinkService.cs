@@ -22,6 +22,9 @@ public interface IWebLinkService
         LinkCategory categoria,
         string? logoPath = null,
         DateTime? fechaUltimaActualizacionUsuario = null,
+        double logoZoom = 1.0,
+        double logoOffsetX = 0.0,
+        double logoOffsetY = 0.0,
         CancellationToken cancellationToken = default);
 
     Task<WebLink> UpdateAsync(
@@ -31,6 +34,9 @@ public interface IWebLinkService
         LinkCategory categoria,
         string? logoPath = null,
         DateTime? fechaUltimaActualizacionUsuario = null,
+        double logoZoom = 1.0,
+        double logoOffsetX = 0.0,
+        double logoOffsetY = 0.0,
         CancellationToken cancellationToken = default);
 
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);

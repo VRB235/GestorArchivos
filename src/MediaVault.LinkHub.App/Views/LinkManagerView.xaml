@@ -3,12 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:MediaVault.LinkHub.App.Controls"
              xmlns:converters="clr-namespace:MediaVault.LinkHub.App.Converters"
              mc:Ignorable="d">
     <UserControl.Resources>
-        <converters:WebLinkLogoImageConverter x:Key="WebLinkLogoImageConverter" />
-        <converters:WebLinkTileBrushConverter x:Key="WebLinkTileBrushConverter" />
-        <converters:LinkCategoryGlyphConverter x:Key="LinkCategoryGlyphConverter" />
         <converters:DateTimeLocalConverter x:Key="DateTimeLocalConverter" />
 
         <Style x:Key="LinkTileListBoxItemStyle" TargetType="ListBoxItem">
@@ -107,38 +105,13 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Width="118" HorizontalAlignment="Center">
-                                    <Grid Width="96" Height="96" Margin="0,0,0,8">
-                                        <Border CornerRadius="12"
-                                                Background="{Binding Converter={StaticResource WebLinkTileBrushConverter}}" />
-
-                                        <Image Source="{Binding Converter={StaticResource WebLinkLogoImageConverter}}"
-                                               Stretch="UniformToFill"
-                                               Margin="2">
-                                            <Image.Clip>
-                                                <RectangleGeometry RadiusX="10" RadiusY="10" Rect="0,0,92,92" />
-                                            </Image.Clip>
-                                        </Image>
-
-                                        <TextBlock Text="{Binding Categoria, Converter={StaticResource LinkCategoryGlyphConverter}}"
-                                                   FontSize="28"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="#E5E7EB">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding LogoPath}" Value="{x:Null}">
-                                                            <Setter Property="Visibility" Value="Visible" />
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding LogoPath}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </Grid>
+                                    <controls:LinkLogoFrame LogoPath="{Binding LogoPath}"
+                                                            Category="{Binding Categoria}"
+                                                            Zoom="{Binding LogoZoom}"
+                                                            OffsetX="{Binding LogoOffsetX}"
+                                                            OffsetY="{Binding LogoOffsetY}"
+                                                            Margin="0,0,0,8"
+                                                            HorizontalAlignment="Center" />
 
                                     <TextBlock Text="{Binding Nombre}"
                                                TextWrapping="Wrap"
@@ -170,41 +143,14 @@
                 <StackPanel>
                     <TextBlock Text="Detalle del enlace" Style="{StaticResource SectionTitleStyle}" />
 
-                    <Border Width="96"
-                            Height="96"
-                            CornerRadius="12"
-                            Margin="0,0,0,12"
-                            HorizontalAlignment="Left"
-                            Background="{Binding SelectedWebLink, Converter={StaticResource WebLinkTileBrushConverter}}">
-                        <Grid>
-                            <Image Source="{Binding SelectedWebLink, Converter={StaticResource WebLinkLogoImageConverter}}"
-                                   Stretch="UniformToFill"
-                                   Margin="2">
-                                <Image.Clip>
-                                    <RectangleGeometry RadiusX="10" RadiusY="10" Rect="0,0,92,92" />
-                                </Image.Clip>
-                            </Image>
-                            <TextBlock Text="{Binding Categoria, Converter={StaticResource LinkCategoryGlyphConverter}}"
-                                       FontSize="28"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Foreground="#E5E7EB">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding LogoPath}" Value="{x:Null}">
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding LogoPath}" Value="">
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Grid>
-                    </Border>
+                    <controls:LinkLogoFrame LogoPath="{Binding LogoPath}"
+                                            Category="{Binding Categoria}"
+                                            Zoom="{Binding LogoZoom}"
+                                            OffsetX="{Binding LogoOffsetX}"
+                                            OffsetY="{Binding LogoOffsetY}"
+                                            FrameSize="120"
+                                            Margin="0,0,0,12"
+                                            HorizontalAlignment="Left" />
 
                     <TextBlock Text="Nombre" Style="{StaticResource LabelStyle}" />
                     <TextBox Text="{Binding Nombre, UpdateSourceTrigger=PropertyChanged}" />
@@ -253,6 +199,52 @@
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Command="{Binding BrowseLogoCommand}" />
                     </Grid>
+
+                    <TextBlock Text="Ajuste del logo" Style="{StaticResource LabelStyle}" />
+                    <TextBlock Text="1× encaja la imagen completa en el cuadro. Menos de 1× la reduce; más de 1× recorta por el centro (la foto no sale del marco)."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+
+                    <TextBlock Text="{Binding LogoZoom, StringFormat=Tamaño: {0:0.00}x}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               Margin="0,0,0,2" />
+                    <Slider Minimum="0.25"
+                            Maximum="4"
+                            TickFrequency="0.05"
+                            IsSnapToTickEnabled="True"
+                            Value="{Binding LogoZoom, Mode=TwoWay}"
+                            Margin="0,0,0,8" />
+
+                    <TextBlock Text="Posición horizontal"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               Margin="0,0,0,2" />
+                    <Slider Minimum="-1"
+                            Maximum="1"
+                            TickFrequency="0.05"
+                            IsSnapToTickEnabled="True"
+                            Value="{Binding LogoOffsetX, Mode=TwoWay}"
+                            Margin="0,0,0,8" />
+
+                    <TextBlock Text="Posición vertical"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               Margin="0,0,0,2" />
+                    <Slider Minimum="-1"
+                            Maximum="1"
+                            TickFrequency="0.05"
+                            IsSnapToTickEnabled="True"
+                            Value="{Binding LogoOffsetY, Mode=TwoWay}"
+                            Margin="0,0,0,8" />
+
+                    <Button Content="Restablecer ajuste"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding ResetLogoFitCommand}"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,12" />
 
                     <TextBlock Text="Última visita (usuario)" Style="{StaticResource LabelStyle}" />
                     <TextBlock Text="Registre cuándo revisó el sitio tras abrirlo en el navegador."

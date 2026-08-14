@@ -67,6 +67,15 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
     private string? _logoPath;
 
     [ObservableProperty]
+    private double _logoZoom = 1.0;
+
+    [ObservableProperty]
+    private double _logoOffsetX;
+
+    [ObservableProperty]
+    private double _logoOffsetY;
+
+    [ObservableProperty]
     private LinkCategory _categoria = LinkCategory.Oficial;
 
     /// <summary>Fecha de visita del usuario (UTC en modelo, local en UI).</summary>
@@ -198,6 +207,9 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
         Nombre = value.Nombre;
         Url = value.Url;
         LogoPath = value.LogoPath;
+        LogoZoom = value.LogoZoom;
+        LogoOffsetX = value.LogoOffsetX;
+        LogoOffsetY = value.LogoOffsetY;
         Categoria = value.Categoria;
         FechaUltimaActualizacion = value.FechaUltimaActualizacion;
         FechaVisitaSeleccionada = value.FechaUltimaActualizacion?.ToLocalTime().Date;
@@ -226,6 +238,7 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
         Nombre = string.Empty;
         Url = string.Empty;
         LogoPath = null;
+        ResetLogoFit();
         Categoria = LinkCategory.Oficial;
         FechaUltimaActualizacion = null;
         FechaVisitaSeleccionada = null;
@@ -242,8 +255,19 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
             Filter = "Imágenes|*.png;*.jpg;*.jpeg;*.webp;*.ico;*.bmp|Todos los archivos|*.*"
         };
 
-        if (dialog.ShowDialog() == true)
-            LogoPath = dialog.FileName;
+        if (dialog.ShowDialog() != true)
+            return;
+
+        LogoPath = dialog.FileName;
+        ResetLogoFit();
+    }
+
+    [RelayCommand]
+    private void ResetLogoFit()
+    {
+        LogoZoom = 1.0;
+        LogoOffsetX = 0;
+        LogoOffsetY = 0;
     }
 
     [RelayCommand]
@@ -288,7 +312,10 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
                     Url,
                     Categoria,
                     LogoPath,
-                    FechaUltimaActualizacion).ConfigureAwait(true);
+                    FechaUltimaActualizacion,
+                    LogoZoom,
+                    LogoOffsetX,
+                    LogoOffsetY).ConfigureAwait(true);
                 savedId = created.Id;
             }
             else
@@ -300,7 +327,10 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
                     Url,
                     Categoria,
                     LogoPath,
-                    FechaUltimaActualizacion).ConfigureAwait(true);
+                    FechaUltimaActualizacion,
+                    LogoZoom,
+                    LogoOffsetX,
+                    LogoOffsetY).ConfigureAwait(true);
             }
 
             var producerIds = LinkProducerSelections
