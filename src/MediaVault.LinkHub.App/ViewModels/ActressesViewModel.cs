@@ -221,12 +221,21 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
             .ConfigureAwait(true);
         var generation = ++_thumbnailGeneration;
 
+        var videoItems = new List<ActressVideoListItem>(files.Count);
         foreach (var file in files)
         {
             var item = new ActressVideoListItem { MediaFile = file };
             Videos.Add(item);
-            _ = LoadThumbnailAsync(item, generation);
+            videoItems.Add(item);
         }
+
+        FolderSessionPicturePicker.PrefetchDistinctAssignments(
+            videoItems
+                .Where(item => !string.IsNullOrWhiteSpace(item.FolderPath))
+                .Select(item => (ItemKey: item.MediaFile.Path, FolderPath: item.FolderPath)));
+
+        foreach (var item in videoItems)
+            _ = LoadThumbnailAsync(item, generation);
 
         OnPropertyChanged(nameof(ResultsSummary));
     }
@@ -242,7 +251,10 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
             {
                 folderPath = Path.GetFullPath(folderPath);
                 thumbnail = await Task.Run(() =>
-                    FolderSessionPicturePicker.TryLoadSessionThumbnail(folderPath, 120)).ConfigureAwait(true);
+                    FolderSessionPicturePicker.TryLoadThumbnailForItem(
+                        folderPath,
+                        item.MediaFile.Path,
+                        120)).ConfigureAwait(true);
 
                 if (thumbnail is null)
                 {
@@ -257,7 +269,7 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
             }
             catch
             {
-                // Sin miniatura si la carpeta no es accesible.
+                thumbnail = null;
             }
         }
 

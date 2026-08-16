@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Media;
 
 using MediaVault.LinkHub.App.ViewModels;
@@ -7,6 +8,7 @@ namespace MediaVault.LinkHub.App.Shell;
 
 /// <summary>
 /// Carga miniaturas en segundo plano sin bloquear la navegación del explorador.
+/// Videos: foto de <c>{carpeta}/Pictures</c> (distinta por archivo cuando hay varias).
 /// </summary>
 public sealed class BrowserThumbnailLoader
 {
@@ -20,12 +22,30 @@ public sealed class BrowserThumbnailLoader
 
     public void BeginLoad(int generation, IEnumerable<MediaVaultBrowserEntryItem> items)
     {
-        foreach (var item in items)
+        var list = items.ToList();
+        PrefetchVideoPictures(list);
+        foreach (var item in list)
             _ = LoadItemAsync(item, generation);
     }
 
     public void LoadItem(MediaVaultBrowserEntryItem item, int generation) =>
         _ = LoadItemAsync(item, generation);
+
+    private static void PrefetchVideoPictures(IReadOnlyList<MediaVaultBrowserEntryItem> items)
+    {
+        var pairs = items
+            .Where(item => !item.IsDirectory && MediaFileExtensions.IsVideo(item.FullPath))
+            .Select(item =>
+            {
+                var folder = Path.GetDirectoryName(item.FullPath) ?? string.Empty;
+                return (ItemKey: item.FullPath, FolderPath: folder);
+            })
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.FolderPath))
+            .ToList();
+
+        if (pairs.Count > 0)
+            FolderSessionPicturePicker.PrefetchDistinctAssignments(pairs);
+    }
 
     private async Task LoadItemAsync(MediaVaultBrowserEntryItem item, int generation)
     {
@@ -54,34 +74,24 @@ public sealed class BrowserThumbnailLoader
                 return;
 
             ImageSource? thumbnail = null;
-            var maxAttempts = isVideo ? 10 : 1;
 
-            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            if (isVideo)
             {
-                if (generation != Volatile.Read(ref _activeGeneration))
-                    return;
+                thumbnail = await LoadVideoPictureThumbnailAsync(item.FullPath).ConfigureAwait(false);
 
-                if (attempt > 0 && isVideo)
-                    WindowsShellThumbnailProvider.InvalidateCacheEntry(item.FullPath, isDirectory: false);
-
+                // Fallback breve al Shell solo si no hay fotos de actriz.
+                if (thumbnail is null)
+                {
+                    thumbnail = await WindowsShellThumbnailProvider
+                        .GetThumbnailAsync(item.FullPath, false)
+                        .ConfigureAwait(false);
+                }
+            }
+            else
+            {
                 thumbnail = await WindowsShellThumbnailProvider
                     .GetThumbnailAsync(item.FullPath, false)
                     .ConfigureAwait(false);
-
-                if (thumbnail is not null)
-                    break;
-
-                if (!isVideo || attempt == maxAttempts - 1)
-                    break;
-
-                await Task.Delay(attempt switch
-                {
-                    0 => 500,
-                    1 => 1000,
-                    2 => 1500,
-                    3 => 2000,
-                    _ => 2500
-                }).ConfigureAwait(false);
             }
 
             if (generation != Volatile.Read(ref _activeGeneration))
@@ -97,6 +107,16 @@ public sealed class BrowserThumbnailLoader
             if (isVideo)
                 await SetThumbnailLoadingAsync(item, false).ConfigureAwait(false);
         }
+    }
+
+    private static Task<ImageSource?> LoadVideoPictureThumbnailAsync(string videoPath)
+    {
+        var folderPath = Path.GetDirectoryName(videoPath);
+        if (string.IsNullOrWhiteSpace(folderPath))
+            return Task.FromResult<ImageSource?>(null);
+
+        return Task.Run(() =>
+            FolderSessionPicturePicker.TryLoadThumbnailForItem(folderPath, videoPath, 128));
     }
 
     private async Task LoadDirectoryThumbnailAsync(MediaVaultBrowserEntryItem item, int generation)

@@ -80,7 +80,8 @@ public partial class DashboardChartPanelViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(folderPath))
         {
             thumbnail = await Task.Run(() =>
-                FolderSessionPicturePicker.TryLoadSessionThumbnail(folderPath, 160)).ConfigureAwait(true);
+                FolderSessionPicturePicker.TryLoadThumbnailForItem(folderPath, file.Path, 160))
+                .ConfigureAwait(true);
         }
 
         thumbnail ??= await WindowsShellThumbnailProvider
