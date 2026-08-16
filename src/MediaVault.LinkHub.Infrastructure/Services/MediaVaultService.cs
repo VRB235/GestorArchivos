@@ -537,6 +537,78 @@ public sealed class MediaVaultService : IMediaVaultService
     };
   }
 
+  public async Task<IndexPurgeResult> PurgeInvalidIndexEntriesAsync(
+    string? indexRootPath = null,
+    bool removeMissingFiles = true,
+    CancellationToken cancellationToken = default)
+  {
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var rows = await context.MediaFiles
+      .AsNoTracking()
+      .Select(file => new { file.Id, file.Path })
+      .ToListAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    var unusableIds = new List<int>();
+    var outsideRootIds = new List<int>();
+    var missingIds = new List<int>();
+    var hasRoot = !string.IsNullOrWhiteSpace(indexRootPath);
+
+    foreach (var row in rows)
+    {
+      if (!MediaPathEligibility.IsUsableMediaPath(row.Path))
+      {
+        unusableIds.Add(row.Id);
+        continue;
+      }
+
+      if (hasRoot && !MediaPathEligibility.IsUnderIndexRoot(row.Path, indexRootPath))
+      {
+        outsideRootIds.Add(row.Id);
+        continue;
+      }
+
+      if (removeMissingFiles && !MediaPathEligibility.ExistsSafely(row.Path))
+        missingIds.Add(row.Id);
+    }
+
+    var idsToRemove = unusableIds
+      .Concat(outsideRootIds)
+      .Concat(missingIds)
+      .Distinct()
+      .ToList();
+
+    if (idsToRemove.Count > 0)
+    {
+      // Solo índice: no tocar disco. Limpiar M2M antes del borrado masivo.
+      var entities = await context.MediaFiles
+        .Include(file => file.Categories)
+        .Include(file => file.Actresses)
+        .Include(file => file.Producers)
+        .Where(file => idsToRemove.Contains(file.Id))
+        .ToListAsync(cancellationToken)
+        .ConfigureAwait(false);
+
+      foreach (var entity in entities)
+      {
+        entity.Categories.Clear();
+        entity.Actresses.Clear();
+        entity.Producers.Clear();
+      }
+
+      context.MediaFiles.RemoveRange(entities);
+      await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    return new IndexPurgeResult
+    {
+      RemovedUnusablePaths = unusableIds.Count,
+      RemovedOutsideRoot = outsideRootIds.Count,
+      RemovedMissingFiles = missingIds.Count
+    };
+  }
+
   public async Task<MediaFile> UpdateCategoriesAsync(
     int id,
     IReadOnlyCollection<int> categoryIds,

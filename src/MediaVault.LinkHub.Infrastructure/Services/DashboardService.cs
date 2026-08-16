@@ -72,9 +72,14 @@ public sealed class DashboardService : IDashboardService
       row.RankingContenido,
       row.RankingGusto,
       FormatCategoryNames(row.CategoryNames))).ToList();
-    var videos = allStats.Where(file => file.IsVideo).ToList();
-    var photos = allStats.Where(file => !file.IsVideo).ToList();
-    var ranked = allStats.Where(file => file.RankingGlobal > 0).ToList();
+
+    // Tops / métricas de disco: excluir papelera y rutas inexistentes (evita stickers de $RECYCLE.BIN).
+    var presentStats = allStats
+      .Where(file => MediaPathEligibility.ExistsSafely(file.Path))
+      .ToList();
+    var videos = presentStats.Where(file => file.IsVideo).ToList();
+    var photos = presentStats.Where(file => !file.IsVideo).ToList();
+    var ranked = presentStats.Where(file => file.RankingGlobal > 0).ToList();
     var rankedVideos = ranked.Where(file => file.IsVideo).ToList();
     var rankedPhotos = ranked.Where(file => !file.IsVideo).ToList();
 
@@ -94,6 +99,7 @@ public sealed class DashboardService : IDashboardService
       .ToList();
 
     var mediaCategoryDistribution = rows
+      .Where(row => MediaPathEligibility.ExistsSafely(row.Path))
       .SelectMany(row =>
       {
         if (row.CategoryNames.Count == 0)
@@ -112,6 +118,7 @@ public sealed class DashboardService : IDashboardService
       .ToList();
 
     var averageRankingByCategory = rows
+      .Where(row => MediaPathEligibility.ExistsSafely(row.Path))
       .SelectMany(row =>
       {
         var ranking = MediaFileRankingScale.ComputeGlobal(
@@ -140,7 +147,7 @@ public sealed class DashboardService : IDashboardService
 
     return new DashboardStatistics
     {
-      Top10MostViewed = TakeTopByViews(allStats, 10),
+      Top10MostViewed = TakeTopByViews(presentStats, 10),
       Top10MostViewedVideos = TakeTopByViews(videos, 10),
       Top10MostViewedPhotos = TakeTopByViews(photos, 10),
       Top10BestRankedVideos = TakeTopByRanking(rankedVideos, 10),
@@ -151,7 +158,7 @@ public sealed class DashboardService : IDashboardService
       AverageGlobalRanking = ranked.Count == 0 ? 0 : ranked.Average(file => file.RankingGlobal),
       AverageVideoRanking = rankedVideos.Count == 0 ? 0 : rankedVideos.Average(file => file.RankingGlobal),
       AveragePhotoRanking = rankedPhotos.Count == 0 ? 0 : rankedPhotos.Average(file => file.RankingGlobal),
-      TotalMediaFiles = allStats.Count,
+      TotalMediaFiles = presentStats.Count,
       TotalVideos = videos.Count,
       TotalPhotos = photos.Count,
       TotalWebLinks = totalWebLinks,
@@ -190,8 +197,47 @@ public sealed class DashboardService : IDashboardService
     int mediaFileId,
     CancellationToken cancellationToken = default)
   {
-    var videos = await LoadVideoStatsAsync(cancellationToken).ConfigureAwait(false);
-    return videos.FirstOrDefault(file => file.Id == mediaFileId);
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var row = await context.MediaFiles
+      .AsNoTracking()
+      .Where(file => file.Id == mediaFileId)
+      .Select(file => new
+      {
+        file.Id,
+        file.Name,
+        file.Extension,
+        file.Path,
+        file.VecesAbierto,
+        file.RankingCalidad,
+        file.RankingContenido,
+        file.RankingGusto,
+        CategoryNames = file.Categories
+          .OrderBy(category => category.Name)
+          .Select(category => category.Name)
+          .ToList()
+      })
+      .FirstOrDefaultAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    if (row is null)
+      return null;
+
+    var stats = MapToStats(
+      row.Id,
+      row.Name,
+      row.Extension,
+      row.Path,
+      row.VecesAbierto,
+      row.RankingCalidad,
+      row.RankingContenido,
+      row.RankingGusto,
+      FormatCategoryNames(row.CategoryNames));
+
+    if (!stats.IsVideo || !MediaPathEligibility.ExistsSafely(stats.Path))
+      return null;
+
+    return stats;
   }
 
   private async Task<List<MediaFileViewStats>> LoadVideoStatsAsync(CancellationToken cancellationToken)
@@ -219,6 +265,8 @@ public sealed class DashboardService : IDashboardService
       .ToListAsync(cancellationToken)
       .ConfigureAwait(false);
 
+    // Primero descarta papelera/rutas inválidas (barato); luego Exists solo sobre candidatas.
+    // Así no recomendamos stickers de $RECYCLE.BIN ni se consulta Shell sobre ellas (crash en Release).
     return rows
       .Select(row => MapToStats(
         row.Id,
@@ -231,7 +279,7 @@ public sealed class DashboardService : IDashboardService
         row.RankingGusto,
         FormatCategoryNames(row.CategoryNames)))
       .Where(file => file.IsVideo)
-      .Where(file => !string.IsNullOrWhiteSpace(file.Path) && File.Exists(file.Path))
+      .Where(file => MediaPathEligibility.ExistsSafely(file.Path))
       .ToList();
   }
 

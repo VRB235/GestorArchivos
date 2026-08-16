@@ -79,6 +79,14 @@ public interface IMediaVaultService
     /// </summary>
     Task<MediaMetadataResetResult> ClearAllMediaMetadataAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Elimina del índice (no del disco) rutas de papelera/sistema, fuera del root y opcionalmente inexistentes.
+    /// </summary>
+    Task<IndexPurgeResult> PurgeInvalidIndexEntriesAsync(
+        string? indexRootPath = null,
+        bool removeMissingFiles = true,
+        CancellationToken cancellationToken = default);
+
     Task<MediaFile> UpdateCategoriesAsync(
         int id,
         IReadOnlyCollection<int> categoryIds,

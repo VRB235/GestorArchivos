@@ -43,6 +43,21 @@
 
             <Border Style="{StaticResource CardBorderStyle}" Margin="0,16,0,0">
                 <StackPanel>
+                    <TextBlock Text="Índice multimedia" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="Quita del índice (no del disco) rutas de la papelera, fuera de la carpeta raíz y archivos que ya no existen. Útil tras indexaciones accidentales."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,12" />
+                    <Button Content="Limpiar índice inválido"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Command="{Binding PurgeInvalidIndexEntriesCommand}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,16,0,0">
+                <StackPanel>
                     <TextBlock Text="Metadatos de Media Vault" Style="{StaticResource SectionTitleStyle}" />
                     <TextBlock Text="Restablece rankings, contador de aperturas (vistas), asignaciones de categorías y el catálogo de categorías en todos los archivos indexados."
                                Foreground="{StaticResource TextSecondaryBrush}"

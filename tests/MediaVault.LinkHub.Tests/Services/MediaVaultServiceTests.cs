@@ -262,6 +262,50 @@ public sealed class MediaVaultServiceTests : IDisposable
             .WithMessage("*raíz*");
     }
 
+    [Fact]
+    public async Task PurgeInvalidIndexEntriesAsync_removes_recycle_outside_root_and_missing()
+    {
+        var keptPath = Path.Combine(_rootDirectory, "keep.mp4");
+        await File.WriteAllTextAsync(keptPath, "ok");
+
+        var missingInsideRoot = Path.Combine(_rootDirectory, "gone.mp4");
+        var recyclePath = @"D:\$RECYCLE.BIN\S-1-5\sticker.webm";
+        var outsideRoot = Path.Combine(Path.GetTempPath(), "MediaVaultOutside", Guid.NewGuid().ToString("N"), "out.mp4");
+        Directory.CreateDirectory(Path.GetDirectoryName(outsideRoot)!);
+        await File.WriteAllTextAsync(outsideRoot, "out");
+
+        await using (var context = _contextFactory.CreateDbContext())
+        {
+            context.MediaFiles.AddRange(
+                new MediaFile { Path = keptPath, Name = "keep.mp4", Extension = ".mp4" },
+                new MediaFile { Path = missingInsideRoot, Name = "gone.mp4", Extension = ".mp4" },
+                new MediaFile { Path = recyclePath, Name = "sticker.webm", Extension = ".webm" },
+                new MediaFile { Path = outsideRoot, Name = "out.mp4", Extension = ".mp4" });
+            await context.SaveChangesAsync();
+        }
+
+        var result = await _sut.PurgeInvalidIndexEntriesAsync(_rootDirectory, removeMissingFiles: true);
+
+        result.RemovedUnusablePaths.Should().Be(1);
+        result.RemovedOutsideRoot.Should().Be(1);
+        result.RemovedMissingFiles.Should().Be(1);
+        result.RemovedTotal.Should().Be(3);
+
+        var remaining = await _sut.GetAllAsync();
+        remaining.Should().ContainSingle(file => file.Path == keptPath);
+
+        File.Exists(outsideRoot).Should().BeTrue();
+        try
+        {
+            File.Delete(outsideRoot);
+            Directory.Delete(Path.GetDirectoryName(outsideRoot)!, recursive: true);
+        }
+        catch (IOException)
+        {
+            // best effort
+        }
+    }
+
     private async Task<MediaFile> SeedIndexedFileAsync(
         string fileName,
         string? absolutePath = null,

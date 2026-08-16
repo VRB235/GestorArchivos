@@ -12,14 +12,14 @@ La aplicación incluye un **menú lateral fijo (Sidebar)** para navegar entre lo
 
 | Módulo | Descripción |
 |--------|-------------|
-| **Dashboard & Estadísticas** | KPIs (archivos, aperturas, sin abrir/sin ranking), gráficos LiveCharts2 colapsables, recomendaciones regenerables (mixta y por estrellas). |
+| **Dashboard & Estadísticas** | KPIs, gráficos LiveCharts2, lotes de hasta 5 recomendaciones (mixta y por ranking) en horizontal, resolución MP4/MOV. |
 | **Link Manager** | CRUD de enlaces web, logos locales, productoras, apertura **siempre en Firefox** (ventana normal). |
-| **File & Media Vault** | Explorador de carpetas/archivos, rankings, categorías/actrices/productoras por video, mover archivos, miniaturas. |
-| **Categorías** | Catálogo de categorías de video (asignación desde Media Vault). |
-| **Actrices** | CRUD de actrices y búsqueda de videos con filtros OR/AND (actrices, categorías, productoras); doble clic abre el video. |
-| **Productoras** | Catálogo de productoras/fuentes (asociables a videos y a enlaces). |
+| **File & Media Vault** | Explorador, indexación, crear/eliminar carpetas, rankings, etiquetas, mover archivos, miniaturas. |
+| **Categorías** | Catálogo de categorías de video (orden alfabético; asignación desde Media Vault). |
+| **Actrices** | CRUD y búsqueda de videos con filtros OR/AND; etiquetas alfabéticas; doble clic abre el video. |
+| **Productoras** | Catálogo de productoras/fuentes (asociables a videos y a enlaces; orden alfabético). |
 | **Scratchpad** | Notas rápidas de texto con operaciones CRUD simples. |
-| **Configuración** | Ruta raíz de indexación y limpieza de metadatos multimedia. |
+| **Configuración** | Ruta raíz de indexación, limpieza de índice inválido y limpieza de metadatos multimedia. |
 
 ---
 
@@ -207,11 +207,11 @@ Opcional: forzar ambiente con la variable `MEDIAVAULT_ENVIRONMENT=Development|Pr
 | Interfaz | Implementación | Destacado |
 |----------|----------------|-----------|
 | `IWebLinkService` | `WebLinkService` | CRUD + logos + productoras + `OpenInBrowserAsync` (Firefox) |
-| `IMediaVaultService` | `MediaVaultService` | Indexación, rankings, mover archivos, etiquetas, VLC |
-| `IVideoCategoryService` | `VideoCategoryService` | CRUD de categorías |
-| `IActressService` | `ActressService` | CRUD + `FindVideosByFiltersAsync` (OR/AND) |
-| `IProducerService` | `ProducerService` | CRUD de productoras |
-| `IDashboardService` | `DashboardService` | KPIs, tops, distribución, recomendaciones |
+| `IMediaVaultService` | `MediaVaultService` | Indexación, rankings, carpetas, mover archivos, etiquetas, VLC, `PurgeInvalidIndexEntriesAsync` |
+| `IVideoCategoryService` | `VideoCategoryService` | CRUD de categorías (orden alfabético) |
+| `IActressService` | `ActressService` | CRUD + `FindVideosByFiltersAsync` (OR/AND; orden alfabético) |
+| `IProducerService` | `ProducerService` | CRUD de productoras (orden alfabético) |
+| `IDashboardService` | `DashboardService` | KPIs, tops, distribución, recomendaciones (solo rutas elegibles y existentes) |
 | `IQuickNoteService` | `QuickNoteService` | CRUD de notas |
 
 ### Lanzamiento de procesos (`Process.Start`)
@@ -225,9 +225,9 @@ Opcional: forzar ambiente con la variable `MEDIAVAULT_ENVIRONMENT=Development|Pr
 
 ## Miniaturas y carpeta `Pictures`
 
-Al iniciar la sesión, por cada carpeta de medios se elige **una imagen al azar** de `{carpeta}/Pictures` y se reutiliza durante el proceso (Dashboard, Actrices, explorador del Vault).
+Al cargar miniaturas, por cada **video** se asigna una foto **distinta** (cuando hay suficientes) desde `{carpeta}/Pictures` vía `FolderSessionPicturePicker` (Dashboard, Actrices, explorador del Vault). El fotograma Shell solo se usa como último recurso.
 
-Prioridad de miniatura de carpeta: **Pictures (sesión)** → icono personalizado → miniatura de Shell.
+Prioridad de miniatura: **foto de Pictures (por ítem)** → icono personalizado de carpeta → miniatura de Shell de carpeta.
 
 Estructura esperada:
 
@@ -243,6 +243,24 @@ Extensiones admitidas: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`.
 
 ---
 
+## Índice válido y arranque en Release
+
+El índice puede contaminarse con rutas de `$RECYCLE.BIN`, fuera de la carpeta raíz o archivos borrados. Eso degrada recomendaciones y (antes) podía tumbar la app al leer metadatos.
+
+| Mecanismo | Comportamiento |
+|-----------|----------------|
+| `MediaPathEligibility` | Descarta papelera / System Volume Information; `ExistsSafely` y `IsUnderIndexRoot`. |
+| Dashboard / tops | Solo archivos **existentes** y elegibles (no recomienda stickers de la papelera). |
+| `PurgeInvalidIndexEntriesAsync` | Borra del **índice** (no del disco) entradas inválidas. |
+| Arranque Release | Tras migrar BD, depura el índice automáticamente (log en `startup-errors.log`). |
+| Configuración | Botón **Limpiar índice inválido** (misma lógica, con confirmación). |
+
+### Resolución de video
+
+`VideoResolutionProbe` **no usa COM Shell** (`SHGetPropertyStoreFromParsingName` provocaba `AccessViolation` y cerraba el proceso). Lee ancho×alto de MP4/M4V/MOV con parser ISO BMFF administrado. Otros formatos muestran resolución no disponible.
+
+---
+
 ## Dashboard — LiveCharts2
 
 ### Paquete
@@ -255,8 +273,9 @@ LiveChartsCore.SkiaSharpView.WPF 2.0.5
 
 - KPIs: totales, aperturas de video, videos nunca abiertos, videos sin ranking.
 - Gráficos colapsables (Top vistas, distribución por categoría, rankings).
-- Recomendación mixta ponderada (regenerable).
-- Recomendación por tiers de estrellas (5→1) con exclusión de sesión.
+- **Hasta 5** recomendaciones mixtas ponderadas (layout horizontal; regenerables).
+- **Hasta 5** por ranking (tiers 5★→1★; si faltan calificados, completa el lote; exclusión entre paneles).
+- Resolución en tarjetas de recomendación (MP4/MOV).
 - Vista previa al pasar el mouse sobre series de archivos.
 
 ### Flujo de datos
@@ -355,20 +374,23 @@ dotnet run --project src/MediaVault.LinkHub.App/MediaVault.LinkHub.App.csproj
 Al iniciar, la aplicación:
 
 1. Configura LiveCharts2 (SkiaSharp).
-2. Registra servicios vía DI (`AddMediaVaultLinkHubInfrastructure` + `AddPresentation`).
-3. Aplica migraciones SQLite pendientes.
-4. Abre `MainWindow` con el Dashboard como vista inicial.
+2. En **Release**, muestra el gate de seguridad (PIN / contraseña). En **Debug** se omite.
+3. Registra servicios vía DI (`AddMediaVaultLinkHubInfrastructure` + `AddPresentation`).
+4. Aplica migraciones SQLite pendientes.
+5. Depura el índice inválido (`PurgeInvalidIndexEntriesAsync`).
+6. Muestra `MainWindow` y carga el Dashboard (miniaturas/resolución en segundo plano).
 
-> En **Debug**, el gate de seguridad no bloquea el arranque. En **Release**, aplica el flujo de acceso configurado.
+Errores de arranque / depuración: `%LocalAppData%\MediaVaultLinkHub\startup-errors.log` (o `.Development` en Debug).
 
 ### Flujo recomendado para probar
 
-1. **Configuración** → definir carpeta raíz de indexación.
-2. **Media Vault** → explorar / indexar; asignar categorías, actrices y productoras; abrir videos para incrementar `VecesAbierto`.
-3. Opcional: colocar imágenes en `{carpeta}/Pictures` y reiniciar la app para ver miniaturas de sesión.
-4. **Actrices** → filtrar por actrices/categorías/productoras; doble clic para abrir.
-5. **Link Manager** → crear enlaces, asociar productoras; **Abrir en Firefox**.
-6. **Dashboard** → **Actualizar** / regenerar recomendaciones.
+1. **Configuración** → definir carpeta raíz de indexación (`D:\Vault`, etc.).
+2. Opcional: **Limpiar índice inválido** si hubo indexaciones fuera del root o de la papelera.
+3. **Media Vault** → explorar / indexar; crear o eliminar carpetas; asignar etiquetas; abrir videos.
+4. Opcional: colocar varias imágenes en `{carpeta}/Pictures` para miniaturas distintas por video.
+5. **Actrices** → filtrar por actrices/categorías/productoras; doble clic para abrir.
+6. **Link Manager** → crear enlaces, asociar productoras; **Abrir en Firefox**.
+7. **Dashboard** → lotes de 5 recomendaciones; **Otras recomendaciones** / regenerar ranking.
 
 ---
 
@@ -446,9 +468,12 @@ dotnet ef migrations remove ^
 | Servicios **Transient** | Compatible con contenedor DI raíz de WPF |
 | Datos Debug vs Release aislados | Evitar contaminar datos de producción al desarrollar |
 | `BrowserLauncher` → Firefox fijo | Comportamiento predecible al abrir enlaces |
-| Miniaturas `Pictures` cacheadas por proceso | Variedad al reiniciar sin costar I/O en cada vista |
+| Miniaturas `Pictures` distintas por video | Mejor UX en recomendaciones y vault sin depender del Shell |
 | `DashboardChartFactory` separado | ViewModel limpio; series reutilizables |
 | Tema oscuro en `Styles.xaml` | Coherencia visual con gráficos SkiaSharp |
+| `MediaPathEligibility` + purge de índice | Evitar papelera / rutas fuera del root en recomendaciones y KPIs |
+| Resolución sin COM Shell | Evitar `AccessViolation` que cerraba la app en Release |
+| Mostrar `MainWindow` antes del Dashboard | Feedback inmediato tras el login en producción |
 
 ---
 
@@ -457,15 +482,17 @@ dotnet ef migrations remove ^
 | Capacidad | Estado |
 |-----------|--------|
 | Domain / Application / Infrastructure / WPF | ✅ |
-| Dashboard (KPIs, charts, recomendaciones) | ✅ |
+| Dashboard (KPIs, charts, lotes de 5 recomendaciones) | ✅ |
 | Link Manager (CRUD, logos, productoras, Firefox) | ✅ |
-| Media Vault (indexación, rankings, mover, etiquetas) | ✅ |
-| Categorías / Actrices / Productoras | ✅ |
-| Miniaturas desde `Pictures` (sesión) | ✅ |
+| Media Vault (indexación, carpetas, rankings, etiquetas) | ✅ |
+| Categorías / Actrices / Productoras (alfabético) | ✅ |
+| Miniaturas desde `Pictures` (distintas por video) | ✅ |
+| Limpieza de índice inválido (arranque + Configuración) | ✅ |
+| Resolución de video segura (ISO BMFF, sin COM) | ✅ |
 | Aislamiento datos Debug/Release | ✅ |
 | Publicación autocontenida (win-x64) | ✅ |
 | Confirmación antes de eliminar | ✅ |
-| Tests unitarios (servicios + gráficos) | ✅ |
+| Tests unitarios (servicios + gráficos + elegibilidad) | ✅ |
 
 ---
 

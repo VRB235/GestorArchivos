@@ -95,6 +95,42 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
     }
 
     [RelayCommand]
+    private async Task PurgeInvalidIndexEntriesAsync()
+    {
+        if (!_appDialogService.ConfirmYesNo(
+                "Confirmar limpieza del índice",
+                "¿Eliminar del índice las entradas inválidas?\n\n" +
+                "Se quitarán rutas de la papelera/sistema, fuera de la carpeta raíz y archivos que ya no existen en disco. " +
+                "No se borra nada del disco. Esta acción no se puede deshacer.",
+                AppDialogKind.Warning))
+            return;
+
+        var result = await ExecuteBusyAsync(
+            async () =>
+            {
+                var settings = await _appSettingsService.GetAsync().ConfigureAwait(true);
+                return await _mediaVaultService
+                    .PurgeInvalidIndexEntriesAsync(
+                        settings.MediaIndexRootPath,
+                        removeMissingFiles: true)
+                    .ConfigureAwait(true);
+            },
+            "Limpiando índice inválido...").ConfigureAwait(true);
+
+        if (ErrorMessage is not null || result is null)
+            return;
+
+        _appDialogService.ShowMessage(
+            "Limpieza del índice",
+            result.HasChanges
+                ? $"Entradas eliminadas: {result.RemovedTotal}\n" +
+                  $"• Papelera/sistema: {result.RemovedUnusablePaths}\n" +
+                  $"• Fuera del root: {result.RemovedOutsideRoot}\n" +
+                  $"• Inexistentes en disco: {result.RemovedMissingFiles}"
+                : "No había entradas inválidas que limpiar.");
+    }
+
+    [RelayCommand]
     private async Task ClearAllMediaMetadataAsync()
     {
         if (!_appDialogService.ConfirmYesNo(

@@ -11,6 +11,7 @@ using MediaVault.LinkHub.App.ViewModels.Base;
 using MediaVault.LinkHub.Application.Media;
 using MediaVault.LinkHub.Application.Models.Dashboard;
 using MediaVault.LinkHub.Application.Services;
+using MediaVault.LinkHub.Infrastructure.Media;
 
 namespace MediaVault.LinkHub.App.ViewModels;
 
@@ -468,8 +469,8 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
         OnPropertyChanged(nameof(HasRecommendation));
 
-        PrefetchRecommendationPictures(items);
-        await LoadRecommendationDetailsAsync(items, generation, isRanked: false).ConfigureAwait(true);
+        // Miniaturas/resolución en segundo plano: no bloquean el fin de IsBusy ni el arranque.
+        _ = LoadRecommendationDetailsAsync(items, generation, isRanked: false);
     }
 
     private async Task SetRankedRecommendationsAsync(IReadOnlyList<MediaFileViewStats> recommendations)
@@ -490,8 +491,7 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
         OnPropertyChanged(nameof(HasRankedRecommendation));
 
-        PrefetchRecommendationPictures(items);
-        await LoadRecommendationDetailsAsync(items, generation, isRanked: true).ConfigureAwait(true);
+        _ = LoadRecommendationDetailsAsync(items, generation, isRanked: true);
     }
 
     private static void PrefetchRecommendationPictures(IReadOnlyList<DashboardRecommendationItem> items)
@@ -513,19 +513,28 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         int generation,
         bool isRanked)
     {
-        foreach (var item in items)
+        try
         {
-            if (isRanked
-                    ? generation != _rankedRecommendationThumbGeneration
-                    : generation != _recommendationThumbGeneration)
-                return;
+            await Task.Run(() => PrefetchRecommendationPictures(items)).ConfigureAwait(true);
 
-            item.ResolutionLabel = await VideoResolutionProbe
-                .TryGetResolutionLabelAsync(item.Video.Path)
-                .ConfigureAwait(true);
+            foreach (var item in items)
+            {
+                if (isRanked
+                        ? generation != _rankedRecommendationThumbGeneration
+                        : generation != _recommendationThumbGeneration)
+                    return;
 
-            item.Thumbnail = await LoadVideoActressThumbnailAsync(item.Video.Path, 160)
-                .ConfigureAwait(true);
+                item.ResolutionLabel = await VideoResolutionProbe
+                    .TryGetResolutionLabelAsync(item.Video.Path)
+                    .ConfigureAwait(true);
+
+                item.Thumbnail = await LoadVideoActressThumbnailAsync(item.Video.Path, 160)
+                    .ConfigureAwait(true);
+            }
+        }
+        catch
+        {
+            // Detalles cosméticos: un fallo de I/O no debe tumbar el Dashboard.
         }
     }
 
@@ -546,6 +555,9 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         {
             return null;
         }
+
+        if (!MediaPathEligibility.IsUsableMediaPath(folderPath))
+            return null;
 
         var sessionPicture = await Task.Run(() =>
             FolderSessionPicturePicker.TryLoadThumbnailForItem(folderPath, videoPath, size))

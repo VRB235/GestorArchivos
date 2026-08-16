@@ -1,29 +1,26 @@
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Runtime.InteropServices;
+using System.Text;
 
 using MediaVault.LinkHub.Infrastructure.Media;
 
 namespace MediaVault.LinkHub.App.Shell;
 
 /// <summary>
-/// Lee ancho/alto de video vía propiedades del Shell de Windows (sin decodificar fotogramas).
+/// Resuelve ancho×alto de video sin COM Shell.
+/// <c>SHGetPropertyStoreFromParsingName</c> provocaba AccessViolation (0xC0000005) y cerraba la app.
 /// </summary>
 internal static class VideoResolutionProbe
 {
-    private static readonly Guid VideoPropertyFormatId = new("64440491-4C8B-11D1-8B70-080036B11A03");
-    private static readonly PROPERTYKEY FrameWidthKey = new(VideoPropertyFormatId, 3);
-    private static readonly PROPERTYKEY FrameHeightKey = new(VideoPropertyFormatId, 4);
-
     private static readonly ConcurrentDictionary<string, (DateTime LastWriteUtc, string? Label)> Cache =
         new(StringComparer.OrdinalIgnoreCase);
 
     public static string? TryGetResolutionLabel(string? path)
     {
-        if (!OperatingSystem.IsWindows()
-            || string.IsNullOrWhiteSpace(path)
+        if (string.IsNullOrWhiteSpace(path)
             || !MediaFileExtensions.IsVideo(path)
-            || !File.Exists(path))
+            || !MediaPathEligibility.ExistsSafely(path))
         {
             return null;
         }
@@ -44,9 +41,12 @@ internal static class VideoResolutionProbe
         string? label = null;
         try
         {
-            var (width, height) = TryReadFrameSize(path);
-            if (width > 0 && height > 0)
-                label = $"{width}×{height}";
+            if (IsIsoBmff(Path.GetExtension(path)))
+            {
+                var size = TryReadIsoBmffTrackSize(path);
+                if (size is { Width: > 0, Height: > 0 })
+                    label = $"{size.Value.Width}×{size.Value.Height}";
+            }
         }
         catch
         {
@@ -60,103 +60,102 @@ internal static class VideoResolutionProbe
     public static Task<string?> TryGetResolutionLabelAsync(string? path) =>
         Task.Run(() => TryGetResolutionLabel(path));
 
-    private static (uint Width, uint Height) TryReadFrameSize(string path)
+    private static bool IsIsoBmff(string extension) =>
+        extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".m4v", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".mov", StringComparison.OrdinalIgnoreCase);
+
+    private static (uint Width, uint Height)? TryReadIsoBmffTrackSize(string path)
     {
-        var iid = typeof(IPropertyStore).GUID;
-        var hr = SHGetPropertyStoreFromParsingName(
-            path,
-            IntPtr.Zero,
-            GETPROPERTYSTOREFLAGS.GPS_DEFAULT,
-            ref iid,
-            out var store);
-
-        if (hr != 0 || store is null)
-            return (0, 0);
-
-        try
-        {
-            var width = ReadUInt32(store, FrameWidthKey);
-            var height = ReadUInt32(store, FrameHeightKey);
-            return (width, height);
-        }
-        finally
-        {
-            Marshal.ReleaseComObject(store);
-        }
+        using var stream = File.OpenRead(path);
+        return WalkAtoms(stream, stream.Length, depth: 0);
     }
 
-    private static uint ReadUInt32(IPropertyStore store, PROPERTYKEY key)
+    private static (uint Width, uint Height)? WalkAtoms(Stream stream, long end, int depth)
     {
-        var hr = store.GetValue(ref key, out var value);
-        if (hr != 0)
-            return 0;
+        if (depth > 12)
+            return null;
 
-        try
+        var header = new byte[8];
+        while (stream.Position + 8 <= end)
         {
-            return value.vt switch
+            var start = stream.Position;
+            if (stream.Read(header, 0, 8) != 8)
+                return null;
+
+            long atomSize = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0, 4));
+            var type = Encoding.ASCII.GetString(header, 4, 4);
+            long headerSize = 8;
+
+            if (atomSize == 1)
             {
-                (ushort)VarEnum.VT_UI4 => value.ulVal,
-                (ushort)VarEnum.VT_I4 => (uint)Math.Max(0, value.lVal),
-                (ushort)VarEnum.VT_UI8 => (uint)Math.Min(uint.MaxValue, value.uhVal),
-                _ => 0
-            };
+                if (stream.Position + 8 > end)
+                    return null;
+                var large = new byte[8];
+                if (stream.Read(large, 0, 8) != 8)
+                    return null;
+                atomSize = (long)BinaryPrimitives.ReadUInt64BigEndian(large);
+                headerSize = 16;
+            }
+            else if (atomSize == 0)
+            {
+                atomSize = end - start;
+            }
+
+            if (atomSize < headerSize)
+                return null;
+
+            var payloadStart = start + headerSize;
+            var payloadEnd = start + atomSize;
+            if (payloadEnd > end || payloadEnd < payloadStart)
+                return null;
+
+            if (type is "moov" or "trak" or "mdia" or "minf" or "stbl")
+            {
+                stream.Position = payloadStart;
+                var nested = WalkAtoms(stream, payloadEnd, depth + 1);
+                if (nested is not null)
+                    return nested;
+            }
+            else if (type == "tkhd")
+            {
+                stream.Position = payloadStart;
+                var fromTkhd = ReadTkhdSize(stream, payloadEnd - payloadStart);
+                if (fromTkhd is not null)
+                    return fromTkhd;
+            }
+
+            stream.Position = payloadEnd;
         }
-        finally
-        {
-            PropVariantClear(ref value);
-        }
+
+        return null;
     }
 
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
-    private static extern int SHGetPropertyStoreFromParsingName(
-        string pszPath,
-        IntPtr pbc,
-        GETPROPERTYSTOREFLAGS flags,
-        ref Guid riid,
-        [MarshalAs(UnmanagedType.Interface)] out IPropertyStore ppv);
-
-    [DllImport("ole32.dll", ExactSpelling = true)]
-    private static extern int PropVariantClear(ref PROPVARIANT pvar);
-
-    private enum GETPROPERTYSTOREFLAGS
+    private static (uint Width, uint Height)? ReadTkhdSize(Stream stream, long payloadLength)
     {
-        GPS_DEFAULT = 0
-    }
+        if (payloadLength < 84)
+            return null;
 
-    [StructLayout(LayoutKind.Sequential, Pack = 4)]
-    private readonly struct PROPERTYKEY(Guid formatId, uint propertyId)
-    {
-        public readonly Guid fmtid = formatId;
-        public readonly uint pid = propertyId;
-    }
+        var version = stream.ReadByte();
+        if (version < 0)
+            return null;
 
-    [StructLayout(LayoutKind.Explicit)]
-    private struct PROPVARIANT
-    {
-        [FieldOffset(0)] public ushort vt;
-        [FieldOffset(8)] public int lVal;
-        [FieldOffset(8)] public uint ulVal;
-        [FieldOffset(8)] public ulong uhVal;
-    }
+        var widthOffset = version == 1 ? 88 : 76;
+        var required = widthOffset + 8;
+        if (payloadLength < required)
+            return null;
 
-    [ComImport]
-    [Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IPropertyStore
-    {
-        [PreserveSig]
-        int GetCount(out uint cProps);
+        // Volver al inicio del payload y leer el bloque necesario.
+        stream.Position -= 1;
+        var data = new byte[required];
+        if (stream.Read(data, 0, required) != required)
+            return null;
 
-        [PreserveSig]
-        int GetAt(uint iProp, out PROPERTYKEY pkey);
+        var width = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(widthOffset, 4)) >> 16;
+        var height = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(widthOffset + 4, 4)) >> 16;
+        if (width == 0 || height == 0)
+            return null;
 
-        [PreserveSig]
-        int GetValue(ref PROPERTYKEY key, out PROPVARIANT pv);
-
-        [PreserveSig]
-        int SetValue(ref PROPERTYKEY key, ref PROPVARIANT pv);
-
-        [PreserveSig]
-        int Commit();
+        return (width, height);
     }
 }

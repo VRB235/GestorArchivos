@@ -73,9 +73,7 @@ public partial class SecurityGateWindow : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        if (DialogResult != true)
-            DialogResult = false;
-
+        // No asignar DialogResult aquí: en WPF puede lanzar y abortar el cierre del gate.
         base.OnClosing(e);
     }
 }

@@ -127,6 +127,40 @@ public sealed class DashboardServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetVideoRecommendationsAsync_skips_recycle_bin_paths()
+    {
+        var existing = CreateTempMedia("vault.mp4");
+        var recyclePath = @"D:\$RECYCLE.BIN\S-1-5-21\chats\sticker (1).webm";
+        await using (var context = _contextFactory.CreateDbContext())
+        {
+            context.MediaFiles.AddRange(
+                new MediaFile
+                {
+                    Path = existing,
+                    Name = "vault.mp4",
+                    Extension = ".mp4",
+                    RankingCalidad = 5,
+                    RankingContenido = 5,
+                    RankingGusto = 5
+                },
+                new MediaFile
+                {
+                    Path = recyclePath,
+                    Name = "sticker (1).webm",
+                    Extension = ".webm",
+                    RankingCalidad = 5,
+                    RankingContenido = 5,
+                    RankingGusto = 5
+                });
+            await context.SaveChangesAsync();
+        }
+
+        var recommendations = await _sut.GetVideoRecommendationsAsync(count: 5);
+        recommendations.Should().ContainSingle();
+        recommendations[0].Path.Should().Be(existing);
+    }
+
+    [Fact]
     public async Task GetTop10MostViewedAsync_delegates_to_statistics()
     {
         await SeedDashboardDataAsync();
