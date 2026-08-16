@@ -222,6 +222,46 @@ public sealed class MediaVaultServiceTests : IDisposable
         updated.Categories.Should().ContainSingle(item => item.Name == "Sci-Fi");
     }
 
+    [Fact]
+    public async Task CreateDirectoryAsync_creates_folder_under_parent()
+    {
+        await _sut.CreateDirectoryAsync(_rootDirectory, "NuevaCarpeta");
+
+        Directory.Exists(Path.Combine(_rootDirectory, "NuevaCarpeta")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateDirectoryAsync_rejects_invalid_name()
+    {
+        var act = () => _sut.CreateDirectoryAsync(_rootDirectory, "invalido/nombre");
+
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task DeleteDirectoryAsync_removes_folder_and_indexed_files()
+    {
+        var folder = Path.Combine(_rootDirectory, "ParaBorrar");
+        Directory.CreateDirectory(folder);
+        var filePath = Path.Combine(folder, "clip.mp4");
+        await File.WriteAllTextAsync(filePath, "video");
+        await SeedIndexedFileAsync("clip.mp4", filePath);
+
+        await _sut.DeleteDirectoryAsync(folder, _rootDirectory);
+
+        Directory.Exists(folder).Should().BeFalse();
+        (await _sut.GetAllAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteDirectoryAsync_rejects_index_root()
+    {
+        var act = () => _sut.DeleteDirectoryAsync(_rootDirectory, _rootDirectory);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*raíz*");
+    }
+
     private async Task<MediaFile> SeedIndexedFileAsync(
         string fileName,
         string? absolutePath = null,

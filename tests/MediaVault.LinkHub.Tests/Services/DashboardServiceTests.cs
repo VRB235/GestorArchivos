@@ -74,21 +74,23 @@ public sealed class DashboardServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetVideoRecommendationAsync_excludes_requested_id_when_possible()
+    public async Task GetVideoRecommendationsAsync_excludes_requested_ids_when_possible()
     {
         await SeedDashboardDataAsync();
 
-        var first = await _sut.GetVideoRecommendationAsync();
-        first.Should().NotBeNull();
+        var firstBatch = await _sut.GetVideoRecommendationsAsync(count: 1);
+        firstBatch.Should().ContainSingle();
 
-        var second = await _sut.GetVideoRecommendationAsync(excludeMediaFileId: first!.Id);
-        second.Should().NotBeNull();
-        second!.Id.Should().NotBe(first.Id);
-        second.IsVideo.Should().BeTrue();
+        var secondBatch = await _sut.GetVideoRecommendationsAsync(
+            excludeMediaFileIds: [firstBatch[0].Id],
+            count: 1);
+        secondBatch.Should().ContainSingle();
+        secondBatch[0].Id.Should().NotBe(firstBatch[0].Id);
+        secondBatch[0].IsVideo.Should().BeTrue();
     }
 
     [Fact]
-    public async Task GetVideoRecommendationAsync_skips_videos_missing_on_disk()
+    public async Task GetVideoRecommendationsAsync_skips_videos_missing_on_disk()
     {
         var existing = CreateTempMedia("exists.mp4");
         await using (var context = _contextFactory.CreateDbContext())
@@ -117,10 +119,10 @@ public sealed class DashboardServiceTests : IDisposable
 
         for (var i = 0; i < 8; i++)
         {
-            var recommendation = await _sut.GetVideoRecommendationAsync();
-            recommendation.Should().NotBeNull();
-            recommendation!.Name.Should().Be("exists.mp4");
-            recommendation.Path.Should().Be(existing);
+            var recommendations = await _sut.GetVideoRecommendationsAsync(count: 5);
+            recommendations.Should().ContainSingle();
+            recommendations[0].Name.Should().Be("exists.mp4");
+            recommendations[0].Path.Should().Be(existing);
         }
     }
 
@@ -136,7 +138,7 @@ public sealed class DashboardServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetRankedVideoRecommendationAsync_skips_excluded_and_only_returns_ranked()
+    public async Task GetRankedVideoRecommendationsAsync_skips_excluded_and_only_returns_ranked()
     {
         await using var context = _contextFactory.CreateDbContext();
         context.MediaFiles.AddRange(
@@ -166,16 +168,19 @@ public sealed class DashboardServiceTests : IDisposable
             });
         await context.SaveChangesAsync();
 
-        var fiveStar = await _sut.GetRankedVideoRecommendationAsync([]);
-        fiveStar.Should().NotBeNull();
-        fiveStar!.Name.Should().Be("five.mp4");
+        var firstBatch = await _sut.GetRankedVideoRecommendationsAsync([], count: 1);
+        firstBatch.Should().ContainSingle();
+        firstBatch[0].Name.Should().Be("five.mp4");
 
-        var next = await _sut.GetRankedVideoRecommendationAsync([fiveStar.Id]);
-        next.Should().NotBeNull();
-        next!.Name.Should().Be("four.mp4");
+        var nextBatch = await _sut.GetRankedVideoRecommendationsAsync([firstBatch[0].Id], count: 1);
+        nextBatch.Should().ContainSingle();
+        nextBatch[0].Name.Should().Be("four.mp4");
 
-        var none = await _sut.GetRankedVideoRecommendationAsync([fiveStar.Id, next.Id]);
-        none.Should().BeNull();
+        var none = await _sut.GetRankedVideoRecommendationsAsync(
+            [firstBatch[0].Id, nextBatch[0].Id],
+            count: 5);
+        // Tras agotar calificados, rellena con el no calificado restante.
+        none.Should().ContainSingle(file => file.Name == "unrated.mp4");
     }
 
     private async Task SeedDashboardDataAsync()

@@ -18,12 +18,14 @@ public sealed class VideoCategoryService : IVideoCategoryService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
-        return await context.VideoCategories
+        var categories = await context.VideoCategories
             .AsNoTracking()
-            .OrderBy(category => category.SortOrder)
-            .ThenBy(category => category.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return categories
+            .OrderBy(category => category.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
     }
 
     public async Task<VideoCategory> CreateAsync(string name, CancellationToken cancellationToken = default)

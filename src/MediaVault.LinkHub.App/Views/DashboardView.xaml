@@ -202,60 +202,80 @@
                                FontSize="16"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />
-                    <TextBlock Text="Mezcla ranking, aperturas y azar."
+                    <TextBlock Text="Hasta 5 videos. Mezcla ranking, aperturas y azar."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="12"
                                Margin="0,2,0,12" />
 
-                    <Grid Visibility="{Binding HasRecommendation, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Border Width="120"
-                                Height="120"
-                                Background="#1C1F2B"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                ClipToBounds="True">
-                            <Image Source="{Binding RecommendedThumbnail}"
-                                   Stretch="Uniform"
-                                   RenderOptions.BitmapScalingMode="HighQuality" />
-                        </Border>
-
-                        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding RecommendedVideo.Name}"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource TextPrimaryBrush}" />
-                            <controls:StarRatingControl Rating="{Binding RecommendedRankingStars, Mode=OneWay}"
-                                                        IsInteractive="False"
-                                                        Margin="0,8,0,4" />
-                            <TextBlock Text="{Binding RecommendedOpenCountLabel}"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="12"
-                                       Margin="0,0,0,12" />
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="Abrir"
-                                        Style="{StaticResource PrimaryButtonStyle}"
-                                        Command="{Binding OpenRecommendedCommand}"
-                                        Margin="0,0,8,0"
-                                        MinWidth="88" />
-                                <Button Content="VLC"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding OpenRecommendedWithVlcCommand}"
-                                        Margin="0,0,8,0"
-                                        MinWidth="72" />
-                                <Button Content="Otra recomendación"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding RefreshRecommendationCommand}"
-                                        MinWidth="140" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  Visibility="{Binding HasRecommendation, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ItemsControl ItemsSource="{Binding RecommendedVideos}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="210"
+                                            Margin="0,0,12,0"
+                                            Padding="10"
+                                            Background="#1C1F2B"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            VerticalAlignment="Top">
+                                        <StackPanel>
+                                            <Border Height="120"
+                                                    Background="#12151E"
+                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    ClipToBounds="True"
+                                                    Margin="0,0,0,8">
+                                                <Image Source="{Binding Thumbnail}"
+                                                       Stretch="Uniform"
+                                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Video.Name}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap"
+                                                       MaxHeight="40"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" />
+                                            <controls:StarRatingControl Rating="{Binding RankingStars, Mode=OneWay}"
+                                                                        IsInteractive="False"
+                                                                        Margin="0,6,0,2" />
+                                            <TextBlock Text="{Binding OpenCountLabel}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11" />
+                                            <TextBlock Text="{Binding ResolutionDisplay}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11"
+                                                       Margin="0,0,0,8" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Abrir"
+                                                        Style="{StaticResource PrimaryButtonStyle}"
+                                                        Command="{Binding DataContext.OpenRecommendedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Margin="0,0,8,0"
+                                                        MinWidth="64"
+                                                        Padding="10,4" />
+                                                <Button Content="VLC"
+                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Command="{Binding DataContext.OpenRecommendedWithVlcCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        MinWidth="52"
+                                                        Padding="10,4" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
 
                     <StackPanel>
                         <StackPanel.Style>
@@ -272,12 +292,14 @@
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    TextWrapping="Wrap"
                                    Margin="0,0,0,12" />
-                        <Button Content="Otra recomendación"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Command="{Binding RefreshRecommendationCommand}"
-                                HorizontalAlignment="Left"
-                                MinWidth="140" />
                     </StackPanel>
+
+                    <Button Content="Otras recomendaciones"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding RefreshRecommendationCommand}"
+                            HorizontalAlignment="Left"
+                            Margin="0,12,0,0"
+                            MinWidth="160" />
                 </StackPanel>
             </Border>
 
@@ -287,65 +309,85 @@
                                FontSize="16"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />
-                    <TextBlock Text="Solo videos calificados: primero 5★, luego 4★… Sin repetir hasta reiniciar la app."
+                    <TextBlock Text="Hasta 5 videos: prioriza calificados (5★→1★); si faltan, completa con otros."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="12"
                                TextWrapping="Wrap"
                                Margin="0,2,0,12" />
 
-                    <Grid Visibility="{Binding HasRankedRecommendation, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Border Width="120"
-                                Height="120"
-                                Background="#1C1F2B"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                ClipToBounds="True">
-                            <Image Source="{Binding RankedRecommendedThumbnail}"
-                                   Stretch="Uniform"
-                                   RenderOptions.BitmapScalingMode="HighQuality" />
-                        </Border>
-
-                        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding RankedRecommendedVideo.Name}"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource TextPrimaryBrush}" />
-                            <TextBlock Text="{Binding RankedTierLabel}"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="12"
-                                       Margin="0,4,0,0" />
-                            <controls:StarRatingControl Rating="{Binding RankedRecommendedRankingStars, Mode=OneWay}"
-                                                        IsInteractive="False"
-                                                        Margin="0,8,0,4" />
-                            <TextBlock Text="{Binding RankedRecommendedOpenCountLabel}"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="12"
-                                       Margin="0,0,0,12" />
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="Abrir"
-                                        Style="{StaticResource PrimaryButtonStyle}"
-                                        Command="{Binding OpenRankedRecommendedCommand}"
-                                        Margin="0,0,8,0"
-                                        MinWidth="88" />
-                                <Button Content="VLC"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding OpenRankedRecommendedWithVlcCommand}"
-                                        Margin="0,0,8,0"
-                                        MinWidth="72" />
-                                <Button Content="Otra recomendación"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding RefreshRankedRecommendationCommand}"
-                                        MinWidth="140" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  Visibility="{Binding HasRankedRecommendation, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ItemsControl ItemsSource="{Binding RankedRecommendedVideos}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="210"
+                                            Margin="0,0,12,0"
+                                            Padding="10"
+                                            Background="#1C1F2B"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            VerticalAlignment="Top">
+                                        <StackPanel>
+                                            <Border Height="120"
+                                                    Background="#12151E"
+                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    ClipToBounds="True"
+                                                    Margin="0,0,0,8">
+                                                <Image Source="{Binding Thumbnail}"
+                                                       Stretch="Uniform"
+                                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Video.Name}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap"
+                                                       MaxHeight="40"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" />
+                                            <TextBlock Text="{Binding TierLabel}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11"
+                                                       Margin="0,4,0,0" />
+                                            <controls:StarRatingControl Rating="{Binding RankingStars, Mode=OneWay}"
+                                                                        IsInteractive="False"
+                                                                        Margin="0,6,0,2" />
+                                            <TextBlock Text="{Binding OpenCountLabel}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11" />
+                                            <TextBlock Text="{Binding ResolutionDisplay}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11"
+                                                       Margin="0,0,0,8" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Abrir"
+                                                        Style="{StaticResource PrimaryButtonStyle}"
+                                                        Command="{Binding DataContext.OpenRankedRecommendedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Margin="0,0,8,0"
+                                                        MinWidth="64"
+                                                        Padding="10,4" />
+                                                <Button Content="VLC"
+                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Command="{Binding DataContext.OpenRankedRecommendedWithVlcCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        MinWidth="52"
+                                                        Padding="10,4" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
 
                     <StackPanel>
                         <StackPanel.Style>
@@ -362,12 +404,14 @@
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    TextWrapping="Wrap"
                                    Margin="0,0,0,12" />
-                        <Button Content="Otra recomendación"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Command="{Binding RefreshRankedRecommendationCommand}"
-                                HorizontalAlignment="Left"
-                                MinWidth="140" />
                     </StackPanel>
+
+                    <Button Content="Otras recomendaciones"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding RefreshRankedRecommendationCommand}"
+                            HorizontalAlignment="Left"
+                            Margin="0,12,0,0"
+                            MinWidth="160" />
                 </StackPanel>
             </Border>
 

@@ -44,6 +44,42 @@ public sealed class VideoRecommendationTests
     }
 
     [Fact]
+    public void PickWeightedMany_returns_up_to_five_distinct()
+    {
+        var videos = Enumerable.Range(1, 8)
+            .Select(id => CreateVideo(id, $"v{id}.mp4", ranking: 3, opens: id))
+            .ToArray();
+
+        var picks = VideoRecommendation.PickWeightedMany(
+            videos,
+            excludeMediaFileIds: [],
+            count: 5,
+            random: new Random(11));
+
+        picks.Should().HaveCount(5);
+        picks.Select(video => video.Id).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void PickWeightedMany_excludes_ids_and_falls_back_when_exhausted()
+    {
+        var videos = new[]
+        {
+            CreateVideo(1, "a.mp4", ranking: 5, opens: 10),
+            CreateVideo(2, "b.mp4", ranking: 4, opens: 5)
+        };
+
+        var picks = VideoRecommendation.PickWeightedMany(
+            videos,
+            excludeMediaFileIds: [1, 2],
+            count: 2,
+            random: new Random(3));
+
+        picks.Should().HaveCount(2);
+        picks.Select(video => video.Id).Should().BeEquivalentTo([1, 2]);
+    }
+
+    [Fact]
     public void ComputeScore_favors_higher_ranking_and_opens()
     {
         var low = CreateVideo(1, "low.mp4", ranking: 1, opens: 0);

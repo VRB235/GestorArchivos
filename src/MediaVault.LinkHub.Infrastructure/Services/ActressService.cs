@@ -18,12 +18,14 @@ public sealed class ActressService : IActressService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
-        return await context.Actresses
+        var actresses = await context.Actresses
             .AsNoTracking()
-            .OrderBy(actress => actress.SortOrder)
-            .ThenBy(actress => actress.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return actresses
+            .OrderBy(actress => actress.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
     }
 
     public async Task<Actress> CreateAsync(string name, CancellationToken cancellationToken = default)

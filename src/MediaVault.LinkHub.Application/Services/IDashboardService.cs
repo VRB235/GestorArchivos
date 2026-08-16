@@ -21,17 +21,23 @@ public interface IDashboardService
     Task<DashboardStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Recomienda un video con muestreo ponderado por ranking, vistas y ruido aleatorio.
+    /// Recomienda videos con muestreo ponderado por ranking, vistas y ruido aleatorio.
     /// </summary>
-    Task<MediaFileViewStats?> GetVideoRecommendationAsync(
-        int? excludeMediaFileId = null,
+    /// <param name="reuseWhenExhausted">
+    /// Si es true y no quedan candidatos tras excluir, reutiliza el pool (puede repetir IDs excluidos).
+    /// </param>
+    Task<IReadOnlyList<MediaFileViewStats>> GetVideoRecommendationsAsync(
+        IReadOnlyCollection<int>? excludeMediaFileIds = null,
+        int count = 5,
+        bool reuseWhenExhausted = true,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Recomienda un video rankeado por tiers de estrellas (5→1), excluyendo IDs ya mostrados en la sesión.
+    /// Recomienda videos rankeados por tiers de estrellas (5→1), excluyendo IDs ya mostrados en la sesión.
     /// </summary>
-    Task<MediaFileViewStats?> GetRankedVideoRecommendationAsync(
+    Task<IReadOnlyList<MediaFileViewStats>> GetRankedVideoRecommendationsAsync(
         IReadOnlyCollection<int> excludeMediaFileIds,
+        int count = 5,
         CancellationToken cancellationToken = default);
 
     /// <summary>

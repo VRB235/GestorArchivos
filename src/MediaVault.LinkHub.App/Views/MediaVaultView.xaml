@@ -219,8 +219,8 @@
                             </Button>
                             <Button Style="{StaticResource ExplorerDangerIconButtonStyle}"
                                     Command="{Binding DeleteCommand}"
-                                    IsEnabled="{Binding CanDeleteSelectedFile}"
-                                    ToolTip="Eliminar archivo">
+                                    IsEnabled="{Binding CanDeleteSelectedEntry}"
+                                    ToolTip="Eliminar archivo o carpeta">
                                 <TextBlock Text="&#xE74D;"
                                            FontFamily="Segoe MDL2 Assets"
                                            FontSize="16"
@@ -228,6 +228,21 @@
                                            VerticalAlignment="Center" />
                             </Button>
                         </WrapPanel>
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding NewFolderName, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,0,8,0"
+                                     ToolTip="Nombre de la nueva carpeta" />
+                            <Button Grid.Column="1"
+                                    Content="Nueva carpeta"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Command="{Binding CreateFolderCommand}"
+                                    MinWidth="120" />
+                        </Grid>
                         <Grid Margin="0,10,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -473,6 +488,10 @@
                                 <Button Content="Limpiar miniatura"
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         Command="{Binding ClearFolderIconCommand}" />
+                                <Button Content="Eliminar carpeta"
+                                        Style="{StaticResource DangerButtonStyle}"
+                                        Command="{Binding DeleteCommand}"
+                                        IsEnabled="{Binding CanDeleteSelectedEntry}" />
                             </WrapPanel>
 
                             <TextBlock Text="Ranking promedio de la carpeta" Style="{StaticResource LabelStyle}" />
@@ -536,6 +555,14 @@
                                         Visibility="{Binding CanEditSelectedFile, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock Text="Aperturas" Style="{StaticResource LabelStyle}" />
                                 <TextBlock Text="{Binding SelectedMediaFile.VecesAbierto, StringFormat={}{0} veces}"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,0" />
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,0,12"
+                                        Visibility="{Binding ShowVideoResolutionSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Resolución" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="{Binding SelectedVideoResolutionDisplay}"
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,0" />
                             </StackPanel>
@@ -683,7 +710,7 @@
                                 <Button Content="Eliminar"
                                         Style="{StaticResource DangerButtonStyle}"
                                         Command="{Binding DeleteCommand}"
-                                        IsEnabled="{Binding CanDeleteSelectedFile}" />
+                                        IsEnabled="{Binding CanDeleteSelectedEntry}" />
                             </WrapPanel>
                         </StackPanel>
                     </StackPanel>

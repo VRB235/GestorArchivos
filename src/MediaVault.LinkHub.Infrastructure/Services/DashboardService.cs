@@ -162,20 +162,28 @@ public sealed class DashboardService : IDashboardService
     };
   }
 
-  public async Task<MediaFileViewStats?> GetVideoRecommendationAsync(
-    int? excludeMediaFileId = null,
+  public async Task<IReadOnlyList<MediaFileViewStats>> GetVideoRecommendationsAsync(
+    IReadOnlyCollection<int>? excludeMediaFileIds = null,
+    int count = VideoRecommendation.DefaultPickCount,
+    bool reuseWhenExhausted = true,
     CancellationToken cancellationToken = default)
   {
     var videos = await LoadVideoStatsAsync(cancellationToken).ConfigureAwait(false);
-    return VideoRecommendation.PickWeighted(videos, excludeMediaFileId);
+    return VideoRecommendation.PickWeightedMany(
+      videos,
+      excludeMediaFileIds ?? [],
+      count,
+      random: null,
+      reuseWhenExhausted);
   }
 
-  public async Task<MediaFileViewStats?> GetRankedVideoRecommendationAsync(
+  public async Task<IReadOnlyList<MediaFileViewStats>> GetRankedVideoRecommendationsAsync(
     IReadOnlyCollection<int> excludeMediaFileIds,
+    int count = RankedVideoRecommendation.DefaultPickCount,
     CancellationToken cancellationToken = default)
   {
     var videos = await LoadVideoStatsAsync(cancellationToken).ConfigureAwait(false);
-    return RankedVideoRecommendation.PickByStarTiers(videos, excludeMediaFileIds);
+    return RankedVideoRecommendation.PickByStarTiersMany(videos, excludeMediaFileIds, count);
   }
 
   public async Task<MediaFileViewStats?> GetVideoStatsByIdAsync(

@@ -47,6 +47,15 @@ public interface IMediaVaultService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Elimina una carpeta (recursivo) dentro del root de indexación y limpia el índice de archivos bajo ella.
+    /// No permite borrar la carpeta raíz de indexación.
+    /// </summary>
+    Task DeleteDirectoryAsync(
+        string directoryPath,
+        string indexRootPath,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Mueve un archivo a otra carpeta dentro del root de indexación y actualiza el índice si existe.
     /// </summary>
     /// <returns>La entidad indexada actualizada, o <c>null</c> si el archivo no estaba en el índice.</returns>

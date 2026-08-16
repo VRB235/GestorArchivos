@@ -43,6 +43,10 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
     public ObservableCollection<DashboardChartPanelViewModel> SecondaryChartSections { get; } = [];
 
+    public ObservableCollection<DashboardRecommendationItem> RecommendedVideos { get; } = [];
+
+    public ObservableCollection<DashboardRecommendationItem> RankedRecommendedVideos { get; } = [];
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AverageGlobalRankingStars))]
     private double _averageGlobalRanking;
@@ -88,56 +92,9 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
     [ObservableProperty]
     private int _videosUnrated;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasRecommendation))]
-    [NotifyPropertyChangedFor(nameof(RecommendedRankingStars))]
-    [NotifyPropertyChangedFor(nameof(RecommendedOpenCountLabel))]
-    private MediaFileViewStats? _recommendedVideo;
+    public bool HasRecommendation => RecommendedVideos.Count > 0;
 
-    [ObservableProperty]
-    private ImageSource? _recommendedThumbnail;
-
-    public bool HasRecommendation => RecommendedVideo is not null;
-
-    public int RecommendedRankingStars =>
-        MediaFileRankingScale.ToDisplayStars(RecommendedVideo?.RankingGlobal ?? 0);
-
-    public string RecommendedOpenCountLabel
-    {
-        get
-        {
-            var opens = RecommendedVideo?.VecesAbierto ?? 0;
-            return opens == 1 ? "1 apertura" : $"{opens} aperturas";
-        }
-    }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasRankedRecommendation))]
-    [NotifyPropertyChangedFor(nameof(RankedRecommendedRankingStars))]
-    [NotifyPropertyChangedFor(nameof(RankedRecommendedOpenCountLabel))]
-    [NotifyPropertyChangedFor(nameof(RankedTierLabel))]
-    private MediaFileViewStats? _rankedRecommendedVideo;
-
-    [ObservableProperty]
-    private ImageSource? _rankedRecommendedThumbnail;
-
-    public bool HasRankedRecommendation => RankedRecommendedVideo is not null;
-
-    public int RankedRecommendedRankingStars =>
-        MediaFileRankingScale.ToDisplayStars(RankedRecommendedVideo?.RankingGlobal ?? 0);
-
-    public string RankedRecommendedOpenCountLabel
-    {
-        get
-        {
-            var opens = RankedRecommendedVideo?.VecesAbierto ?? 0;
-            return opens == 1 ? "1 apertura" : $"{opens} aperturas";
-        }
-    }
-
-    public string RankedTierLabel => RankedRecommendedVideo is null
-        ? string.Empty
-        : $"Entre videos con {RankedRecommendedRankingStars} ★";
+    public bool HasRankedRecommendation => RankedRecommendedVideos.Count > 0;
 
     public Task InitializeAsync() =>
         RunBusyCoreAsync(async () =>
@@ -147,8 +104,8 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
     private async Task ReloadAsync(bool preserveRecommendation)
     {
-        var keepMixed = preserveRecommendation && RecommendedVideo is not null;
-        var keepRanked = preserveRecommendation && RankedRecommendedVideo is not null;
+        var keepMixed = preserveRecommendation && RecommendedVideos.Count > 0;
+        var keepRanked = preserveRecommendation && RankedRecommendedVideos.Count > 0;
         var stats = await _dashboardService.GetStatisticsAsync().ConfigureAwait(true);
 
         AverageGlobalRanking = stats.AverageGlobalRanking;
@@ -165,39 +122,44 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
         BuildChartSections(stats);
 
-        if (keepMixed)
-            TryRefreshRecommendationStats(RecommendedVideo!.Id, stats, isRanked: false);
-        else
-            await LoadRecommendationAsync(excludeMediaFileId: null).ConfigureAwait(true);
-
+        // Ranking primero (pool más restringido); luego mixtas excluyen esos IDs.
         if (keepRanked)
-            TryRefreshRecommendationStats(RankedRecommendedVideo!.Id, stats, isRanked: true);
+            await RefreshPreservedRecommendationsAsync(RankedRecommendedVideos, showTierLabel: true).ConfigureAwait(true);
         else
             await LoadRankedRecommendationAsync(advance: false).ConfigureAwait(true);
+
+        if (keepMixed)
+            await RefreshPreservedRecommendationsAsync(RecommendedVideos, showTierLabel: false).ConfigureAwait(true);
+        else
+            await LoadRecommendationAsync(excludeCurrent: false).ConfigureAwait(true);
     }
 
-    private void TryRefreshRecommendationStats(int mediaFileId, DashboardStatistics stats, bool isRanked)
+    private async Task RefreshPreservedRecommendationsAsync(
+        ObservableCollection<DashboardRecommendationItem> items,
+        bool showTierLabel)
     {
-        var updated = stats.Top10MostViewedVideos
-            .Concat(stats.Top10BestRankedVideos)
-            .FirstOrDefault(file => file.Id == mediaFileId);
-
-        if (updated is null)
+        if (items.Count == 0)
             return;
 
-        if (isRanked)
+        var refreshed = new List<DashboardRecommendationItem>(items.Count);
+        foreach (var item in items.ToList())
         {
-            RankedRecommendedVideo = updated;
-            OnPropertyChanged(nameof(RankedRecommendedOpenCountLabel));
-            OnPropertyChanged(nameof(RankedRecommendedRankingStars));
-            OnPropertyChanged(nameof(RankedTierLabel));
+            var stats = await _dashboardService.GetVideoStatsByIdAsync(item.Video.Id).ConfigureAwait(true);
+            if (stats is null)
+                continue;
+
+            refreshed.Add(new DashboardRecommendationItem(stats, showTierLabel)
+            {
+                Thumbnail = item.Thumbnail,
+                ResolutionLabel = item.ResolutionLabel
+            });
         }
-        else
-        {
-            RecommendedVideo = updated;
-            OnPropertyChanged(nameof(RecommendedOpenCountLabel));
-            OnPropertyChanged(nameof(RecommendedRankingStars));
-        }
+
+        items.Clear();
+        foreach (var item in refreshed)
+            items.Add(item);
+
+        OnPropertyChanged(showTierLabel ? nameof(HasRankedRecommendation) : nameof(HasRecommendation));
     }
 
     private void BuildChartSections(DashboardStatistics stats)
@@ -292,24 +254,24 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
     [RelayCommand]
     private Task RefreshRecommendationAsync() =>
         RunBusyCoreAsync(
-            () => LoadRecommendationAsync(RecommendedVideo?.Id),
-            "Eligiendo otra recomendación...");
+            () => LoadRecommendationAsync(excludeCurrent: true),
+            "Eligiendo otras recomendaciones...");
 
     [RelayCommand]
     private Task RefreshRankedRecommendationAsync() =>
         RunBusyCoreAsync(
             () => LoadRankedRecommendationAsync(advance: true),
-            "Eligiendo otro rankeado...");
+            "Eligiendo otros rankeados...");
 
-    [RelayCommand(CanExecute = nameof(HasRecommendation))]
-    private async Task OpenRecommendedAsync()
+    [RelayCommand]
+    private async Task OpenRecommendedAsync(DashboardRecommendationItem? item)
     {
-        if (RecommendedVideo is null)
+        if (item is null)
             return;
 
         await ExecuteBusyAsync(async () =>
         {
-            var opened = await _mediaVaultService.OpenFileAsync(RecommendedVideo.Id).ConfigureAwait(true);
+            var opened = await _mediaVaultService.OpenFileAsync(item.Video.Id).ConfigureAwait(true);
             if (opened is null)
                 throw new InvalidOperationException("No se pudo abrir el archivo. Verifique que exista en disco.");
 
@@ -317,16 +279,16 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         }, "Abriendo archivo...").ConfigureAwait(true);
     }
 
-    [RelayCommand(CanExecute = nameof(HasRecommendation))]
-    private async Task OpenRecommendedWithVlcAsync()
+    [RelayCommand]
+    private async Task OpenRecommendedWithVlcAsync(DashboardRecommendationItem? item)
     {
-        if (RecommendedVideo is null)
+        if (item is null)
             return;
 
         await ExecuteBusyAsync(async () =>
         {
             var opened = await _mediaVaultService
-                .OpenFileAsync(RecommendedVideo.Id, preferVlc: true)
+                .OpenFileAsync(item.Video.Id, preferVlc: true)
                 .ConfigureAwait(true);
             if (opened is null)
                 throw new InvalidOperationException("No se pudo abrir el archivo con VLC.");
@@ -335,15 +297,15 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         }, "Abriendo con VLC...").ConfigureAwait(true);
     }
 
-    [RelayCommand(CanExecute = nameof(HasRankedRecommendation))]
-    private async Task OpenRankedRecommendedAsync()
+    [RelayCommand]
+    private async Task OpenRankedRecommendedAsync(DashboardRecommendationItem? item)
     {
-        if (RankedRecommendedVideo is null)
+        if (item is null)
             return;
 
         await ExecuteBusyAsync(async () =>
         {
-            var opened = await _mediaVaultService.OpenFileAsync(RankedRecommendedVideo.Id).ConfigureAwait(true);
+            var opened = await _mediaVaultService.OpenFileAsync(item.Video.Id).ConfigureAwait(true);
             if (opened is null)
                 throw new InvalidOperationException("No se pudo abrir el archivo. Verifique que exista en disco.");
 
@@ -351,16 +313,16 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         }, "Abriendo archivo...").ConfigureAwait(true);
     }
 
-    [RelayCommand(CanExecute = nameof(HasRankedRecommendation))]
-    private async Task OpenRankedRecommendedWithVlcAsync()
+    [RelayCommand]
+    private async Task OpenRankedRecommendedWithVlcAsync(DashboardRecommendationItem? item)
     {
-        if (RankedRecommendedVideo is null)
+        if (item is null)
             return;
 
         await ExecuteBusyAsync(async () =>
         {
             var opened = await _mediaVaultService
-                .OpenFileAsync(RankedRecommendedVideo.Id, preferVlc: true)
+                .OpenFileAsync(item.Video.Id, preferVlc: true)
                 .ConfigureAwait(true);
             if (opened is null)
                 throw new InvalidOperationException("No se pudo abrir el archivo con VLC.");
@@ -369,98 +331,208 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         }, "Abriendo con VLC...").ConfigureAwait(true);
     }
 
-    private async Task LoadRecommendationAsync(int? excludeMediaFileId)
+    private async Task LoadRecommendationAsync(bool excludeCurrent)
     {
-        var recommendation = await _dashboardService
-            .GetVideoRecommendationAsync(excludeMediaFileId)
-            .ConfigureAwait(true);
-        await SetRecommendationAsync(recommendation).ConfigureAwait(true);
+        const int count = VideoRecommendation.DefaultPickCount;
+        var otherPanelIds = GetRankedRecommendedVideoIds();
+        var selfIds = GetRecommendedVideoIds();
+
+        var preferredExclude = new HashSet<int>(otherPanelIds);
+        if (excludeCurrent)
+            preferredExclude.UnionWith(selfIds);
+
+        var recommendations = (await _dashboardService
+            .GetVideoRecommendationsAsync(preferredExclude, count, reuseWhenExhausted: false)
+            .ConfigureAwait(true)).ToList();
+
+        // Si no hay suficientes sin solapar, completar permitiendo cruce con el otro panel.
+        if (recommendations.Count < count)
+        {
+            var softExclude = new HashSet<int>(recommendations.Select(video => video.Id));
+            if (excludeCurrent)
+                softExclude.UnionWith(selfIds);
+
+            var extra = await _dashboardService
+                .GetVideoRecommendationsAsync(
+                    softExclude,
+                    count - recommendations.Count,
+                    reuseWhenExhausted: true)
+                .ConfigureAwait(true);
+
+            foreach (var video in extra)
+            {
+                if (softExclude.Add(video.Id))
+                    recommendations.Add(video);
+            }
+        }
+
+        await SetRecommendationsAsync(recommendations).ConfigureAwait(true);
     }
 
     /// <param name="advance">
-    /// false: restaurar el actual de sesión o elegir el primero.
-    /// true: pedir otro distinto (sin repetir los ya mostrados; al agotar, reinicia el ciclo).
+    /// false: restaurar el lote actual de sesión (solo si está completo) o elegir uno nuevo.
+    /// true: pedir otro lote distinto (sin repetir los ya mostrados; al agotar, reinicia el ciclo).
     /// </param>
     private async Task LoadRankedRecommendationAsync(bool advance)
     {
-        if (!advance && _rankedSession.CurrentMediaFileId is int currentId)
+        const int count = RankedVideoRecommendation.DefaultPickCount;
+        var otherPanelIds = GetRecommendedVideoIds();
+
+        if (!advance && _rankedSession.CurrentMediaFileIds.Count >= count)
         {
-            var restored = await _dashboardService.GetVideoStatsByIdAsync(currentId).ConfigureAwait(true);
-            if (restored is not null && MediaFileRankingScale.ToDisplayStars(restored.RankingGlobal) > 0)
+            var restored = new List<MediaFileViewStats>();
+            foreach (var id in _rankedSession.CurrentMediaFileIds)
             {
-                await SetRankedRecommendationAsync(restored).ConfigureAwait(true);
+                var stats = await _dashboardService.GetVideoStatsByIdAsync(id).ConfigureAwait(true);
+                if (stats is null)
+                    continue;
+
+                restored.Add(stats);
+            }
+
+            // Restaurar solo si el lote está completo y no solapa con «para ver».
+            if (restored.Count >= count
+                && restored.All(video => !otherPanelIds.Contains(video.Id)))
+            {
+                await SetRankedRecommendationsAsync(restored).ConfigureAwait(true);
                 return;
             }
         }
 
-        var picked = await _dashboardService
-            .GetRankedVideoRecommendationAsync(_rankedSession.ShownMediaFileIds)
-            .ConfigureAwait(true);
+        if (!advance && _rankedSession.CurrentMediaFileIds.Count is > 0 and < count)
+            _rankedSession.Reset();
 
-        if (picked is null && _rankedSession.ShownMediaFileIds.Count > 0)
+        var preferredExclude = new HashSet<int>(otherPanelIds);
+        if (advance)
+            preferredExclude.UnionWith(_rankedSession.ShownMediaFileIds);
+
+        var picked = (await _dashboardService
+            .GetRankedVideoRecommendationsAsync(preferredExclude, count)
+            .ConfigureAwait(true)).ToList();
+
+        if ((picked.Count == 0 || (advance && picked.Count < count))
+            && _rankedSession.ShownMediaFileIds.Count > 0)
         {
             _rankedSession.Reset();
-            picked = await _dashboardService
-                .GetRankedVideoRecommendationAsync(_rankedSession.ShownMediaFileIds)
-                .ConfigureAwait(true);
+            preferredExclude = new HashSet<int>(otherPanelIds);
+            picked = (await _dashboardService
+                .GetRankedVideoRecommendationsAsync(preferredExclude, count)
+                .ConfigureAwait(true)).ToList();
         }
 
-        if (picked is not null)
-            _rankedSession.SetCurrent(picked.Id);
+        // Completar lote si aún faltan (permite solape solo como último recurso).
+        if (picked.Count < count)
+        {
+            var softExclude = picked.Select(video => video.Id).ToHashSet();
+            if (advance)
+                softExclude.UnionWith(_rankedSession.ShownMediaFileIds);
 
-        await SetRankedRecommendationAsync(picked).ConfigureAwait(true);
+            var extra = await _dashboardService
+                .GetRankedVideoRecommendationsAsync(softExclude, count - picked.Count)
+                .ConfigureAwait(true);
+
+            foreach (var video in extra)
+            {
+                if (softExclude.Add(video.Id))
+                    picked.Add(video);
+            }
+        }
+
+        if (picked.Count > 0)
+            _rankedSession.SetCurrent(picked.Select(video => video.Id).ToArray());
+
+        await SetRankedRecommendationsAsync(picked).ConfigureAwait(true);
     }
 
-    partial void OnRecommendedVideoChanged(MediaFileViewStats? value)
-    {
-        OpenRecommendedCommand.NotifyCanExecuteChanged();
-        OpenRecommendedWithVlcCommand.NotifyCanExecuteChanged();
-    }
+    private HashSet<int> GetRecommendedVideoIds() =>
+        RecommendedVideos.Select(item => item.Video.Id).ToHashSet();
 
-    partial void OnRankedRecommendedVideoChanged(MediaFileViewStats? value)
-    {
-        OpenRankedRecommendedCommand.NotifyCanExecuteChanged();
-        OpenRankedRecommendedWithVlcCommand.NotifyCanExecuteChanged();
-    }
+    private HashSet<int> GetRankedRecommendedVideoIds() =>
+        RankedRecommendedVideos.Select(item => item.Video.Id).ToHashSet();
 
-    private async Task SetRecommendationAsync(MediaFileViewStats? recommendation)
+    private async Task SetRecommendationsAsync(IReadOnlyList<MediaFileViewStats> recommendations)
     {
-        RecommendedVideo = recommendation;
-        RecommendedThumbnail = null;
+        RecommendedVideos.Clear();
+        OnPropertyChanged(nameof(HasRecommendation));
 
-        if (recommendation is null)
+        if (recommendations.Count == 0)
             return;
 
         var generation = ++_recommendationThumbGeneration;
-        var thumbnail = await LoadParentFolderThumbnailAsync(recommendation.Path, 200).ConfigureAwait(true);
+        var items = recommendations
+            .Select(video => new DashboardRecommendationItem(video, showTierLabel: false))
+            .ToList();
 
-        if (generation != _recommendationThumbGeneration)
-            return;
+        foreach (var item in items)
+            RecommendedVideos.Add(item);
 
-        RecommendedThumbnail = thumbnail;
+        OnPropertyChanged(nameof(HasRecommendation));
+
+        PrefetchRecommendationPictures(items);
+        await LoadRecommendationDetailsAsync(items, generation, isRanked: false).ConfigureAwait(true);
     }
 
-    private async Task SetRankedRecommendationAsync(MediaFileViewStats? recommendation)
+    private async Task SetRankedRecommendationsAsync(IReadOnlyList<MediaFileViewStats> recommendations)
     {
-        RankedRecommendedVideo = recommendation;
-        RankedRecommendedThumbnail = null;
+        RankedRecommendedVideos.Clear();
+        OnPropertyChanged(nameof(HasRankedRecommendation));
 
-        if (recommendation is null)
+        if (recommendations.Count == 0)
             return;
 
         var generation = ++_rankedRecommendationThumbGeneration;
-        var thumbnail = await LoadParentFolderThumbnailAsync(recommendation.Path, 200).ConfigureAwait(true);
+        var items = recommendations
+            .Select(video => new DashboardRecommendationItem(video, showTierLabel: true))
+            .ToList();
 
-        if (generation != _rankedRecommendationThumbGeneration)
-            return;
+        foreach (var item in items)
+            RankedRecommendedVideos.Add(item);
 
-        RankedRecommendedThumbnail = thumbnail;
+        OnPropertyChanged(nameof(HasRankedRecommendation));
+
+        PrefetchRecommendationPictures(items);
+        await LoadRecommendationDetailsAsync(items, generation, isRanked: true).ConfigureAwait(true);
+    }
+
+    private static void PrefetchRecommendationPictures(IReadOnlyList<DashboardRecommendationItem> items)
+    {
+        var pairs = items
+            .Select(item =>
+            {
+                var folder = Path.GetDirectoryName(item.Video.Path) ?? string.Empty;
+                return (ItemKey: item.Video.Path, FolderPath: folder);
+            })
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.FolderPath))
+            .ToList();
+
+        FolderSessionPicturePicker.PrefetchDistinctAssignments(pairs);
+    }
+
+    private async Task LoadRecommendationDetailsAsync(
+        IReadOnlyList<DashboardRecommendationItem> items,
+        int generation,
+        bool isRanked)
+    {
+        foreach (var item in items)
+        {
+            if (isRanked
+                    ? generation != _rankedRecommendationThumbGeneration
+                    : generation != _recommendationThumbGeneration)
+                return;
+
+            item.ResolutionLabel = await VideoResolutionProbe
+                .TryGetResolutionLabelAsync(item.Video.Path)
+                .ConfigureAwait(true);
+
+            item.Thumbnail = await LoadVideoActressThumbnailAsync(item.Video.Path, 160)
+                .ConfigureAwait(true);
+        }
     }
 
     /// <summary>
-    /// Prioridad: imagen aleatoria de Pictures (sesión) → icono de carpeta → miniatura shell.
+    /// Prioridad: foto distinta de Pictures (por video) → icono de carpeta → miniatura shell de carpeta.
     /// </summary>
-    private async Task<ImageSource?> LoadParentFolderThumbnailAsync(string videoPath, int size)
+    private async Task<ImageSource?> LoadVideoActressThumbnailAsync(string videoPath, int size)
     {
         var folderPath = Path.GetDirectoryName(videoPath);
         if (string.IsNullOrWhiteSpace(folderPath))
@@ -476,7 +548,8 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         }
 
         var sessionPicture = await Task.Run(() =>
-            FolderSessionPicturePicker.TryLoadSessionThumbnail(folderPath, size)).ConfigureAwait(true);
+            FolderSessionPicturePicker.TryLoadThumbnailForItem(folderPath, videoPath, size))
+            .ConfigureAwait(true);
         if (sessionPicture is not null)
             return sessionPicture;
 

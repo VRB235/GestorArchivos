@@ -6,11 +6,11 @@ namespace MediaVault.LinkHub.Application.Services;
 /// </summary>
 public interface IRankedVideoRecommendationSession
 {
-    int? CurrentMediaFileId { get; }
+    IReadOnlyList<int> CurrentMediaFileIds { get; }
 
     IReadOnlyCollection<int> ShownMediaFileIds { get; }
 
-    void SetCurrent(int mediaFileId);
+    void SetCurrent(IReadOnlyList<int> mediaFileIds);
 
     void Reset();
 }

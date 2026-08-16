@@ -18,12 +18,14 @@ public sealed class ProducerService : IProducerService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
-        return await context.Producers
+        var producers = await context.Producers
             .AsNoTracking()
-            .OrderBy(producer => producer.SortOrder)
-            .ThenBy(producer => producer.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return producers
+            .OrderBy(producer => producer.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
     }
 
     public async Task<Producer> CreateAsync(string name, CancellationToken cancellationToken = default)

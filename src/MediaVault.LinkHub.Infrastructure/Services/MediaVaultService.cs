@@ -323,6 +323,61 @@ public sealed class MediaVaultService : IMediaVaultService
     return Task.CompletedTask;
   }
 
+  public async Task DeleteDirectoryAsync(
+    string directoryPath,
+    string indexRootPath,
+    CancellationToken cancellationToken = default)
+  {
+    if (string.IsNullOrWhiteSpace(directoryPath))
+      throw new ArgumentException("La ruta de la carpeta es obligatoria.", nameof(directoryPath));
+
+    if (string.IsNullOrWhiteSpace(indexRootPath))
+      throw new ArgumentException("La ruta raíz de indexación es obligatoria.", nameof(indexRootPath));
+
+    var fullDirectoryPath = Path.GetFullPath(directoryPath);
+    var fullRootPath = Path.GetFullPath(indexRootPath);
+    var comparison = OperatingSystem.IsWindows()
+      ? StringComparison.OrdinalIgnoreCase
+      : StringComparison.Ordinal;
+
+    EnsurePathIsWithinRoot(fullDirectoryPath, fullRootPath);
+
+    if (string.Equals(fullDirectoryPath, fullRootPath, comparison))
+      throw new InvalidOperationException("No se puede eliminar la carpeta raíz de indexación.");
+
+    if (!Directory.Exists(fullDirectoryPath))
+      throw new DirectoryNotFoundException($"No existe el directorio: {fullDirectoryPath}");
+
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var prefix = fullDirectoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+      + Path.DirectorySeparatorChar;
+
+    var indexedFiles = await context.MediaFiles.ToListAsync(cancellationToken).ConfigureAwait(false);
+    var toRemove = indexedFiles
+      .Where(file =>
+      {
+        try
+        {
+          var fullFilePath = Path.GetFullPath(file.Path);
+          return fullFilePath.StartsWith(prefix, comparison);
+        }
+        catch
+        {
+          return false;
+        }
+      })
+      .ToList();
+
+    if (toRemove.Count > 0)
+    {
+      context.MediaFiles.RemoveRange(toRemove);
+      await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    Directory.Delete(fullDirectoryPath, recursive: true);
+  }
+
   public async Task<MediaFile?> MoveFileAsync(
     string sourcePath,
     string destinationDirectoryPath,

@@ -126,10 +126,28 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     private string _indexRootPath = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCreateFolder))]
+    [NotifyCanExecuteChangedFor(nameof(CreateFolderCommand))]
     private string _currentDirectoryPath = string.Empty;
 
     [ObservableProperty]
     private string _newFileName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCreateFolder))]
+    [NotifyCanExecuteChangedFor(nameof(CreateFolderCommand))]
+    private string _newFolderName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedVideoResolution))]
+    [NotifyPropertyChangedFor(nameof(SelectedVideoResolutionDisplay))]
+    private string? _selectedVideoResolutionLabel;
+
+    public bool HasSelectedVideoResolution => !string.IsNullOrWhiteSpace(SelectedVideoResolutionLabel);
+
+    public string SelectedVideoResolutionDisplay => HasSelectedVideoResolution
+        ? SelectedVideoResolutionLabel!
+        : "No disponible";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RankingGlobal))]
@@ -185,6 +203,10 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         SelectedMediaFile is not null
         && MediaFileExtensions.IsVideo(SelectedMediaFile.Path);
 
+    public bool ShowVideoResolutionSection =>
+        SelectedBrowserEntry is { IsDirectory: false } entry
+        && MediaFileExtensions.IsVideo(entry.FullPath);
+
     public bool CanAssignVideoCategory => CanEditSelectedFile;
 
     public bool CanAssignActress => CanEditSelectedFile && ShowFileActressSection;
@@ -206,10 +228,21 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     public string FileCategoryHint =>
         "Pulse un tag para asignar o quitar. Gestione la lista en el módulo «Categorías».";
 
-    public bool CanDeleteSelectedFile => SelectedBrowserEntryItem is { IsDirectory: false };
+    public bool CanDeleteSelectedEntry => SelectedBrowserEntryItem is not null
+        && !(SelectedBrowserEntryItem.IsDirectory
+             && !string.IsNullOrWhiteSpace(IndexRootPath)
+             && string.Equals(
+                 Path.GetFullPath(SelectedBrowserEntryItem.FullPath),
+                 Path.GetFullPath(IndexRootPath),
+                 StringComparison.OrdinalIgnoreCase));
 
     public bool CanMoveSelectedFile => SelectedBrowserEntryItem is { IsDirectory: false }
         && !string.IsNullOrWhiteSpace(IndexRootPath);
+
+    public bool CanCreateFolder =>
+        !string.IsNullOrWhiteSpace(CurrentDirectoryPath)
+        && Directory.Exists(CurrentDirectoryPath)
+        && !string.IsNullOrWhiteSpace(NewFolderName);
 
     public bool IsSelectedFolder => SelectedBrowserEntry?.IsDirectory == true;
 
@@ -759,6 +792,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         OnPropertyChanged(nameof(FileCategoryHint));
         OnPropertyChanged(nameof(CanAssignActress));
         OnPropertyChanged(nameof(ShowFileActressSection));
+        OnPropertyChanged(nameof(ShowVideoResolutionSection));
         OnPropertyChanged(nameof(FileActressHint));
         OnPropertyChanged(nameof(CanAssignProducer));
         OnPropertyChanged(nameof(ShowFileProducerSection));
@@ -774,7 +808,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         OnPropertyChanged(nameof(IsSelectedFolder));
         OnPropertyChanged(nameof(IsSelectedFile));
 
-        OnPropertyChanged(nameof(CanDeleteSelectedFile));
+        OnPropertyChanged(nameof(CanDeleteSelectedEntry));
         DeleteCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanMoveSelectedFile));
         MoveCommand.NotifyCanExecuteChanged();
@@ -785,6 +819,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             SelectedMediaFile = null;
             SelectedFolderIconPath = null;
             NewFileName = string.Empty;
+            SelectedVideoResolutionLabel = null;
             RankingCalidad = 0;
             RankingContenido = 0;
             RankingGusto = 0;
@@ -804,6 +839,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 SelectedMediaFile = null;
                 SelectedFolderIconPath = value.Entry.CustomIconPath;
                 NewFileName = string.Empty;
+                SelectedVideoResolutionLabel = null;
                 RankingCalidad = 0;
                 RankingContenido = 0;
                 RankingGusto = 0;
@@ -825,6 +861,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 RankingGusto = 0;
                 OnPropertyChanged(nameof(CanEditSelectedFile));
                 NotifyFileCategoryStateChanged();
+                _ = LoadSelectedVideoResolutionAsync(value.FullPath);
 
                 if (MediaFileExtensions.IsSupported(value.FullPath))
                     _ = EnsureSelectedFileIndexedAsync(value.FullPath);
@@ -839,6 +876,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             SyncFileCategorySelections(value.MediaFile);
             SyncFileActressSelections(value.MediaFile);
             SyncFileProducerSelections(value.MediaFile);
+            _ = LoadSelectedVideoResolutionAsync(value.MediaFile.Path);
 
             OnPropertyChanged(nameof(CanEditSelectedFile));
             NotifyFileCategoryStateChanged();
@@ -1232,47 +1270,99 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         }, "Renombrando archivo...").ConfigureAwait(true);
     }
 
-    [RelayCommand(CanExecute = nameof(CanDeleteSelectedFile))]
-    private async Task DeleteAsync()
+    [RelayCommand(CanExecute = nameof(CanCreateFolder))]
+    private async Task CreateFolderAsync()
     {
-        if (SelectedBrowserEntryItem is not { IsDirectory: false })
+        if (string.IsNullOrWhiteSpace(CurrentDirectoryPath) || string.IsNullOrWhiteSpace(NewFolderName))
             return;
 
-        var fileName = SelectedBrowserEntryItem.Name;
+        var parentPath = CurrentDirectoryPath;
+        var folderName = NewFolderName.Trim();
+        var createdPath = Path.Combine(parentPath, folderName);
+
+        await ExecuteBusyAsync(async () =>
+        {
+            await _mediaVaultService.CreateDirectoryAsync(parentPath, folderName).ConfigureAwait(true);
+            NewFolderName = string.Empty;
+            WindowsShellThumbnailProvider.ClearCache();
+            await BrowseDirectoryAsync(parentPath, reselectEntryPath: createdPath).ConfigureAwait(true);
+        }, "Creando carpeta...").ConfigureAwait(true);
+    }
+
+    private async Task LoadSelectedVideoResolutionAsync(string? path)
+    {
+        SelectedVideoResolutionLabel = null;
+
+        if (string.IsNullOrWhiteSpace(path) || !MediaFileExtensions.IsVideo(path))
+            return;
+
+        var expectedPath = path;
+        var label = await VideoResolutionProbe.TryGetResolutionLabelAsync(path).ConfigureAwait(true);
+
+        if (!string.Equals(SelectedBrowserEntryItem?.FullPath, expectedPath, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(SelectedMediaFile?.Path, expectedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        SelectedVideoResolutionLabel = label;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteSelectedEntry))]
+    private async Task DeleteAsync()
+    {
+        if (SelectedBrowserEntryItem is null)
+            return;
+
+        var entryName = SelectedBrowserEntryItem.Name;
+        var isDirectory = SelectedBrowserEntryItem.IsDirectory;
+        var confirmMessage = isDirectory
+            ? $"¿Eliminar permanentemente la carpeta \"{entryName}\" y todo su contenido?\n\nEsta acción no se puede deshacer."
+            : $"¿Eliminar permanentemente \"{entryName}\"?\n\nEsta acción no se puede deshacer.";
+
         if (!_appDialogService.ConfirmYesNo(
                 "Confirmar eliminación",
-                $"¿Eliminar permanentemente \"{fileName}\"?\n\nEsta acción no se puede deshacer.",
+                confirmMessage,
                 AppDialogKind.Warning))
             return;
 
         var currentDirectory = CurrentDirectoryPath;
-        var filePath = SelectedBrowserEntryItem.FullPath;
+        var entryPath = SelectedBrowserEntryItem.FullPath;
 
         await ExecuteBusyAsync(async () =>
         {
-            if (SelectedBrowserEntryItem.MediaFile is not null)
+            if (isDirectory)
+            {
+                if (string.IsNullOrWhiteSpace(IndexRootPath))
+                    throw new InvalidOperationException("Configure una carpeta raíz válida en Configuración.");
+
+                await _mediaVaultService
+                    .DeleteDirectoryAsync(entryPath, IndexRootPath)
+                    .ConfigureAwait(true);
+            }
+            else if (SelectedBrowserEntryItem.MediaFile is not null)
             {
                 await _mediaVaultService.DeleteFileAsync(SelectedBrowserEntryItem.MediaFile.Id).ConfigureAwait(true);
             }
             else
             {
-                var indexed = await _mediaVaultService.GetByPathAsync(filePath).ConfigureAwait(true);
+                var indexed = await _mediaVaultService.GetByPathAsync(entryPath).ConfigureAwait(true);
                 if (indexed is not null)
                 {
                     await _mediaVaultService.DeleteFileAsync(indexed.Id).ConfigureAwait(true);
                 }
                 else
                 {
-                    if (!File.Exists(filePath))
+                    if (!File.Exists(entryPath))
                         throw new FileNotFoundException("El archivo no existe.");
 
-                    File.Delete(filePath);
+                    File.Delete(entryPath);
                 }
             }
 
             WindowsShellThumbnailProvider.ClearCache();
             await BrowseDirectoryAsync(currentDirectory).ConfigureAwait(true);
-        }, "Eliminando archivo...").ConfigureAwait(true);
+        }, isDirectory ? "Eliminando carpeta..." : "Eliminando archivo...").ConfigureAwait(true);
     }
 
     [RelayCommand]

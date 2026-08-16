@@ -34,14 +34,14 @@ public sealed class VideoCategoryServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAllAsync_orders_by_sort_order_then_name()
+    public async Task GetAllAsync_orders_alphabetically_by_name()
     {
         await _sut.CreateAsync("Zeta");
         await _sut.CreateAsync("Alpha");
 
         var categories = await _sut.GetAllAsync();
 
-        categories.Select(category => category.Name).Should().ContainInOrder("Zeta", "Alpha");
+        categories.Select(category => category.Name).Should().ContainInOrder("Alpha", "Zeta");
     }
 
     [Fact]

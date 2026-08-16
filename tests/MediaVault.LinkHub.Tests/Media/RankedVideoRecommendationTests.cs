@@ -9,7 +9,7 @@ namespace MediaVault.LinkHub.Tests.Media;
 public sealed class RankedVideoRecommendationTests
 {
     [Fact]
-    public void PickByStarTiers_returns_null_when_no_ranked_videos()
+    public void PickByStarTiers_falls_back_to_unrated_when_no_ranked_videos()
     {
         var videos = new[]
         {
@@ -17,8 +17,10 @@ public sealed class RankedVideoRecommendationTests
             CreateVideo(2, "foto.jpg", ranking: 5, isVideo: false)
         };
 
-        RankedVideoRecommendation.PickByStarTiers(videos, excludeMediaFileIds: [])
-            .Should().BeNull();
+        var picked = RankedVideoRecommendation.PickByStarTiers(videos, excludeMediaFileIds: []);
+
+        picked.Should().NotBeNull();
+        picked!.Id.Should().Be(1);
     }
 
     [Fact]
@@ -90,17 +92,67 @@ public sealed class RankedVideoRecommendationTests
     }
 
     [Fact]
+    public void PickByStarTiersMany_returns_up_to_five_preferring_higher_tiers()
+    {
+        var videos = new[]
+        {
+            CreateVideo(1, "five-a.mp4", ranking: 5),
+            CreateVideo(2, "five-b.mp4", ranking: 5),
+            CreateVideo(3, "five-c.mp4", ranking: 5),
+            CreateVideo(4, "four.mp4", ranking: 4),
+            CreateVideo(5, "three.mp4", ranking: 3),
+            CreateVideo(6, "two.mp4", ranking: 2)
+        };
+
+        var picks = RankedVideoRecommendation.PickByStarTiersMany(
+            videos,
+            excludeMediaFileIds: [],
+            count: 5,
+            random: new Random(5));
+
+        picks.Should().HaveCount(5);
+        picks.Select(video => video.Id).Should().OnlyHaveUniqueItems();
+        picks.Take(3).Select(video => video.Id).Should().BeSubsetOf([1, 2, 3]);
+        picks[3].Id.Should().Be(4);
+        picks[4].Id.Should().Be(5);
+    }
+
+    [Fact]
+    public void PickByStarTiersMany_fills_to_five_when_few_ranked()
+    {
+        var videos = new[]
+        {
+            CreateVideo(1, "ranked.mp4", ranking: 3),
+            CreateVideo(2, "a.mp4", ranking: 0),
+            CreateVideo(3, "b.mp4", ranking: 0),
+            CreateVideo(4, "c.mp4", ranking: 0),
+            CreateVideo(5, "d.mp4", ranking: 0),
+            CreateVideo(6, "e.mp4", ranking: 0)
+        };
+
+        var picks = RankedVideoRecommendation.PickByStarTiersMany(
+            videos,
+            excludeMediaFileIds: [],
+            count: 5,
+            random: new Random(2));
+
+        picks.Should().HaveCount(5);
+        picks[0].Id.Should().Be(1);
+        picks.Select(video => video.Id).Should().OnlyHaveUniqueItems();
+        picks.Skip(1).Should().OnlyContain(video => video.RankingGlobal <= 0);
+    }
+
+    [Fact]
     public void Session_tracks_shown_ids_and_resets()
     {
         var session = new RankedVideoRecommendationSession();
-        session.SetCurrent(10);
-        session.SetCurrent(20);
+        session.SetCurrent([10, 20]);
 
-        session.CurrentMediaFileId.Should().Be(20);
+        session.CurrentMediaFileIds.Should().Equal(10, 20);
         session.ShownMediaFileIds.Should().BeEquivalentTo([10, 20]);
 
         session.Reset();
-        session.CurrentMediaFileId.Should().BeNull();
+        session.CurrentMediaFileIds.Should().BeEmpty();
         session.ShownMediaFileIds.Should().BeEmpty();
     }
 
