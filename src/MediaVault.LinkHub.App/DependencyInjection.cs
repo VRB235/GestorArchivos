@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddTransient<ProducerManagerViewModel>();
         services.AddTransient<DashboardViewModel>();
         services.AddTransient<ScratchpadViewModel>();
+        services.AddTransient<SuggestionsViewModel>();
         services.AddTransient<SettingsViewModel>();
 
         services.AddTransient<MainWindow>();

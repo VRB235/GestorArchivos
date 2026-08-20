@@ -20,6 +20,10 @@ public class AppDbContext : DbContext
 
     public DbSet<QuickNote> QuickNotes => Set<QuickNote>();
 
+    public DbSet<Suggestion> Suggestions => Set<Suggestion>();
+
+    public DbSet<SuggestionAttachment> SuggestionAttachments => Set<SuggestionAttachment>();
+
     public DbSet<VideoCategory> VideoCategories => Set<VideoCategory>();
 
     public DbSet<Actress> Actresses => Set<Actress>();
@@ -33,6 +37,8 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new WebLinkConfiguration());
         modelBuilder.ApplyConfiguration(new MediaFileConfiguration());
         modelBuilder.ApplyConfiguration(new QuickNoteConfiguration());
+        modelBuilder.ApplyConfiguration(new SuggestionConfiguration());
+        modelBuilder.ApplyConfiguration(new SuggestionAttachmentConfiguration());
         modelBuilder.ApplyConfiguration(new VideoCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new ActressConfiguration());
         modelBuilder.ApplyConfiguration(new ProducerConfiguration());

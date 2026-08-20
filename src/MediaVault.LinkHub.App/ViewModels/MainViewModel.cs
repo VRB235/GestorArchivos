@@ -26,6 +26,7 @@ public partial class MainViewModel : ViewModelBase
             new NavigationItem { Title = "Actrices", Icon = "🎭", Target = "actresses" },
             new NavigationItem { Title = "Productoras", Icon = "🏭", Target = "producers" },
             new NavigationItem { Title = "Scratchpad", Icon = "📝", Target = "notes" },
+            new NavigationItem { Title = "Sugerencias", Icon = "💡", Target = "suggestions" },
             new NavigationItem { Title = "Configuración", Icon = "⚙️", Target = "settings" }
         ];
     }
@@ -81,6 +82,9 @@ public partial class MainViewModel : ViewModelBase
                 break;
             case "notes":
                 await _navigationService.NavigateToAsync<ScratchpadViewModel>().ConfigureAwait(true);
+                break;
+            case "suggestions":
+                await _navigationService.NavigateToAsync<SuggestionsViewModel>().ConfigureAwait(true);
                 break;
             case "settings":
                 await _navigationService.NavigateToAsync<SettingsViewModel>().ConfigureAwait(true);

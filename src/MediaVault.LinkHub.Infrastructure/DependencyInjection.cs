@@ -1,5 +1,6 @@
 using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Infrastructure.Data;
+using MediaVault.LinkHub.Infrastructure.Media;
 using MediaVault.LinkHub.Infrastructure.Services;
 using MediaVault.LinkHub.Infrastructure.Settings;
 using Microsoft.EntityFrameworkCore;
@@ -25,10 +26,12 @@ public static class DependencyInjection
     services.AddSingleton<IAppSettingsService, JsonAppSettingsService>();
     services.AddSingleton<IRankedVideoRecommendationSession, RankedVideoRecommendationSession>();
 
+    services.AddSingleton<SuggestionImageStorage>();
     services.AddTransient<IWebLinkService, WebLinkService>();
     services.AddTransient<IMediaVaultService, MediaVaultService>();
     services.AddTransient<IDashboardService, DashboardService>();
     services.AddTransient<IQuickNoteService, QuickNoteService>();
+    services.AddTransient<ISuggestionService, SuggestionService>();
     services.AddTransient<IVideoCategoryService, VideoCategoryService>();
     services.AddTransient<IActressService, ActressService>();
     services.AddTransient<IProducerService, ProducerService>();
