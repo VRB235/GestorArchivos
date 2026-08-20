@@ -47,6 +47,13 @@ public partial class App : System.Windows.Application
 
         try
         {
+            // Restaurar BD pendiente ANTES de abrir conexiones EF.
+            var earlyBackup = new SqliteDatabaseBackupService();
+            if (earlyBackup.TryApplyPendingRestore(out var restoreMessage) && !string.IsNullOrWhiteSpace(restoreMessage))
+                TryLogStartupInfo(restoreMessage);
+            else if (!string.IsNullOrWhiteSpace(restoreMessage))
+                TryLogStartupInfo(restoreMessage);
+
             var services = new ServiceCollection();
             services.AddMediaVaultLinkHubInfrastructure();
             services.AddPresentation();
@@ -55,7 +62,10 @@ public partial class App : System.Windows.Application
 
             await Services.InitializeDatabaseAsync().ConfigureAwait(true);
 
-            // Limpia papelera / fuera del vault / inexistentes antes de cargar el Dashboard.
+            // Respaldo diario (recuperación ante wipe accidental).
+            await EnsureDailyDatabaseBackupAsync().ConfigureAwait(true);
+
+            // Solo papelera/fuera de root; nunca "inexistentes" al arranque.
             await PurgeInvalidIndexOnStartupAsync().ConfigureAwait(true);
 
             // Mostrar la ventana antes de cargar el Dashboard: feedback inmediato tras el login.
@@ -110,6 +120,24 @@ public partial class App : System.Windows.Application
         e.SetObserved();
     }
 
+    private static async Task EnsureDailyDatabaseBackupAsync()
+    {
+        try
+        {
+            var backupService = Services.GetRequiredService<ISqliteDatabaseBackupService>();
+            var result = await backupService
+                .EnsureRecentBackupAsync(TimeSpan.FromHours(24), "startup")
+                .ConfigureAwait(true);
+
+            if (result.Created)
+                TryLogStartupInfo(result.Message ?? "Respaldo diario creado.");
+        }
+        catch (Exception ex)
+        {
+            TryLogStartupFailure(ex);
+        }
+    }
+
     private static async Task PurgeInvalidIndexOnStartupAsync()
     {
         try
@@ -118,8 +146,11 @@ public partial class App : System.Windows.Application
                 .GetAsync()
                 .ConfigureAwait(true);
             var vault = Services.GetRequiredService<IMediaVaultService>();
+            // Nunca borrar "inexistentes" al arranque: si el disco/root está offline o lento,
+            // File.Exists falla y se pierden aperturas, rankings y tags (irrecuperable).
+            // La limpieza de ausentes queda solo en Configuración (acción explícita).
             var result = await vault
-                .PurgeInvalidIndexEntriesAsync(settings.MediaIndexRootPath, removeMissingFiles: true)
+                .PurgeInvalidIndexEntriesAsync(settings.MediaIndexRootPath, removeMissingFiles: false)
                 .ConfigureAwait(true);
 
             if (result.HasChanges)
@@ -127,7 +158,10 @@ public partial class App : System.Windows.Application
                 TryLogStartupInfo(
                     $"Índice depurado al arranque: total={result.RemovedTotal} " +
                     $"(papelera/sistema={result.RemovedUnusablePaths}, fueraRoot={result.RemovedOutsideRoot}, " +
-                    $"inexistentes={result.RemovedMissingFiles}).");
+                    $"inexistentes={result.RemovedMissingFiles}" +
+                    (string.IsNullOrWhiteSpace(result.BackupFilePath)
+                        ? ")."
+                        : $", backup={result.BackupFilePath})."));
             }
         }
         catch (Exception ex)

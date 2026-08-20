@@ -43,8 +43,42 @@
 
             <Border Style="{StaticResource CardBorderStyle}" Margin="0,16,0,0">
                 <StackPanel>
+                    <TextBlock Text="Respaldos de base de datos" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="Copia diaria al arranque y antes de limpiezas destructivas. Si algo sale mal, restaure el respaldo más reciente."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+                    <TextBlock Text="{Binding LatestBackupSummary}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+                    <TextBlock Text="{Binding BackupDirectoryPath, StringFormat='Carpeta: {0}'}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,12" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Crear respaldo ahora"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="0,0,8,0"
+                                Command="{Binding CreateBackupNowCommand}" />
+                        <Button Content="Abrir carpeta"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="0,0,8,0"
+                                Command="{Binding OpenBackupsFolderCommand}" />
+                        <Button Content="Restaurar último"
+                                Style="{StaticResource DangerButtonStyle}"
+                                Command="{Binding RestoreLatestBackupCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,16,0,0">
+                <StackPanel>
                     <TextBlock Text="Índice multimedia" Style="{StaticResource SectionTitleStyle}" />
-                    <TextBlock Text="Quita del índice (no del disco) rutas de la papelera, fuera de la carpeta raíz y archivos que ya no existen. Útil tras indexaciones accidentales."
+                    <TextBlock Text="Quita del índice (no del disco) rutas de la papelera, fuera de la carpeta raíz y archivos que ya no existen. Útil tras indexaciones accidentales. Crea respaldo antes de borrar; aborta si el impacto es masivo."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="11"
                                TextWrapping="Wrap"
@@ -59,7 +93,7 @@
             <Border Style="{StaticResource CardBorderStyle}" Margin="0,16,0,0">
                 <StackPanel>
                     <TextBlock Text="Metadatos de Media Vault" Style="{StaticResource SectionTitleStyle}" />
-                    <TextBlock Text="Restablece rankings, contador de aperturas (vistas), asignaciones de categorías y el catálogo de categorías en todos los archivos indexados."
+                    <TextBlock Text="Restablece rankings, contador de aperturas (vistas), asignaciones de categorías y el catálogo de categorías en todos los archivos indexados. Se crea respaldo previo."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="11"
                                TextWrapping="Wrap"

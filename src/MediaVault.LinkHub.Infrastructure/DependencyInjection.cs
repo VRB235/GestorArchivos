@@ -19,6 +19,9 @@ public static class DependencyInjection
     services.AddDbContextFactory<AppDbContext>(options =>
       options.UseSqlite(SqliteDatabasePathProvider.BuildConnectionString(databasePath)));
 
+    services.AddSingleton<ISqliteDatabaseBackupService>(_ =>
+      new SqliteDatabaseBackupService(
+        databasePath: databasePath ?? SqliteDatabasePathProvider.GetDefaultDatabasePath()));
     services.AddSingleton<IAppSettingsService, JsonAppSettingsService>();
     services.AddSingleton<IRankedVideoRecommendationSession, RankedVideoRecommendationSession>();
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -16,15 +17,18 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
 {
     private readonly IAppSettingsService _appSettingsService;
     private readonly IMediaVaultService _mediaVaultService;
+    private readonly ISqliteDatabaseBackupService _backupService;
     private readonly IAppDialogService _appDialogService;
 
     public SettingsViewModel(
         IAppSettingsService appSettingsService,
         IMediaVaultService mediaVaultService,
+        ISqliteDatabaseBackupService backupService,
         IAppDialogService appDialogService)
     {
         _appSettingsService = appSettingsService;
         _mediaVaultService = mediaVaultService;
+        _backupService = backupService;
         _appDialogService = appDialogService;
     }
 
@@ -38,6 +42,12 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
     [ObservableProperty]
     private string? _settingsFilePath;
 
+    [ObservableProperty]
+    private string? _backupDirectoryPath;
+
+    [ObservableProperty]
+    private string? _latestBackupSummary;
+
     public Task InitializeAsync() =>
         RunBusyCoreAsync(LoadAsync, "Cargando configuración...");
 
@@ -46,6 +56,16 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
         var settings = await _appSettingsService.GetAsync().ConfigureAwait(true);
         MediaIndexRootPath = settings.MediaIndexRootPath;
         SettingsFilePath = _appSettingsService.GetSettingsFilePath();
+        RefreshBackupSummary();
+    }
+
+    private void RefreshBackupSummary()
+    {
+        BackupDirectoryPath = _backupService.GetBackupDirectory();
+        var latest = _backupService.ListBackups().FirstOrDefault();
+        LatestBackupSummary = latest is null
+            ? "Aún no hay respaldos."
+            : $"Último: {latest.FileName} ({latest.CreatedUtc.ToLocalTime():g}, {latest.SizeBytes / 1024.0:0} KB)";
     }
 
     [RelayCommand]
@@ -95,13 +115,82 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
     }
 
     [RelayCommand]
+    private void OpenBackupsFolder()
+    {
+        var directory = _backupService.GetBackupDirectory();
+        Directory.CreateDirectory(directory);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = directory,
+            UseShellExecute = true
+        });
+    }
+
+    [RelayCommand]
+    private async Task CreateBackupNowAsync()
+    {
+        var result = await ExecuteBusyAsync(
+            () => _backupService.CreateBackupAsync("manual"),
+            "Creando respaldo...").ConfigureAwait(true);
+
+        if (ErrorMessage is not null || result is null)
+            return;
+
+        RefreshBackupSummary();
+        _appDialogService.ShowMessage(
+            "Respaldo",
+            result.Created
+                ? $"Respaldo creado:\n{result.BackupFilePath}"
+                : result.Message ?? "No se creó respaldo.");
+    }
+
+    [RelayCommand]
+    private async Task RestoreLatestBackupAsync()
+    {
+        var latest = _backupService.ListBackups().FirstOrDefault();
+        if (latest is null)
+        {
+            _appDialogService.ShowMessage(
+                "Restaurar respaldo",
+                "No hay respaldos disponibles.",
+                AppDialogKind.Warning);
+            return;
+        }
+
+        if (!_appDialogService.ConfirmYesNo(
+                "Restaurar respaldo",
+                "¿Restaurar la base de datos desde el respaldo más reciente?\n\n" +
+                $"{latest.FileName}\n" +
+                $"Fecha: {latest.CreatedUtc.ToLocalTime():g}\n\n" +
+                "La app se cerrará y deberá volver a abrirla para aplicar la restauración. " +
+                "Se guardará una copia del estado actual como pre-restore.",
+                AppDialogKind.Warning))
+            return;
+
+        await ExecuteBusyAsync(
+            () => _backupService.StageRestoreAsync(latest.FilePath),
+            "Programando restauración...").ConfigureAwait(true);
+
+        if (ErrorMessage is not null)
+            return;
+
+        _appDialogService.ShowMessage(
+            "Restauración programada",
+            "Cierre la aplicación y ábrala de nuevo para completar la restauración.");
+
+        System.Windows.Application.Current.Shutdown();
+    }
+
+    [RelayCommand]
     private async Task PurgeInvalidIndexEntriesAsync()
     {
         if (!_appDialogService.ConfirmYesNo(
                 "Confirmar limpieza del índice",
                 "¿Eliminar del índice las entradas inválidas?\n\n" +
                 "Se quitarán rutas de la papelera/sistema, fuera de la carpeta raíz y archivos que ya no existen en disco. " +
-                "No se borra nada del disco. Esta acción no se puede deshacer.",
+                "También se pierden aperturas, rankings y tags asociados a esas entradas. " +
+                "Antes de borrar se crea un respaldo automático en Backups. " +
+                "No se borra nada del disco.",
                 AppDialogKind.Warning))
             return;
 
@@ -118,15 +207,22 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
             "Limpiando índice inválido...").ConfigureAwait(true);
 
         if (ErrorMessage is not null || result is null)
+        {
+            RefreshBackupSummary();
             return;
+        }
 
+        RefreshBackupSummary();
         _appDialogService.ShowMessage(
             "Limpieza del índice",
             result.HasChanges
                 ? $"Entradas eliminadas: {result.RemovedTotal}\n" +
                   $"• Papelera/sistema: {result.RemovedUnusablePaths}\n" +
                   $"• Fuera del root: {result.RemovedOutsideRoot}\n" +
-                  $"• Inexistentes en disco: {result.RemovedMissingFiles}"
+                  $"• Inexistentes en disco: {result.RemovedMissingFiles}" +
+                  (string.IsNullOrWhiteSpace(result.BackupFilePath)
+                      ? string.Empty
+                      : $"\n\nRespaldo: {result.BackupFilePath}")
                 : "No había entradas inválidas que limpiar.");
     }
 
@@ -138,7 +234,8 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
                 "¿Restablecer todos los metadatos de seguimiento?\n\n" +
                 "Se borrarán rankings, contador de aperturas, asignaciones de categorías/actrices/productoras y " +
                 "los catálogos correspondientes. " +
-                "Los archivos en disco no se eliminan. Esta acción no se puede deshacer.",
+                "Antes se crea un respaldo automático. " +
+                "Los archivos en disco no se eliminan.",
                 AppDialogKind.Warning))
             return;
 
@@ -147,8 +244,12 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
             "Limpiando metadatos...").ConfigureAwait(true);
 
         if (ErrorMessage is not null || result is null)
+        {
+            RefreshBackupSummary();
             return;
+        }
 
+        RefreshBackupSummary();
         _appDialogService.ShowMessage(
             "Limpieza de metadatos",
             result.HasChanges
@@ -158,7 +259,10 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
                   $"Asignaciones de actriz eliminadas: {result.ActressLinksRemoved}\n" +
                   $"Actrices eliminadas: {result.ActressesDeleted}\n" +
                   $"Asignaciones de productora eliminadas: {result.ProducerLinksRemoved}\n" +
-                  $"Productoras eliminadas: {result.ProducersDeleted}"
+                  $"Productoras eliminadas: {result.ProducersDeleted}" +
+                  (string.IsNullOrWhiteSpace(result.BackupFilePath)
+                      ? string.Empty
+                      : $"\n\nRespaldo: {result.BackupFilePath}")
                 : "No había metadatos de seguimiento que restablecer.");
     }
 }

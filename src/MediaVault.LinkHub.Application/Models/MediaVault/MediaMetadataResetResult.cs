@@ -19,6 +19,9 @@ public sealed class MediaMetadataResetResult
 
     public int ProducersDeleted { get; init; }
 
+    /// <summary>Ruta del respaldo creado antes del reset, si aplica.</summary>
+    public string? BackupFilePath { get; init; }
+
     public bool HasChanges =>
         FilesUpdated > 0
         || CategoryLinksRemoved > 0

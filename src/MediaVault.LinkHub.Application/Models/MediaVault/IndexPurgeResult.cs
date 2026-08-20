@@ -14,4 +14,7 @@ public sealed class IndexPurgeResult
     public int RemovedTotal => RemovedUnusablePaths + RemovedOutsideRoot + RemovedMissingFiles;
 
     public bool HasChanges => RemovedTotal > 0;
+
+    /// <summary>Ruta del respaldo creado antes del borrado, si aplica.</summary>
+    public string? BackupFilePath { get; init; }
 }

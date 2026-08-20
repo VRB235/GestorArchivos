@@ -11,11 +11,22 @@ namespace MediaVault.LinkHub.Infrastructure.Services;
 
 public sealed class MediaVaultService : IMediaVaultService
 {
-  private readonly IDbContextFactory<AppDbContext> _contextFactory;
+  /// <summary>
+  /// Aborta limpiezas riesgosas si se eliminarían demasiadas entradas "fuera/inexistentes"
+  /// (protege contra disco offline o root mal configurado).
+  /// </summary>
+  internal const int MassRemovalMinCount = 10;
+  internal const double MassRemovalMinRatio = 0.25;
 
-  public MediaVaultService(IDbContextFactory<AppDbContext> contextFactory)
+  private readonly IDbContextFactory<AppDbContext> _contextFactory;
+  private readonly ISqliteDatabaseBackupService _backupService;
+
+  public MediaVaultService(
+    IDbContextFactory<AppDbContext> contextFactory,
+    ISqliteDatabaseBackupService backupService)
   {
     _contextFactory = contextFactory;
+    _backupService = backupService;
   }
 
   public async Task<IndexDirectoryResult> IndexDirectoryAsync(
@@ -481,6 +492,10 @@ public sealed class MediaVaultService : IMediaVaultService
 
   public async Task<MediaMetadataResetResult> ClearAllMediaMetadataAsync(CancellationToken cancellationToken = default)
   {
+    var backup = await _backupService
+      .CreateBackupAsync("clear-metadata", cancellationToken)
+      .ConfigureAwait(false);
+
     await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
     await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -533,7 +548,8 @@ public sealed class MediaVaultService : IMediaVaultService
       ActressLinksRemoved = actressLinksRemoved,
       ActressesDeleted = actressesDeleted,
       ProducerLinksRemoved = producerLinksRemoved,
-      ProducersDeleted = producersDeleted
+      ProducersDeleted = producersDeleted,
+      BackupFilePath = backup.BackupFilePath
     };
   }
 
@@ -554,6 +570,10 @@ public sealed class MediaVaultService : IMediaVaultService
     var outsideRootIds = new List<int>();
     var missingIds = new List<int>();
     var hasRoot = !string.IsNullOrWhiteSpace(indexRootPath);
+    // Si el root no es accesible, no borrar por "inexistente": evita wipe masivo con disco offline.
+    var rootAccessible = !hasRoot
+      || Directory.Exists(indexRootPath!);
+    var purgeMissing = removeMissingFiles && rootAccessible;
 
     foreach (var row in rows)
     {
@@ -563,13 +583,13 @@ public sealed class MediaVaultService : IMediaVaultService
         continue;
       }
 
-      if (hasRoot && !MediaPathEligibility.IsUnderIndexRoot(row.Path, indexRootPath))
+      if (hasRoot && rootAccessible && !MediaPathEligibility.IsUnderIndexRoot(row.Path, indexRootPath))
       {
         outsideRootIds.Add(row.Id);
         continue;
       }
 
-      if (removeMissingFiles && !MediaPathEligibility.ExistsSafely(row.Path))
+      if (purgeMissing && !MediaPathEligibility.ExistsSafely(row.Path))
         missingIds.Add(row.Id);
     }
 
@@ -579,8 +599,17 @@ public sealed class MediaVaultService : IMediaVaultService
       .Distinct()
       .ToList();
 
+    string? backupPath = null;
     if (idsToRemove.Count > 0)
     {
+      var backup = await _backupService
+        .CreateBackupAsync("purge-index", cancellationToken)
+        .ConfigureAwait(false);
+      backupPath = backup.BackupFilePath;
+
+      // Papelera/sistema se limpia siempre; fueraRoot + inexistentes tienen techo anti-wipe.
+      EnsureNotMassRiskyRemoval(outsideRootIds.Count + missingIds.Count, rows.Count);
+
       // Solo índice: no tocar disco. Limpiar M2M antes del borrado masivo.
       var entities = await context.MediaFiles
         .Include(file => file.Categories)
@@ -605,8 +634,26 @@ public sealed class MediaVaultService : IMediaVaultService
     {
       RemovedUnusablePaths = unusableIds.Count,
       RemovedOutsideRoot = outsideRootIds.Count,
-      RemovedMissingFiles = missingIds.Count
+      RemovedMissingFiles = missingIds.Count,
+      BackupFilePath = backupPath
     };
+  }
+
+  internal static void EnsureNotMassRiskyRemoval(int riskyCount, int totalCount)
+  {
+    if (totalCount <= 0 || riskyCount < MassRemovalMinCount)
+      return;
+
+    var ratio = (double)riskyCount / totalCount;
+    if (ratio < MassRemovalMinRatio)
+      return;
+
+    throw new InvalidOperationException(
+      $"Limpieza abortada por seguridad: se iban a eliminar {riskyCount} de {totalCount} entradas " +
+      $"({ratio:P0}) por fuera del root o inexistentes en disco. " +
+      "Compruebe que la carpeta raíz esté montada y sea la correcta. " +
+      "Si la limpieza es intencional, reduzca el índice por lotes o restaure desde Backups. " +
+      "Se creó un respaldo antes de abortar.");
   }
 
   public async Task<MediaFile> UpdateCategoriesAsync(

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MediaVault.LinkHub.Domain.Entities;
+using MediaVault.LinkHub.Infrastructure.Data;
 using MediaVault.LinkHub.Infrastructure.Services;
 using MediaVault.LinkHub.Tests.Infrastructure;
 
@@ -14,7 +15,7 @@ public sealed class ActressServiceTests : IDisposable
     public ActressServiceTests()
     {
         _sut = new ActressService(_contextFactory);
-        _mediaVault = new MediaVaultService(_contextFactory);
+        _mediaVault = new MediaVaultService(_contextFactory, new NullSqliteDatabaseBackupService());
     }
 
     [Fact]

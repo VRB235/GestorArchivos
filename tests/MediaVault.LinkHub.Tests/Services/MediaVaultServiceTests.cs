@@ -14,7 +14,7 @@ public sealed class MediaVaultServiceTests : IDisposable
 
     public MediaVaultServiceTests()
     {
-        _sut = new MediaVaultService(_contextFactory);
+        _sut = new MediaVaultService(_contextFactory, new NullSqliteDatabaseBackupService());
         _rootDirectory = Path.Combine(Path.GetTempPath(), "MediaVaultTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_rootDirectory);
     }
@@ -304,6 +304,46 @@ public sealed class MediaVaultServiceTests : IDisposable
         {
             // best effort
         }
+    }
+
+    [Fact]
+    public async Task PurgeInvalidIndexEntriesAsync_skips_missing_when_root_inaccessible()
+    {
+        var offlineRoot = Path.Combine(Path.GetTempPath(), "MediaVaultOfflineRoot-" + Guid.NewGuid().ToString("N"));
+        var indexedMissing = Path.Combine(offlineRoot, "video.mp4");
+        var recyclePath = @"D:\$RECYCLE.BIN\S-1-5\sticker.webm";
+
+        await using (var context = _contextFactory.CreateDbContext())
+        {
+            context.MediaFiles.AddRange(
+                new MediaFile { Path = indexedMissing, Name = "video.mp4", Extension = ".mp4" },
+                new MediaFile { Path = recyclePath, Name = "sticker.webm", Extension = ".webm" });
+            await context.SaveChangesAsync();
+        }
+
+        var result = await _sut.PurgeInvalidIndexEntriesAsync(offlineRoot, removeMissingFiles: true);
+
+        result.RemovedUnusablePaths.Should().Be(1);
+        result.RemovedOutsideRoot.Should().Be(0);
+        result.RemovedMissingFiles.Should().Be(0);
+
+        var remaining = await _sut.GetAllAsync();
+        remaining.Should().ContainSingle(file => file.Path == indexedMissing);
+    }
+
+    [Fact]
+    public void EnsureNotMassRiskyRemoval_allows_small_batches()
+    {
+        var act = () => MediaVaultService.EnsureNotMassRiskyRemoval(9, 100);
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void EnsureNotMassRiskyRemoval_blocks_large_ratio()
+    {
+        var act = () => MediaVaultService.EnsureNotMassRiskyRemoval(25, 40);
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*abortada por seguridad*");
     }
 
     private async Task<MediaFile> SeedIndexedFileAsync(

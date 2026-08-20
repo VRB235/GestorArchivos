@@ -22,4 +22,8 @@
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="MediaVault.LinkHub.Tests" />
+  </ItemGroup>
+
 </Project>
