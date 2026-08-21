@@ -346,6 +346,64 @@ public sealed class MediaVaultServiceTests : IDisposable
             .WithMessage("*abortada por seguridad*");
     }
 
+    [Fact]
+    public async Task SetThumbnailPathsAsync_persists_unique_existing_images_for_video()
+    {
+        var videoPath = Path.Combine(_rootDirectory, "scene.mp4");
+        await File.WriteAllTextAsync(videoPath, "video");
+        var picturesDir = Path.Combine(_rootDirectory, "Pictures");
+        Directory.CreateDirectory(picturesDir);
+        var imageA = Path.Combine(picturesDir, "a.jpg");
+        var imageB = Path.Combine(picturesDir, "b.png");
+        await File.WriteAllTextAsync(imageA, "img");
+        await File.WriteAllTextAsync(imageB, "img");
+
+        var indexed = await SeedIndexedFileAsync("scene.mp4", videoPath);
+
+        var saved = await _sut.SetThumbnailPathsAsync(indexed.Id, [imageA, imageB, imageA, videoPath]);
+
+        saved.Should().HaveCount(2);
+        saved.Should().Contain(imageA);
+        saved.Should().Contain(imageB);
+
+        var loaded = await _sut.GetThumbnailPathsAsync(indexed.Id);
+        loaded.Should().BeEquivalentTo(saved, options => options.WithStrictOrdering());
+
+        var byPath = await _sut.GetThumbnailPathsByVideoPathsAsync([videoPath]);
+        byPath.Should().ContainKey(Path.GetFullPath(videoPath));
+        byPath[Path.GetFullPath(videoPath)].Should().BeEquivalentTo(saved, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task SetThumbnailPathsAsync_rejects_non_video_media()
+    {
+        var imagePath = Path.Combine(_rootDirectory, "still.jpg");
+        await File.WriteAllTextAsync(imagePath, "img");
+        var indexed = await SeedIndexedFileAsync("still.jpg", imagePath);
+
+        var act = () => _sut.SetThumbnailPathsAsync(indexed.Id, [imagePath]);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*video*");
+    }
+
+    [Fact]
+    public async Task ListPicturesForVideoAsync_returns_images_from_sibling_pictures_folder()
+    {
+        var videoPath = Path.Combine(_rootDirectory, "clip.mp4");
+        await File.WriteAllTextAsync(videoPath, "video");
+        var picturesDir = Path.Combine(_rootDirectory, "Pictures");
+        Directory.CreateDirectory(picturesDir);
+        var imagePath = Path.Combine(picturesDir, "cover.webp");
+        await File.WriteAllTextAsync(imagePath, "img");
+        await File.WriteAllTextAsync(Path.Combine(picturesDir, "notes.txt"), "no");
+
+        var pictures = await _sut.ListPicturesForVideoAsync(videoPath);
+
+        pictures.Should().ContainSingle()
+            .Which.Should().Be(Path.GetFullPath(imagePath));
+    }
+
     private async Task<MediaFile> SeedIndexedFileAsync(
         string fileName,
         string? absolutePath = null,

@@ -18,6 +18,8 @@ public class AppDbContext : DbContext
 
     public DbSet<MediaFile> MediaFiles => Set<MediaFile>();
 
+    public DbSet<MediaFileThumbnail> MediaFileThumbnails => Set<MediaFileThumbnail>();
+
     public DbSet<QuickNote> QuickNotes => Set<QuickNote>();
 
     public DbSet<Suggestion> Suggestions => Set<Suggestion>();
@@ -36,6 +38,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.ApplyConfiguration(new WebLinkConfiguration());
         modelBuilder.ApplyConfiguration(new MediaFileConfiguration());
+        modelBuilder.ApplyConfiguration(new MediaFileThumbnailConfiguration());
         modelBuilder.ApplyConfiguration(new QuickNoteConfiguration());
         modelBuilder.ApplyConfiguration(new SuggestionConfiguration());
         modelBuilder.ApplyConfiguration(new SuggestionAttachmentConfiguration());

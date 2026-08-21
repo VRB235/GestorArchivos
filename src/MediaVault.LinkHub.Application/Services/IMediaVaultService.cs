@@ -128,4 +128,34 @@ public interface IMediaVaultService
         int id,
         bool preferVlc = false,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rutas de miniaturas asignadas al video (ordenadas por <c>SortOrder</c>).
+    /// </summary>
+    Task<IReadOnlyList<string>> GetThumbnailPathsAsync(
+        int mediaFileId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Miniaturas asignadas para un lote de rutas de video (clave = ruta normalizada).
+    /// Solo incluye videos con al menos una imagen asignada.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetThumbnailPathsByVideoPathsAsync(
+        IReadOnlyCollection<string> videoPaths,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reemplaza las miniaturas asignadas al video. Rutas inexistentes o no imagen se ignoran.
+    /// </summary>
+    Task<IReadOnlyList<string>> SetThumbnailPathsAsync(
+        int mediaFileId,
+        IReadOnlyCollection<string> imagePaths,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Imágenes disponibles en <c>{carpeta_del_video}/Pictures</c>.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListPicturesForVideoAsync(
+        string videoPath,
+        CancellationToken cancellationToken = default);
 }

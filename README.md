@@ -227,7 +227,9 @@ Opcional: forzar ambiente con la variable `MEDIAVAULT_ENVIRONMENT=Development|Pr
 
 Al cargar miniaturas, por cada **video** se asigna una foto **distinta** (cuando hay suficientes) desde `{carpeta}/Pictures` vía `FolderSessionPicturePicker` (Dashboard, Actrices, explorador del Vault). El fotograma Shell solo se usa como último recurso.
 
-Prioridad de miniatura: **foto de Pictures (por ítem)** → icono personalizado de carpeta → miniatura de Shell de carpeta.
+Si el video tiene **miniaturas asignadas** en el índice (`MediaFileThumbnails`), el picker elige al azar **solo entre esas N rutas** (asignación estable durante el proceso) y las excluye del pool compartido de la carpeta.
+
+Prioridad de miniatura: **miniaturas asignadas al video** → **foto de Pictures (pool de carpeta)** → icono personalizado de carpeta → miniatura de Shell de carpeta.
 
 Estructura esperada:
 
@@ -239,6 +241,7 @@ CarpetaDelContenido/
   video.mp4
 ```
 
+En **Media Vault**, con un video indexado seleccionado: sección «Miniaturas del video» → **Agregar desde Pictures…** (multiselección) para asociar N imágenes.
 Extensiones admitidas: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`.
 
 ---
@@ -387,7 +390,7 @@ Errores de arranque / depuración: `%LocalAppData%\MediaVaultLinkHub\startup-err
 1. **Configuración** → definir carpeta raíz de indexación (`D:\Vault`, etc.).
 2. Opcional: **Limpiar índice inválido** si hubo indexaciones fuera del root o de la papelera.
 3. **Media Vault** → explorar / indexar; crear o eliminar carpetas; asignar etiquetas; abrir videos.
-4. Opcional: colocar varias imágenes en `{carpeta}/Pictures` para miniaturas distintas por video.
+4. Opcional: colocar varias imágenes en `{carpeta}/Pictures` para miniaturas distintas por video; o asignar N fotos a un video concreto desde Media Vault.
 5. **Actrices** → filtrar por actrices/categorías/productoras; doble clic para abrir.
 6. **Link Manager** → crear enlaces, asociar productoras; **Abrir en Firefox**.
 7. **Dashboard** → lotes de 5 recomendaciones; **Otras recomendaciones** / regenerar ranking.
@@ -487,6 +490,7 @@ dotnet ef migrations remove ^
 | Media Vault (indexación, carpetas, rankings, etiquetas) | ✅ |
 | Categorías / Actrices / Productoras (alfabético) | ✅ |
 | Miniaturas desde `Pictures` (distintas por video) | ✅ |
+| Miniaturas N asignadas por video (`MediaFileThumbnails`) | ✅ |
 | Limpieza de índice inválido (arranque + Configuración) | ✅ |
 | Resolución de video segura (ISO BMFF, sin COM) | ✅ |
 | Aislamiento datos Debug/Release | ✅ |

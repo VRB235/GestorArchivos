@@ -32,6 +32,11 @@ public class MediaFile : EntityBase
     public ICollection<Producer> Producers { get; set; } = [];
 
     /// <summary>
+    /// Miniaturas asignadas al video (N rutas); el picker elige una al azar por sesión.
+    /// </summary>
+    public ICollection<MediaFileThumbnail> Thumbnails { get; set; } = [];
+
+    /// <summary>
     /// Promedio de los tres rankings (0-5 estrellas). No se persiste en base de datos.
     /// </summary>
     [NotMapped]

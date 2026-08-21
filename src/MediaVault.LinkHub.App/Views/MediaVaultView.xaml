@@ -647,6 +647,64 @@
                                            Margin="0,0,0,0" />
                             </StackPanel>
 
+                            <StackPanel Margin="0,0,0,12"
+                                        Visibility="{Binding ShowVideoThumbnailSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Miniaturas del video" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="{Binding VideoThumbnailHint}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8" />
+                                <ItemsControl ItemsSource="{Binding AssignedVideoThumbnails}"
+                                              Margin="0,0,0,8">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="84"
+                                                    Margin="0,0,8,8"
+                                                    Padding="4"
+                                                    Background="#22FFFFFF"
+                                                    CornerRadius="4"
+                                                    ToolTip="{Binding FileName}">
+                                                <Grid>
+                                                    <Image Source="{Binding Preview}"
+                                                           Width="72"
+                                                           Height="72"
+                                                           Stretch="UniformToFill" />
+                                                    <Button Content="×"
+                                                            Width="22"
+                                                            Height="22"
+                                                            HorizontalAlignment="Right"
+                                                            VerticalAlignment="Top"
+                                                            Margin="0,-2,-2,0"
+                                                            Padding="0"
+                                                            FontSize="12"
+                                                            FontWeight="Bold"
+                                                            Style="{StaticResource DangerButtonStyle}"
+                                                            Command="{Binding DataContext.RemoveVideoThumbnailCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip="Quitar miniatura" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <WrapPanel>
+                                    <Button Content="Agregar desde Pictures…"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Command="{Binding AddVideoThumbnailsCommand}"
+                                            IsEnabled="{Binding CanManageVideoThumbnails}" />
+                                    <Button Content="Limpiar"
+                                            Style="{StaticResource DangerButtonStyle}"
+                                            Command="{Binding ClearVideoThumbnailsCommand}"
+                                            IsEnabled="{Binding HasAssignedVideoThumbnails}" />
+                                </WrapPanel>
+                            </StackPanel>
+
                             <TextBlock Text="Calidad" Style="{StaticResource LabelStyle}" />
                             <controls:StarRatingControl Rating="{Binding RankingCalidad, Mode=TwoWay}"
                                                         IsInteractive="{Binding CanEditSelectedFile}"

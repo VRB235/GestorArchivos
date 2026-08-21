@@ -87,6 +87,8 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     public ObservableCollection<FileProducerSelectionItem> FileProducerSelections { get; } = [];
 
+    public ObservableCollection<VideoThumbnailListItem> AssignedVideoThumbnails { get; } = [];
+
     public string Title => "File & Media Vault";
 
     public string Subtitle => "Indexación y gestión de archivos multimedia locales";
@@ -213,7 +215,18 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     public bool ShowFileProducerSection => ShowFileActressSection;
 
+    public bool ShowVideoThumbnailSection => ShowFileActressSection;
+
     public bool CanAssignProducer => CanEditSelectedFile && ShowFileProducerSection;
+
+    public bool CanManageVideoThumbnails => CanEditSelectedFile && ShowVideoThumbnailSection;
+
+    public bool HasAssignedVideoThumbnails => AssignedVideoThumbnails.Count > 0;
+
+    public string VideoThumbnailHint =>
+        HasAssignedVideoThumbnails
+            ? "El Dashboard y el Vault eligen al azar una de estas fotos (estable en la sesión)."
+            : "Sin asignación: se usa el pool compartido de la carpeta Pictures.";
 
     public string FileActressHint =>
         FileActressSelections.Count == 0
@@ -797,6 +810,10 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
         OnPropertyChanged(nameof(CanAssignProducer));
         OnPropertyChanged(nameof(ShowFileProducerSection));
         OnPropertyChanged(nameof(FileProducerHint));
+        OnPropertyChanged(nameof(ShowVideoThumbnailSection));
+        OnPropertyChanged(nameof(CanManageVideoThumbnails));
+        OnPropertyChanged(nameof(HasAssignedVideoThumbnails));
+        OnPropertyChanged(nameof(VideoThumbnailHint));
     }
 
     private void NotifyNavigationChanged() =>
@@ -823,6 +840,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             RankingCalidad = 0;
             RankingContenido = 0;
             RankingGusto = 0;
+            ClearAssignedVideoThumbnails();
             ApplySelectedFolderRanking(MediaVaultDirectoryRanking.Empty);
             OnPropertyChanged(nameof(CanEditSelectedFile));
             NotifyFileCategoryStateChanged();
@@ -843,6 +861,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 RankingCalidad = 0;
                 RankingContenido = 0;
                 RankingGusto = 0;
+                ClearAssignedVideoThumbnails();
                 OnPropertyChanged(nameof(CanEditSelectedFile));
                 NotifyFileCategoryStateChanged();
                 _ = RefreshSelectedFolderRankingAsync(value.FullPath);
@@ -859,6 +878,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
                 RankingCalidad = 0;
                 RankingContenido = 0;
                 RankingGusto = 0;
+                ClearAssignedVideoThumbnails();
                 OnPropertyChanged(nameof(CanEditSelectedFile));
                 NotifyFileCategoryStateChanged();
                 _ = LoadSelectedVideoResolutionAsync(value.FullPath);
@@ -877,6 +897,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             SyncFileActressSelections(value.MediaFile);
             SyncFileProducerSelections(value.MediaFile);
             _ = LoadSelectedVideoResolutionAsync(value.MediaFile.Path);
+            _ = LoadAssignedVideoThumbnailsAsync(value.MediaFile.Id, value.MediaFile.Path);
 
             OnPropertyChanged(nameof(CanEditSelectedFile));
             NotifyFileCategoryStateChanged();
@@ -1113,6 +1134,134 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
         if (dialog.ShowDialog() == true)
             SelectedFolderIconPath = dialog.FileName;
+    }
+
+    [RelayCommand]
+    private async Task AddVideoThumbnailsAsync()
+    {
+        if (SelectedMediaFile is null || !CanManageVideoThumbnails)
+            return;
+
+        var videoPath = SelectedMediaFile.Path;
+        var pictures = await _mediaVaultService.ListPicturesForVideoAsync(videoPath).ConfigureAwait(true);
+        var picturesDirectory = Path.Combine(
+            Path.GetDirectoryName(Path.GetFullPath(videoPath)) ?? string.Empty,
+            "Pictures");
+
+        var dialog = new OpenFileDialog
+        {
+            Title = "Asignar miniaturas al video",
+            Filter = "Imágenes|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif|Todos los archivos|*.*",
+            Multiselect = true
+        };
+
+        if (Directory.Exists(picturesDirectory))
+            dialog.InitialDirectory = picturesDirectory;
+        else if (pictures.Count > 0)
+            dialog.InitialDirectory = Path.GetDirectoryName(pictures[0]);
+
+        if (dialog.ShowDialog() != true || dialog.FileNames.Length == 0)
+            return;
+
+        var merged = AssignedVideoThumbnails
+            .Select(item => item.ImagePath)
+            .Concat(dialog.FileNames)
+            .ToList();
+
+        await PersistVideoThumbnailsAsync(SelectedMediaFile.Id, videoPath, merged).ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task RemoveVideoThumbnailAsync(VideoThumbnailListItem? item)
+    {
+        if (item is null || SelectedMediaFile is null || !CanManageVideoThumbnails)
+            return;
+
+        var remaining = AssignedVideoThumbnails
+            .Where(existing => !string.Equals(existing.ImagePath, item.ImagePath, StringComparison.OrdinalIgnoreCase))
+            .Select(existing => existing.ImagePath)
+            .ToList();
+
+        await PersistVideoThumbnailsAsync(SelectedMediaFile.Id, SelectedMediaFile.Path, remaining)
+            .ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task ClearVideoThumbnailsAsync()
+    {
+        if (SelectedMediaFile is null || !CanManageVideoThumbnails || !HasAssignedVideoThumbnails)
+            return;
+
+        await PersistVideoThumbnailsAsync(SelectedMediaFile.Id, SelectedMediaFile.Path, [])
+            .ConfigureAwait(true);
+    }
+
+    private async Task PersistVideoThumbnailsAsync(
+        int mediaFileId,
+        string videoPath,
+        IReadOnlyCollection<string> imagePaths)
+    {
+        await ExecuteBusyAsync(async () =>
+        {
+            ErrorMessage = null;
+            var saved = await _mediaVaultService
+                .SetThumbnailPathsAsync(mediaFileId, imagePaths)
+                .ConfigureAwait(true);
+
+            FolderSessionPicturePicker.RegisterDedicatedPictures(videoPath, saved);
+            await ApplyAssignedVideoThumbnailsAsync(saved).ConfigureAwait(true);
+
+            if (SelectedBrowserEntryItem is not null
+                && string.Equals(SelectedBrowserEntryItem.FullPath, videoPath, StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedBrowserEntryItem.Thumbnail = null;
+                _thumbnailLoader.LoadItem(SelectedBrowserEntryItem, _thumbnailGeneration);
+            }
+        }, "Guardando miniaturas...").ConfigureAwait(true);
+    }
+
+    private async Task LoadAssignedVideoThumbnailsAsync(int mediaFileId, string videoPath)
+    {
+        try
+        {
+            if (!MediaFileExtensions.IsVideo(videoPath))
+            {
+                ClearAssignedVideoThumbnails();
+                return;
+            }
+
+            var paths = await _mediaVaultService.GetThumbnailPathsAsync(mediaFileId).ConfigureAwait(true);
+            FolderSessionPicturePicker.RegisterDedicatedPictures(videoPath, paths);
+            await ApplyAssignedVideoThumbnailsAsync(paths).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            ClearAssignedVideoThumbnails();
+            ErrorMessage = $"No se pudieron cargar miniaturas: {ex.Message}";
+        }
+    }
+
+    private async Task ApplyAssignedVideoThumbnailsAsync(IReadOnlyList<string> paths)
+    {
+        AssignedVideoThumbnails.Clear();
+        foreach (var path in paths)
+        {
+            var item = new VideoThumbnailListItem { ImagePath = path };
+            AssignedVideoThumbnails.Add(item);
+            item.Preview = await Task.Run(() => LocalImageLoader.TryLoad(path, 72)).ConfigureAwait(true);
+        }
+
+        OnPropertyChanged(nameof(HasAssignedVideoThumbnails));
+        OnPropertyChanged(nameof(VideoThumbnailHint));
+        ClearVideoThumbnailsCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ClearAssignedVideoThumbnails()
+    {
+        AssignedVideoThumbnails.Clear();
+        OnPropertyChanged(nameof(HasAssignedVideoThumbnails));
+        OnPropertyChanged(nameof(VideoThumbnailHint));
+        ClearVideoThumbnailsCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]

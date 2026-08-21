@@ -2,18 +2,25 @@ using System.IO;
 using System.Windows.Media;
 
 using MediaVault.LinkHub.App.ViewModels;
+using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Infrastructure.Media;
 
 namespace MediaVault.LinkHub.App.Shell;
 
 /// <summary>
 /// Carga miniaturas en segundo plano sin bloquear la navegación del explorador.
-/// Videos: foto de <c>{carpeta}/Pictures</c> (distinta por archivo cuando hay varias).
+/// Videos: miniaturas asignadas en BD (N rutas) o pool de <c>{carpeta}/Pictures</c>.
 /// </summary>
 public sealed class BrowserThumbnailLoader
 {
     private const int MaxParallelLoads = 3;
     private readonly SemaphoreSlim _parallelGate = new(MaxParallelLoads, MaxParallelLoads);
+    private readonly IMediaVaultService _mediaVaultService;
+
+    public BrowserThumbnailLoader(IMediaVaultService mediaVaultService)
+    {
+        _mediaVaultService = mediaVaultService;
+    }
 
     public int NextGeneration() =>
         Interlocked.Increment(ref _activeGeneration);
@@ -23,28 +30,43 @@ public sealed class BrowserThumbnailLoader
     public void BeginLoad(int generation, IEnumerable<MediaVaultBrowserEntryItem> items)
     {
         var list = items.ToList();
-        PrefetchVideoPictures(list);
-        foreach (var item in list)
-            _ = LoadItemAsync(item, generation);
+        _ = PrefetchThenLoadAsync(generation, list);
     }
 
     public void LoadItem(MediaVaultBrowserEntryItem item, int generation) =>
         _ = LoadItemAsync(item, generation);
 
-    private static void PrefetchVideoPictures(IReadOnlyList<MediaVaultBrowserEntryItem> items)
+    private async Task PrefetchThenLoadAsync(int generation, IReadOnlyList<MediaVaultBrowserEntryItem> items)
     {
-        var pairs = items
-            .Where(item => !item.IsDirectory && MediaFileExtensions.IsVideo(item.FullPath))
-            .Select(item =>
-            {
-                var folder = Path.GetDirectoryName(item.FullPath) ?? string.Empty;
-                return (ItemKey: item.FullPath, FolderPath: folder);
-            })
-            .Where(pair => !string.IsNullOrWhiteSpace(pair.FolderPath))
-            .ToList();
+        try
+        {
+            var pairs = items
+                .Where(item => !item.IsDirectory && MediaFileExtensions.IsVideo(item.FullPath))
+                .Select(item =>
+                {
+                    var folder = Path.GetDirectoryName(item.FullPath) ?? string.Empty;
+                    return (ItemKey: item.FullPath, FolderPath: folder);
+                })
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.FolderPath))
+                .ToList();
 
-        if (pairs.Count > 0)
-            FolderSessionPicturePicker.PrefetchDistinctAssignments(pairs);
+            if (pairs.Count > 0)
+            {
+                await VideoThumbnailSessionBootstrap
+                    .PrefetchWithDedicatedAsync(_mediaVaultService, pairs)
+                    .ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            // Prefetch cosmético: si falla, cada ítem intentará resolver por su cuenta.
+        }
+
+        if (generation != Volatile.Read(ref _activeGeneration))
+            return;
+
+        foreach (var item in items)
+            _ = LoadItemAsync(item, generation);
     }
 
     private async Task LoadItemAsync(MediaVaultBrowserEntryItem item, int generation)

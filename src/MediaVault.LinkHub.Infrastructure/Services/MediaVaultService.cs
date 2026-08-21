@@ -868,6 +868,210 @@ public sealed class MediaVaultService : IMediaVaultService
     return entity;
   }
 
+  public async Task<IReadOnlyList<string>> GetThumbnailPathsAsync(
+    int mediaFileId,
+    CancellationToken cancellationToken = default)
+  {
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var paths = await context.MediaFileThumbnails
+      .AsNoTracking()
+      .Where(thumbnail => thumbnail.MediaFileId == mediaFileId)
+      .OrderBy(thumbnail => thumbnail.SortOrder)
+      .ThenBy(thumbnail => thumbnail.Id)
+      .Select(thumbnail => thumbnail.ImagePath)
+      .ToListAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    return paths;
+  }
+
+  public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetThumbnailPathsByVideoPathsAsync(
+    IReadOnlyCollection<string> videoPaths,
+    CancellationToken cancellationToken = default)
+  {
+    var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+    if (videoPaths.Count == 0)
+      return result;
+
+    var normalizedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var path in videoPaths)
+    {
+      if (string.IsNullOrWhiteSpace(path))
+        continue;
+
+      try
+      {
+        normalizedTargets.Add(Path.GetFullPath(path));
+      }
+      catch (Exception)
+      {
+        // Ruta inválida: se omite.
+      }
+    }
+
+    if (normalizedTargets.Count == 0)
+      return result;
+
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var mediaFiles = await context.MediaFiles
+      .AsNoTracking()
+      .Select(file => new { file.Id, file.Path })
+      .ToListAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    var matchingById = new Dictionary<int, string>();
+    foreach (var file in mediaFiles)
+    {
+      string normalizedVideo;
+      try
+      {
+        normalizedVideo = Path.GetFullPath(file.Path);
+      }
+      catch (Exception)
+      {
+        continue;
+      }
+
+      if (normalizedTargets.Contains(normalizedVideo))
+        matchingById[file.Id] = normalizedVideo;
+    }
+
+    if (matchingById.Count == 0)
+      return result;
+
+    var mediaFileIds = matchingById.Keys.ToList();
+    var rows = await context.MediaFileThumbnails
+      .AsNoTracking()
+      .Where(thumbnail => mediaFileIds.Contains(thumbnail.MediaFileId))
+      .OrderBy(thumbnail => thumbnail.SortOrder)
+      .ThenBy(thumbnail => thumbnail.Id)
+      .Select(thumbnail => new { thumbnail.MediaFileId, thumbnail.ImagePath })
+      .ToListAsync(cancellationToken)
+      .ConfigureAwait(false);
+
+    var grouped = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+    foreach (var row in rows)
+    {
+      if (!matchingById.TryGetValue(row.MediaFileId, out var videoPath))
+        continue;
+
+      if (!grouped.TryGetValue(videoPath, out var list))
+      {
+        list = [];
+        grouped[videoPath] = list;
+      }
+
+      list.Add(row.ImagePath);
+    }
+
+    foreach (var pair in grouped)
+      result[pair.Key] = pair.Value;
+
+    return result;
+  }
+
+  public async Task<IReadOnlyList<string>> SetThumbnailPathsAsync(
+    int mediaFileId,
+    IReadOnlyCollection<string> imagePaths,
+    CancellationToken cancellationToken = default)
+  {
+    await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+    var mediaFile = await context.MediaFiles
+      .Include(file => file.Thumbnails)
+      .FirstOrDefaultAsync(file => file.Id == mediaFileId, cancellationToken)
+      .ConfigureAwait(false)
+      ?? throw new KeyNotFoundException($"No se encontró el archivo con Id {mediaFileId}.");
+
+    if (!MediaFileExtensions.IsVideo(mediaFile.Path))
+      throw new InvalidOperationException("Solo se pueden asignar miniaturas a archivos de video.");
+
+    var normalizedUnique = new List<string>();
+    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var rawPath in imagePaths)
+    {
+      if (string.IsNullOrWhiteSpace(rawPath))
+        continue;
+
+      string fullPath;
+      try
+      {
+        fullPath = Path.GetFullPath(rawPath);
+      }
+      catch (Exception)
+      {
+        continue;
+      }
+
+      if (!MediaFileExtensions.IsImage(fullPath) || !File.Exists(fullPath))
+        continue;
+
+      if (!seen.Add(fullPath))
+        continue;
+
+      normalizedUnique.Add(fullPath);
+    }
+
+    context.MediaFileThumbnails.RemoveRange(mediaFile.Thumbnails);
+
+    for (var index = 0; index < normalizedUnique.Count; index++)
+    {
+      mediaFile.Thumbnails.Add(new MediaFileThumbnail
+      {
+        MediaFileId = mediaFileId,
+        ImagePath = normalizedUnique[index],
+        SortOrder = index
+      });
+    }
+
+    await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    return normalizedUnique;
+  }
+
+  public Task<IReadOnlyList<string>> ListPicturesForVideoAsync(
+    string videoPath,
+    CancellationToken cancellationToken = default)
+  {
+    cancellationToken.ThrowIfCancellationRequested();
+
+    if (string.IsNullOrWhiteSpace(videoPath))
+      return Task.FromResult<IReadOnlyList<string>>([]);
+
+    string folderPath;
+    try
+    {
+      folderPath = Path.GetDirectoryName(Path.GetFullPath(videoPath)) ?? string.Empty;
+    }
+    catch (Exception)
+    {
+      return Task.FromResult<IReadOnlyList<string>>([]);
+    }
+
+    if (string.IsNullOrWhiteSpace(folderPath))
+      return Task.FromResult<IReadOnlyList<string>>([]);
+
+    var picturesDirectory = Path.Combine(folderPath, "Pictures");
+    if (!Directory.Exists(picturesDirectory))
+      return Task.FromResult<IReadOnlyList<string>>([]);
+
+    try
+    {
+      var paths = Directory.EnumerateFiles(picturesDirectory)
+        .Where(MediaFileExtensions.IsImage)
+        .Select(Path.GetFullPath)
+        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+      return Task.FromResult<IReadOnlyList<string>>(paths);
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+      return Task.FromResult<IReadOnlyList<string>>([]);
+    }
+  }
+
   private static void ValidateRanking(double value, string paramName)
   {
     if (value is < 0 or > MediaFileRankingScale.MaxStars)

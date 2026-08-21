@@ -229,10 +229,13 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
             videoItems.Add(item);
         }
 
-        FolderSessionPicturePicker.PrefetchDistinctAssignments(
-            videoItems
-                .Where(item => !string.IsNullOrWhiteSpace(item.FolderPath))
-                .Select(item => (ItemKey: item.MediaFile.Path, FolderPath: item.FolderPath)));
+        await VideoThumbnailSessionBootstrap
+            .PrefetchWithDedicatedAsync(
+                _mediaVaultService,
+                videoItems
+                    .Where(item => !string.IsNullOrWhiteSpace(item.FolderPath))
+                    .Select(item => (ItemKey: item.MediaFile.Path, FolderPath: item.FolderPath)))
+            .ConfigureAwait(true);
 
         foreach (var item in videoItems)
             _ = LoadThumbnailAsync(item, generation);

@@ -494,20 +494,6 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         _ = LoadRecommendationDetailsAsync(items, generation, isRanked: true);
     }
 
-    private static void PrefetchRecommendationPictures(IReadOnlyList<DashboardRecommendationItem> items)
-    {
-        var pairs = items
-            .Select(item =>
-            {
-                var folder = Path.GetDirectoryName(item.Video.Path) ?? string.Empty;
-                return (ItemKey: item.Video.Path, FolderPath: folder);
-            })
-            .Where(pair => !string.IsNullOrWhiteSpace(pair.FolderPath))
-            .ToList();
-
-        FolderSessionPicturePicker.PrefetchDistinctAssignments(pairs);
-    }
-
     private async Task LoadRecommendationDetailsAsync(
         IReadOnlyList<DashboardRecommendationItem> items,
         int generation,
@@ -515,7 +501,15 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
     {
         try
         {
-            await Task.Run(() => PrefetchRecommendationPictures(items)).ConfigureAwait(true);
+            await VideoThumbnailSessionBootstrap
+                .PrefetchWithDedicatedAsync(
+                    _mediaVaultService,
+                    items.Select(item =>
+                    {
+                        var folder = Path.GetDirectoryName(item.Video.Path) ?? string.Empty;
+                        return (ItemKey: item.Video.Path, FolderPath: folder);
+                    }))
+                .ConfigureAwait(true);
 
             foreach (var item in items)
             {
@@ -539,7 +533,7 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
     }
 
     /// <summary>
-    /// Prioridad: foto distinta de Pictures (por video) → icono de carpeta → miniatura shell de carpeta.
+    /// Prioridad: miniaturas asignadas / Pictures (por video) → icono de carpeta → shell de carpeta.
     /// </summary>
     private async Task<ImageSource?> LoadVideoActressThumbnailAsync(string videoPath, int size)
     {
@@ -588,6 +582,27 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         panel.MediaFiles = data.ToArray();
         populate(panel);
         target.Add(panel);
+        _ = PrefetchChartMediaThumbnailsAsync(data);
+    }
+
+    private async Task PrefetchChartMediaThumbnailsAsync(IReadOnlyList<MediaFileViewStats> data)
+    {
+        try
+        {
+            await VideoThumbnailSessionBootstrap
+                .PrefetchWithDedicatedAsync(
+                    _mediaVaultService,
+                    data.Select(file =>
+                    {
+                        var folder = Path.GetDirectoryName(file.Path) ?? string.Empty;
+                        return (ItemKey: file.Path, FolderPath: folder);
+                    }))
+                .ConfigureAwait(false);
+        }
+        catch
+        {
+            // Prefetch cosmético para hover de gráficos.
+        }
     }
 
     private async Task OpenChartMediaFileAsync(DashboardChartPanelViewModel panel, int index)
