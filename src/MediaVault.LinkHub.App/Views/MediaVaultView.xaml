@@ -345,13 +345,22 @@
                             <DataTemplate>
                                 <StackPanel Width="118" HorizontalAlignment="Center">
                                     <Grid Width="96" Height="96" Margin="0,0,0,8" Background="Transparent">
-                                        <Image x:Name="PreviewImage"
-                                               Source="{Binding Thumbnail}"
-                                               Stretch="Uniform"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               MaxWidth="96"
-                                               MaxHeight="96" />
+                                        <Border Width="96"
+                                                Height="96"
+                                                CornerRadius="16"
+                                                Background="#12151E"
+                                                ClipToBounds="True">
+                                            <Border.Clip>
+                                                <RectangleGeometry RadiusX="16" RadiusY="16" Rect="0,0,96,96" />
+                                            </Border.Clip>
+                                            <Image x:Name="PreviewImage"
+                                                   Source="{Binding Thumbnail}"
+                                                   Stretch="Uniform"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Margin="6"
+                                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                                        </Border>
 
                                         <Border HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
@@ -442,11 +451,20 @@
                                   Height="96"
                                   Margin="0,0,0,12"
                                   HorizontalAlignment="Left">
-                                <Border Background="Transparent">
+                                <Border Width="96"
+                                        Height="96"
+                                        CornerRadius="16"
+                                        Background="#12151E"
+                                        ClipToBounds="True">
+                                    <Border.Clip>
+                                        <RectangleGeometry RadiusX="16" RadiusY="16" Rect="0,0,96,96" />
+                                    </Border.Clip>
                                     <Image Source="{Binding SelectedBrowserEntryItem.Thumbnail}"
                                            Stretch="Uniform"
-                                           MaxWidth="96"
-                                           MaxHeight="96" />
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Margin="6"
+                                           RenderOptions.BitmapScalingMode="HighQuality" />
                                 </Border>
                                 <Button Style="{StaticResource ExplorerDangerIconButtonStyle}"
                                         Width="28"
@@ -668,13 +686,24 @@
                                                     Margin="0,0,8,8"
                                                     Padding="4"
                                                     Background="#22FFFFFF"
-                                                    CornerRadius="4"
+                                                    CornerRadius="14"
                                                     ToolTip="{Binding FileName}">
                                                 <Grid>
-                                                    <Image Source="{Binding Preview}"
-                                                           Width="72"
-                                                           Height="72"
-                                                           Stretch="UniformToFill" />
+                                                    <Border Width="72"
+                                                            Height="72"
+                                                            CornerRadius="12"
+                                                            Background="#12151E"
+                                                            ClipToBounds="True">
+                                                        <Border.Clip>
+                                                            <RectangleGeometry RadiusX="12" RadiusY="12" Rect="0,0,72,72" />
+                                                        </Border.Clip>
+                                                        <Image Source="{Binding Preview}"
+                                                               Stretch="Uniform"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               Margin="4"
+                                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                                    </Border>
                                                     <Button Content="×"
                                                             Width="22"
                                                             Height="22"
