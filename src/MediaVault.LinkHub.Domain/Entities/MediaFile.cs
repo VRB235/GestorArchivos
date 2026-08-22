@@ -25,6 +25,11 @@ public class MediaFile : EntityBase
 
     public double RankingGusto { get; set; }
 
+    /// <summary>
+    /// Última vez que el usuario abrió el archivo desde la app (UTC).
+    /// </summary>
+    public DateTime? LastOpenedAt { get; set; }
+
     public ICollection<VideoCategory> Categories { get; set; } = [];
 
     public ICollection<Actress> Actresses { get; set; } = [];

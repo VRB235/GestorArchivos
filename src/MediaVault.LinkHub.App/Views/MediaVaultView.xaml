@@ -126,45 +126,10 @@
     </UserControl.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}">
-            <StackPanel>
-                <TextBlock Text="Indexación" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="Carpeta configurada"
-                           Style="{StaticResource LabelStyle}" />
-                <TextBlock Text="La ruta se define en Configuración y se mantiene entre sesiones."
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           FontSize="11"
-                           Margin="0,0,0,8" />
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBox Grid.Column="0"
-                             Text="{Binding IndexRootPath}"
-                             IsReadOnly="True"
-                             Margin="0,0,8,0" />
-                    <Button Grid.Column="1"
-                            Content="Indexar"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            Command="{Binding IndexCommand}" />
-                </Grid>
-                <TextBlock Text="{Binding LastIndexSummary}"
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           Margin="0,4,0,0" />
-            </StackPanel>
-        </Border>
-
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3.4*" />
+            <ColumnDefinition Width="*" MinWidth="300" MaxWidth="420" />
+        </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,8,0">
                 <DockPanel>
@@ -172,10 +137,11 @@
                         <TextBlock Text="Explorador"
                                    Style="{StaticResource SectionTitleStyle}" />
                         <TextBlock Text="{Binding CurrentDirectoryPath}"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontSize="11"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis"
-                                   Margin="0,0,0,4" />
+                                   Margin="0,0,0,6" />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <StackPanel.Style>
                                 <Style TargetType="StackPanel">
@@ -343,15 +309,15 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Width="118" HorizontalAlignment="Center">
-                                    <Grid Width="96" Height="96" Margin="0,0,0,8" Background="Transparent">
-                                        <Border Width="96"
-                                                Height="96"
+                                <StackPanel Width="148" HorizontalAlignment="Center">
+                                    <Grid Width="128" Height="128" Margin="0,0,0,8" Background="Transparent">
+                                        <Border Width="128"
+                                                Height="128"
                                                 CornerRadius="16"
                                                 Background="#12151E"
                                                 ClipToBounds="True">
                                             <Border.Clip>
-                                                <RectangleGeometry RadiusX="16" RadiusY="16" Rect="0,0,96,96" />
+                                                <RectangleGeometry RadiusX="16" RadiusY="16" Rect="0,0,128,128" />
                                             </Border.Clip>
                                             <Image x:Name="PreviewImage"
                                                    Source="{Binding Thumbnail}"
@@ -385,7 +351,7 @@
                                         </Border>
 
                                         <TextBlock Text="{Binding Entry, Converter={StaticResource MediaVaultBrowserGlyphConverter}}"
-                                                   FontSize="28"
+                                                   FontSize="36"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
                                                    Foreground="#9CA3AF">
@@ -410,12 +376,13 @@
                                                TextWrapping="Wrap"
                                                TextAlignment="Center"
                                                FontWeight="SemiBold"
-                                               MaxHeight="40"
+                                               FontSize="13"
+                                               MaxHeight="44"
                                                TextTrimming="CharacterEllipsis" />
 
                                     <TextBlock Text="{Binding FileType}"
                                                TextAlignment="Center"
-                                               FontSize="11"
+                                               FontSize="12"
                                                Foreground="{StaticResource TextSecondaryBrush}"
                                                Margin="0,2,0,0" />
 
@@ -803,6 +770,5 @@
                     </StackPanel>
                 </ScrollViewer>
             </Border>
-        </Grid>
     </Grid>
 </UserControl>

@@ -1,0 +1,231 @@
+<Window x:Class="MediaVault.LinkHub.App.Views.ActressScrapeSessionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:MediaVault.LinkHub.App.Converters"
+        Title="{Binding WindowTitle}"
+        Width="1040"
+        Height="720"
+        MinWidth="800"
+        MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundBrush}">
+    <Window.Resources>
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="{Binding WindowTitle}"
+                       Style="{StaticResource SectionTitleStyle}" />
+            <TextBlock Text="{Binding SourceSummary}"
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,0" />
+            <TextBlock Text="{Binding StatusText}"
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       FontSize="12"
+                       Margin="0,6,0,0" />
+            <TextBlock Text="{Binding ErrorMessage}"
+                       Foreground="{StaticResource DangerBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,0" />
+        </StackPanel>
+
+        <DockPanel Grid.Row="1" Margin="0,0,0,12">
+            <Button Content="Ejecutar scraping"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Command="{Binding RunScrapeCommand}"
+                    DockPanel.Dock="Left" />
+            <Button Content="Capturar previews (hover)"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Command="{Binding CaptureHoverPreviewsCommand}"
+                    Margin="8,0,0,0"
+                    ToolTip="Abre WebView2, simula hover en cada tarjeta y guarda PreviewUrl (genérico para sitios SPA)."
+                    DockPanel.Dock="Left" />
+            <Button Content="Abrir ficha"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Command="{Binding OpenSelectedResultCommand}"
+                    Margin="8,0,0,0"
+                    DockPanel.Dock="Left" />
+            <Button Content="Copiar log"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Command="{Binding CopyDiagnosticLogCommand}"
+                    Margin="8,0,0,0"
+                    DockPanel.Dock="Left" />
+            <ItemsControl ItemsSource="{Binding Warnings}"
+                          Margin="16,0,0,0"
+                          VerticalAlignment="Center">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}"
+                                   Foreground="#E6A23C"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,2" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </DockPanel>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.2*" MinWidth="280" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" MinWidth="280" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="Videos encontrados"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,8" />
+                    <ListBox ItemsSource="{Binding Results}"
+                             SelectedItem="{Binding SelectedResult}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Width="96"
+                                            Height="64"
+                                            Background="#1C1F2B"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            ClipToBounds="True"
+                                            Cursor="Hand"
+                                            ToolTip="Pase el cursor para preview"
+                                            MouseEnter="Thumbnail_OnMouseEnter"
+                                            MouseLeave="Thumbnail_OnMouseLeave">
+                                        <Image Source="{Binding Thumbnail}"
+                                               Stretch="UniformToFill"
+                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                                        <TextBlock Text="{Binding Code}"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   FontSize="11"
+                                                   Margin="0,2,0,0" />
+                                        <TextBlock Text="{Binding SourceUrl}"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,2,0,0" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock Text="{Binding DurationText}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11"
+                                                       Margin="0,0,12,0" />
+                                            <TextBlock Text="{Binding PublishedAt, StringFormat={}{0:yyyy-MM-dd}}"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="11" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1"
+                          Width="8"
+                          HorizontalAlignment="Stretch"
+                          Background="Transparent" />
+
+            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="Log de diagnóstico"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,8" />
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="Qué selectores coincidieron, tamaño del HTML, omisiones y avisos (SPA / age-gate)."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+                    <TextBox Text="{Binding DiagnosticLog, Mode=OneWay}"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas"
+                             FontSize="11"
+                             Background="#12141C"
+                             Foreground="{StaticResource TextSecondaryBrush}"
+                             BorderThickness="0"
+                             Padding="8" />
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="3"
+                   Text="Hover sobre la miniatura: preview animado si el HTML trae PreviewUrl; si no (p. ej. Brazzers), zoom de la foto estática. Los resultados se guardan en ScrapedVideos."
+                   Foreground="{StaticResource TextSecondaryBrush}"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   Margin="0,10,0,0" />
+
+        <Popup IsOpen="{Binding ShowHoverPreview}"
+               Placement="Mouse"
+               AllowsTransparency="True"
+               StaysOpen="True"
+               PopupAnimation="Fade">
+            <Border Background="#10131A"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="8"
+                    MaxWidth="420">
+                <StackPanel>
+                    <TextBlock Text="{Binding HoverPreviewCaption}"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Margin="0,0,0,6" />
+                    <Grid Width="360" Height="202">
+                        <Image Source="{Binding HoverPreviewImage}"
+                               Stretch="Uniform"
+                               RenderOptions.BitmapScalingMode="HighQuality"
+                               Visibility="{Binding HoverPreviewIsVideo, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                        <MediaElement x:Name="HoverPreviewMedia"
+                                      LoadedBehavior="Manual"
+                                      UnloadedBehavior="Stop"
+                                      Stretch="Uniform"
+                                      Volume="0"
+                                      MediaEnded="HoverPreviewMedia_OnMediaEnded"
+                                      Visibility="{Binding HoverPreviewIsVideo, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </Grid>
+                    <TextBlock FontSize="10"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,6,0,0"
+                               Text="Trailer remoto"
+                               Visibility="{Binding HoverPreviewIsVideo, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock FontSize="10"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,6,0,0"
+                               Text="Vista ampliada (sin trailer en HTML)"
+                               Visibility="{Binding HoverPreviewIsVideo, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</Window>

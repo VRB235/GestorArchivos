@@ -1,0 +1,124 @@
+<UserControl x:Class="MediaVault.LinkHub.App.Controls.MultiSelectDropDown"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <Grid>
+        <ToggleButton x:Name="DropToggle"
+                      IsChecked="{Binding ElementName=DropPopup, Path=IsOpen, Mode=TwoWay}"
+                      HorizontalContentAlignment="Left"
+                      Padding="10,6"
+                      MinHeight="32"
+                      Background="#12151E"
+                      BorderBrush="{StaticResource BorderBrush}"
+                      BorderThickness="1"
+                      Foreground="{StaticResource TextPrimaryBrush}"
+                      Checked="DropToggle_OnChecked">
+            <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#1A2030" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </ToggleButton.Template>
+            <DockPanel LastChildFill="True">
+                <TextBlock DockPanel.Dock="Right"
+                           Text="▾"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#CBD5E1" />
+                <TextBlock Text="{Binding Summary, ElementName=Root}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           Foreground="#F1F5F9" />
+            </DockPanel>
+        </ToggleButton>
+
+        <Popup x:Name="DropPopup"
+               PlacementTarget="{Binding ElementName=DropToggle}"
+               Placement="Bottom"
+               StaysOpen="True"
+               AllowsTransparency="True"
+               PopupAnimation="Fade">
+            <Border Background="#161925"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="8"
+                    MinWidth="{Binding ActualWidth, ElementName=DropToggle}"
+                    MaxWidth="360"
+                    MaxHeight="320">
+                <DockPanel>
+                    <TextBox x:Name="SearchBox"
+                             DockPanel.Dock="Top"
+                             Margin="0,0,0,8"
+                             Padding="8,4"
+                             TextChanged="SearchBox_OnTextChanged"
+                             ToolTip="Buscar…" />
+                    <StackPanel DockPanel.Dock="Bottom"
+                                Orientation="Horizontal"
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Right">
+                        <Button Content="Todas"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="10,4"
+                                Margin="0,0,6,0"
+                                Click="SelectAll_OnClick" />
+                        <Button Content="Ninguna"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="10,4"
+                                Click="ClearAll_OnClick" />
+                    </StackPanel>
+
+                    <ListBox x:Name="OptionsList"
+                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             MaxHeight="220">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0,0,0,2" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter />
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Name}"
+                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          Foreground="#F1F5F9"
+                                          Margin="2,2"
+                                          Checked="OptionCheckBox_OnChanged"
+                                          Unchecked="OptionCheckBox_OnChanged" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

@@ -8,220 +8,292 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" MinHeight="200" MaxHeight="280" />
+            <RowDefinition Height="*" MinHeight="280" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.6*" MinWidth="320" />
-                <ColumnDefinition Width="2*" />
-            </Grid.ColumnDefinitions>
+        <!-- Filtros primero: dropdowns multi-select -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Filtros"
+                           Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="Selección múltiple · OR dentro de cada grupo · AND entre grupos activos."
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontSize="11"
+                           Margin="0,0,0,10" />
 
-            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,8,0">
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" MinHeight="120" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Row="0"
-                               Text="Catálogo"
-                               Style="{StaticResource SectionTitleStyle}" />
-                    <TextBlock Grid.Row="1"
-                               Text="Agregue o edite actrices. La asignación a videos se hace en Media Vault."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               FontSize="11"
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,8" />
-                    <ListBox Grid.Row="2"
-                             ItemsSource="{Binding Actresses}"
-                             SelectedItem="{Binding SelectedActress}"
-                             DisplayMemberPath="Name"
-                             Margin="0,0,0,8"
-                             MinHeight="120"
-                             MaxHeight="180" />
-                    <TextBlock Grid.Row="3"
-                               Text="Nombre"
-                               Style="{StaticResource LabelStyle}" />
-                    <TextBox Grid.Row="4"
-                             Text="{Binding ActressName, UpdateSourceTrigger=PropertyChanged}"
-                             Margin="0,0,0,8"
-                             MinWidth="280"
-                             HorizontalAlignment="Stretch" />
-                    <WrapPanel Grid.Row="5">
-                        <Button Content="Agregar"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Command="{Binding AddActressCommand}" />
-                        <Button Content="Renombrar"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Command="{Binding RenameActressCommand}" />
-                        <Button Content="Eliminar"
-                                Style="{StaticResource DangerButtonStyle}"
-                                Command="{Binding DeleteActressCommand}" />
-                    </WrapPanel>
-                </Grid>
-            </Border>
-
-            <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="8,0,0,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
-                    <StackPanel>
-                        <TextBlock Text="Filtros"
-                                   Style="{StaticResource SectionTitleStyle}" />
-                        <TextBlock Text="OR dentro de cada grupo. Si combina actrices, categorías y productoras, se exige coincidencia en todos los grupos activos (AND)."
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontSize="11"
-                                   TextWrapping="Wrap"
-                                   Margin="0,0,0,12" />
-
+                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
                         <TextBlock Text="Actrices"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"
                                    Margin="0,0,0,6" />
-                        <ItemsControl ItemsSource="{Binding ActressFilterTags}" Margin="0,0,0,14">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <ToggleButton Style="{StaticResource CategoryTagToggleStyle}"
-                                                  Content="{Binding Name}"
-                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                  Margin="0,0,6,6" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <controls:MultiSelectDropDown ItemsSource="{Binding ActressFilterTags}"
+                                                      Placeholder="Ninguna actriz" />
+                    </StackPanel>
 
+                    <StackPanel Grid.Column="1" Margin="4,0">
                         <TextBlock Text="Categorías"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"
                                    Margin="0,0,0,6" />
-                        <ItemsControl ItemsSource="{Binding CategoryFilterTags}" Margin="0,0,0,14">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <ToggleButton Style="{StaticResource CategoryTagToggleStyle}"
-                                                  Content="{Binding Name}"
-                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                  Margin="0,0,6,6" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <controls:MultiSelectDropDown ItemsSource="{Binding CategoryFilterTags}"
+                                                      Placeholder="Ninguna categoría" />
+                    </StackPanel>
 
+                    <StackPanel Grid.Column="2" Margin="8,0,0,0">
                         <TextBlock Text="Productoras"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"
                                    Margin="0,0,0,6" />
-                        <ItemsControl ItemsSource="{Binding ProducerFilterTags}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <ToggleButton Style="{StaticResource CategoryTagToggleStyle}"
-                                                  Content="{Binding Name}"
-                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                  Margin="0,0,6,6" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <controls:MultiSelectDropDown ItemsSource="{Binding ProducerFilterTags}"
+                                                      Placeholder="Ninguna productora" />
                     </StackPanel>
-                </ScrollViewer>
-            </Border>
-        </Grid>
+                </Grid>
+            </StackPanel>
+        </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+        <!-- Catálogo en grid + CRUD compacto -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="260" />
+                </Grid.ColumnDefinitions>
+
+                <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <TextBlock Text="Catálogo"
+                                   Style="{StaticResource SectionTitleStyle}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="Seleccione una actriz para abrir sus enlaces. Miniatura aleatoria de Pictures."
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,0,0"
+                                   TextWrapping="Wrap" />
+                    </DockPanel>
+
+                    <ListBox ItemsSource="{Binding Catalog}"
+                             SelectedItem="{Binding SelectedCatalogItem}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             Background="Transparent"
+                             BorderThickness="0">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0,0,10,10" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Tile"
+                                                    Width="112"
+                                                    Background="#161925"
+                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10"
+                                                    Cursor="Hand">
+                                                <ContentPresenter />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                    <Setter TargetName="Tile" Property="BorderThickness" Value="2" />
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Tile" Property="Background" Value="#1C2030" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <Border Height="84"
+                                            Background="#1C1F2B"
+                                            CornerRadius="10,10,0,0"
+                                            ClipToBounds="True">
+                                        <Image Source="{Binding Thumbnail}"
+                                               Stretch="UniformToFill"
+                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                    </Border>
+                                    <TextBlock Text="{Binding Name}"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               FontSize="11"
+                                               Margin="6"
+                                               MaxHeight="32"
+                                               Foreground="{StaticResource TextPrimaryBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Gestionar"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,8" />
+                    <TextBlock Text="Nombre" Style="{StaticResource LabelStyle}" />
+                    <TextBox Text="{Binding ActressName, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="0,0,0,8" />
+                    <Button Content="Agregar"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Command="{Binding AddActressCommand}"
+                            Margin="0,0,0,6"
+                            HorizontalAlignment="Stretch" />
+                    <Button Content="Renombrar"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding RenameActressCommand}"
+                            Margin="0,0,0,6"
+                            HorizontalAlignment="Stretch" />
+                    <Button Content="Eliminar"
+                            Style="{StaticResource DangerButtonStyle}"
+                            Command="{Binding DeleteActressCommand}"
+                            Margin="0,0,0,6"
+                            HorizontalAlignment="Stretch" />
+                    <Button Content="Abrir enlaces"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding OpenSelectedActressLinksCommand}"
+                            HorizontalAlignment="Stretch" />
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="{StaticResource DangerBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,10,0,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Videos locales: más espacio, grid horizontal -->
+        <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                    <TextBlock Text="Videos"
-                               Style="{StaticResource SectionTitleStyle}"
-                               VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding ResultsSummary}"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               FontSize="12"
-                               VerticalAlignment="Center"
-                               Margin="12,0,0,0" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="Abrir"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Command="{Binding OpenSelectedVideoCommand}"
-                                Margin="0,0,8,0" />
-                        <Button Content="VLC"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Command="{Binding OpenSelectedVideoWithVlcCommand}" />
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="Videos"
+                                       Style="{StaticResource SectionTitleStyle}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ResultsSummary}"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="12"
+                                       VerticalAlignment="Center"
+                                       Margin="12,0,0,0" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="Abrir"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Command="{Binding OpenSelectedVideoCommand}"
+                                        Margin="0,0,8,0" />
+                                <Button Content="VLC"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding OpenSelectedVideoWithVlcCommand}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <WrapPanel VerticalAlignment="Center">
+                            <TextBlock Text="Visto desde"
+                                       Style="{StaticResource LabelStyle}"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0" />
+                            <DatePicker SelectedDate="{Binding SeenFromDate, Mode=TwoWay}"
+                                        Width="130"
+                                        Margin="0,0,12,0" />
+                            <TextBlock Text="hasta"
+                                       Style="{StaticResource LabelStyle}"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0" />
+                            <DatePicker SelectedDate="{Binding SeenToDate, Mode=TwoWay}"
+                                        Width="130"
+                                        Margin="0,0,12,0" />
+                            <CheckBox Content="Solo nunca vistos"
+                                      IsChecked="{Binding OnlyNeverOpened, Mode=TwoWay}"
+                                      VerticalAlignment="Center"
+                                      Foreground="{StaticResource TextPrimaryBrush}"
+                                      Margin="0,0,12,0" />
+                            <Button Content="Limpiar fechas"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Command="{Binding ClearSeenDateFilterCommand}"
+                                    Padding="10,4" />
+                        </WrapPanel>
                     </StackPanel>
                 </DockPanel>
 
                 <ListBox ItemsSource="{Binding Videos}"
                          SelectedItem="{Binding SelectedVideo}"
                          MouseDoubleClick="VideosListBox_MouseDoubleClick"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         Background="Transparent"
+                         BorderThickness="0">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0,0,12,12" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Tile"
+                                                Width="168"
+                                                Background="#12151F"
+                                                BorderBrush="{StaticResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="0,4">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-
-                                <Border Width="72"
-                                        Height="72"
+                            <StackPanel>
+                                <Border Height="100"
                                         Background="#1C1F2B"
-                                        BorderBrush="{StaticResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
+                                        CornerRadius="8,8,0,0"
                                         ClipToBounds="True">
                                     <Image Source="{Binding Thumbnail}"
-                                           Stretch="Uniform"
+                                           Stretch="UniformToFill"
                                            RenderOptions.BitmapScalingMode="HighQuality" />
                                 </Border>
-
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <StackPanel Margin="8">
                                     <TextBlock Text="{Binding Name}"
                                                FontWeight="SemiBold"
                                                TextWrapping="Wrap"
+                                               MaxHeight="34"
+                                               FontSize="11"
                                                Foreground="{StaticResource TextPrimaryBrush}" />
                                     <TextBlock Text="{Binding FolderName}"
                                                Foreground="{StaticResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               FontSize="10"
                                                Margin="0,2,0,0" />
-                                    <TextBlock Text="{Binding ActressesLabel}"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               FontSize="11"
-                                               TextWrapping="Wrap"
-                                               Margin="0,2,0,0" />
-                                    <TextBlock Text="{Binding CategoriesLabel}"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               FontSize="11"
-                                               TextWrapping="Wrap"
-                                               Margin="0,2,0,0" />
-                                    <TextBlock Text="{Binding ProducersLabel}"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               FontSize="11"
-                                               TextWrapping="Wrap"
-                                               Margin="0,2,0,0" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                        <controls:StarRatingControl Rating="{Binding RankingStars, Mode=OneWay}"
-                                                                    IsInteractive="False" />
-                                        <TextBlock Text="{Binding OpenCountLabel}"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   FontSize="11"
-                                                   VerticalAlignment="Center"
-                                                   Margin="10,0,0,0" />
-                                    </StackPanel>
+                                    <controls:StarRatingControl Rating="{Binding RankingStars, Mode=OneWay}"
+                                                                IsInteractive="False"
+                                                                Margin="0,4,0,0" />
                                 </StackPanel>
-                            </Grid>
+                            </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

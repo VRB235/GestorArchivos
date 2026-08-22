@@ -30,7 +30,7 @@
         <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="8,0,0,0">
             <StackPanel>
                 <TextBlock Text="Editor de categoría" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="Las categorías se asignan a archivos indexados desde Media Vault."
+                <TextBlock Text="Las categorías se asignan a archivos indexados desde Media Vault (la indexación se lanza en Configuración)."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="11"
                            TextWrapping="Wrap"

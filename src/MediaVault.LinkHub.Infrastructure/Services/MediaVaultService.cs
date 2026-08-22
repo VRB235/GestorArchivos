@@ -864,6 +864,7 @@ public sealed class MediaVaultService : IMediaVaultService
       return null;
 
     entity.VecesAbierto++;
+    entity.LastOpenedAt = DateTime.UtcNow;
     await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     return entity;
   }

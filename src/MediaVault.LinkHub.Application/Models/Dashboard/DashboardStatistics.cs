@@ -9,11 +9,7 @@ public sealed class DashboardStatistics
 
     public IReadOnlyList<MediaFileViewStats> Top10MostViewedVideos { get; init; } = [];
 
-    public IReadOnlyList<MediaFileViewStats> Top10MostViewedPhotos { get; init; } = [];
-
     public IReadOnlyList<MediaFileViewStats> Top10BestRankedVideos { get; init; } = [];
-
-    public IReadOnlyList<MediaFileViewStats> Top10BestRankedPhotos { get; init; } = [];
 
     public IReadOnlyList<CategoryDistributionItem> LinkDistributionByCategory { get; init; } = [];
 

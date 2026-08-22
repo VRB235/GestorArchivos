@@ -25,7 +25,7 @@ public partial class VideoCategoryManagerViewModel : ViewModelBase, INavigableVi
 
     public string Title => "Categorías";
 
-    public string Subtitle => "Clasificación de archivos indexados en Media Vault";
+    public string Subtitle => "Clasificación de archivos indexados (indexación en Configuración)";
 
     public ObservableCollection<VideoCategory> VideoCategories { get; } = [];
 

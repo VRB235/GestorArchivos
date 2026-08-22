@@ -90,6 +90,18 @@ public sealed class ActressService : IActressService
         if (entity is null)
             return;
 
+        var scrapedVideos = await context.ScrapedVideos
+            .Where(video => video.ActressId == id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        context.ScrapedVideos.RemoveRange(scrapedVideos);
+
+        var links = await context.ActressLinks
+            .Where(link => link.ActressId == id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        context.ActressLinks.RemoveRange(links);
+
         context.Actresses.Remove(entity);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }

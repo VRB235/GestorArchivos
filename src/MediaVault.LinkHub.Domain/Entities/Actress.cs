@@ -12,4 +12,8 @@ public class Actress : EntityBase
     public int SortOrder { get; set; }
 
     public ICollection<MediaFile> MediaFiles { get; set; } = [];
+
+    public ICollection<ActressLink> Links { get; set; } = [];
+
+    public ICollection<ScrapedVideo> ScrapedVideos { get; set; } = [];
 }

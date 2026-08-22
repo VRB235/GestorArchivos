@@ -1,0 +1,558 @@
+<Window x:Class="MediaVault.LinkHub.App.Views.ActressLinksWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:MediaVault.LinkHub.App.Controls"
+        Title="{Binding WindowTitle}"
+        Width="1100"
+        Height="760"
+        MinWidth="860"
+        MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundBrush}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="{Binding WindowTitle}" Style="{StaticResource SectionTitleStyle}" />
+                <TextBlock Text="Tiles con logo de Link Manager; la URL es la de esta actriz. Los videos nuevos se marcan al scrapear; al salir del enlace pasan a «Visto»."
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"
+                           MaxWidth="720"
+                           HorizontalAlignment="Left" />
+            </StackPanel>
+            <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Top">
+                <Button Content="Nuevo enlace"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding NewLinkCommand}"
+                        Margin="0,0,8,0" />
+                <Button Content="Editar"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding ToggleEditorCommand}"
+                        Margin="0,0,8,0" />
+                <Button Content="Abrir en navegador"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding OpenSelectedInBrowserCommand}"
+                        Margin="0,0,8,0" />
+                <Button Content="Scrapear / actualizar"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Command="{Binding ScrapeSelectedLinkCommand}" />
+            </WrapPanel>
+        </DockPanel>
+
+        <ListBox Grid.Row="1"
+                 ItemsSource="{Binding LinkTiles}"
+                 SelectedItem="{Binding SelectedLinkTile}"
+                 Margin="0,0,0,12"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                 Background="Transparent"
+                 BorderThickness="0">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0,0,10,0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="Tile"
+                                        Background="#161925"
+                                        BorderBrush="{StaticResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="10"
+                                        Width="118"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                        <Setter TargetName="Tile" Property="BorderThickness" Value="2" />
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Tile" Property="Background" Value="#1C2030" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel>
+                        <controls:LinkLogoFrame LogoPath="{Binding LogoPath}"
+                                                Category="{Binding Category}"
+                                                Zoom="{Binding LogoZoom}"
+                                                OffsetX="{Binding LogoOffsetX}"
+                                                OffsetY="{Binding LogoOffsetY}"
+                                                FrameSize="72"
+                                                HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding Title}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   FontSize="11"
+                                   Margin="0,8,0,0"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   MaxHeight="36" />
+                        <TextBlock Text="{Binding Action}"
+                                   TextAlignment="Center"
+                                   FontSize="10"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Border Grid.Row="2"
+                Style="{StaticResource CardBorderStyle}"
+                Margin="0,0,0,12"
+                Visibility="{Binding IsEditorExpanded, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <ScrollViewer MaxHeight="480" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Sitio Link Manager"
+                               Style="{StaticResource LabelStyle}" />
+                    <TextBlock Text="Sitio del catálogo Link Manager: aporta el logo y la productora asociada. La URL de abajo es la de esta actriz."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,4" />
+                    <ComboBox ItemsSource="{Binding AvailableWebLinks}"
+                              SelectedItem="{Binding SelectedWebLink}"
+                              DisplayMemberPath="Nombre"
+                              Margin="0,0,0,10" />
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock Text="Título" Style="{StaticResource LabelStyle}" />
+                            <TextBlock Text="Etiqueta visible en el tile (p. ej. Brazzers)."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,4" />
+                            <TextBox Text="{Binding LinkTitle, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                            <TextBlock Text="Acción" Style="{StaticResource LabelStyle}" />
+                            <TextBlock Text="Browse = abrir en navegador. Scrape = extraer listado de videos."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding LinkActions}"
+                                      SelectedItem="{Binding LinkAction}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="URL específica de la actriz" Style="{StaticResource LabelStyle}" />
+                    <TextBlock Text="Página concreta de esta actriz en el sitio (no la home del Link Manager)."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,4" />
+                    <TextBox Text="{Binding LinkUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+
+                    <TextBlock Text="Notas" Style="{StaticResource LabelStyle}" />
+                    <TextBlock Text="Apuntes libres: login, edad-gate, trucos del sitio, etc."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,4" />
+                    <TextBox Text="{Binding LinkNotes, UpdateSourceTrigger=PropertyChanged}"
+                             Height="40"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,10" />
+
+                    <StackPanel Visibility="{Binding ShowScrapeHints, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <DockPanel Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="Configuración de scraping"
+                                           Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Selectores CSS relativos a cada tarjeta. Al guardar se genera el JSON automáticamente."
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,2,0,0" />
+                            </StackPanel>
+                            <Button Content="Plantilla"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Command="{Binding ApplyHintsTemplateCommand}"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Padding="10,4" />
+                        </DockPanel>
+
+                        <TextBlock Text="ScraperKey" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="Motor a usar (css-list por defecto)."
+                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding LinkScraperKey, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+
+                        <TextBlock Text="Listado" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="ListItemSelector — contenedor de cada video"
+                                   Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="CSS del bloque/tarjeta de cada resultado en el listado."
+                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding LinkHints.ListItemSelector, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="TitleSelector" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Nodo del título dentro del ítem."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.TitleSelector, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="UrlSelector" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Enlace a la ficha (a[href])."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.UrlSelector, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" MinWidth="100" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="UrlAttribute" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Atributo de la URL (href por defecto)."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.UrlAttribute, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="Máx. páginas" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Tope de paginación."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.MaxPages, UpdateSourceTrigger=PropertyChanged}" Width="80" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Miniatura" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="ThumbnailSelector" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="img / picture de portada."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.ThumbnailSelector, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="ThumbnailAttribute" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="src, data-src, data-srcset…"
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.ThumbnailAttribute, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Metadatos opcionales" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="CodeSelector" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Código / ID de producto."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.CodeSelector, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="DurationSelector" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Duración visible (texto)."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.DurationSelector, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="DateSelector" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Nodo de fecha de publicación."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.DateSelector, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="DateFormat" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Ej. yyyy-MM-dd (opcional)."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.DateFormat, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Paginación" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="NextPageSelector — botón «siguiente» (opcional; si no existe, el scrape continúa OK)."
+                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding LinkHints.NextPageSelector, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+
+                        <TextBlock Text="Preview al hover (opcional)" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="PreviewSelector" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Elemento con URL de trailer/preview."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.PreviewSelector, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="PreviewAttribute" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="data-preview, src, href…"
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.PreviewAttribute, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" MinWidth="110" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="PreviewHoverSelector" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Target del hover en captura WebView2."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.PreviewHoverSelector, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="Espera hover (ms)" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Default 900."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.PreviewHoverWaitMs, UpdateSourceTrigger=PropertyChanged}" Width="90" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Avanzado" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" MinWidth="100" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="BaseUrl" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Base para URLs relativas (opcional)."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.BaseUrl, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="WaitMs (GET)" Style="{StaticResource LabelStyle}" />
+                                <TextBlock Text="Pausa antes de cada página."
+                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding LinkHints.WaitMs, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" Width="80" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="User-Agent" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="Vacío = User-Agent por defecto del cliente HTTP."
+                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding LinkHints.UserAgent, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                        <TextBlock Text="Cabeceras extra" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Text="Una por línea: Nombre: Valor (p. ej. Cookie: …)."
+                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding LinkHints.ExtraHeadersText, UpdateSourceTrigger=PropertyChanged}"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 Height="56"
+                                 VerticalScrollBarVisibility="Auto"
+                                 FontFamily="Consolas"
+                                 FontSize="11"
+                                 Margin="0,0,0,10" />
+                    </StackPanel>
+
+                    <WrapPanel>
+                        <Button Content="Agregar"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Command="{Binding AddLinkCommand}"
+                                Margin="0,0,8,0" />
+                        <Button Content="Guardar"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding SaveLinkCommand}"
+                                Margin="0,0,8,0" />
+                        <Button Content="Eliminar"
+                                Style="{StaticResource DangerButtonStyle}"
+                                Command="{Binding DeleteLinkCommand}" />
+                    </WrapPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <TextBlock Text="Videos scrapeados"
+                               Style="{StaticResource SectionTitleStyle}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding VideosSummary}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Margin="12,0,0,0" />
+                </DockPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding ScrapedVideos}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="180"
+                                        Margin="0,0,10,10"
+                                        Background="#12151F"
+                                        BorderBrush="{StaticResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Cursor="Hand"
+                                        MouseLeftButtonUp="ScrapedVideo_OnMouseLeftButtonUp">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="110" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <Border Background="#1C1F2B"
+                                                CornerRadius="8,8,0,0"
+                                                ClipToBounds="True">
+                                            <Image Source="{Binding Thumbnail}"
+                                                   Stretch="UniformToFill"
+                                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                                        </Border>
+
+                                        <Border x:Name="Badge"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Top"
+                                                Margin="6"
+                                                Padding="6,2"
+                                                CornerRadius="4">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#64748B" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsNew}" Value="True">
+                                                            <Setter Property="Background" Value="#16A34A" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding BadgeText}"
+                                                       FontSize="10"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="White" />
+                                        </Border>
+
+                                        <StackPanel Grid.Row="1" Margin="8">
+                                            <TextBlock Text="{Binding Title}"
+                                                       TextWrapping="Wrap"
+                                                       MaxHeight="36"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" />
+                                            <TextBlock Text="{Binding DurationText}"
+                                                       FontSize="10"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsNew}" Value="True">
+                                                    <Setter Property="BorderBrush" Value="#16A34A" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Expander Grid.Row="4"
+                  Margin="0,10,0,0"
+                  IsExpanded="{Binding IsScrapeLogExpanded, Mode=TwoWay}"
+                  Background="#12151F"
+                  BorderBrush="{StaticResource BorderBrush}"
+                  BorderThickness="1"
+                  Padding="8,6">
+            <Expander.Header>
+                <DockPanel LastChildFill="True">
+                    <Button DockPanel.Dock="Right"
+                            Content="Copiar log"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding CopyScrapeLogCommand}"
+                            Padding="10,3"
+                            Margin="12,0,0,0"
+                            VerticalAlignment="Center" />
+                    <TextBlock Text="Log de web scraping"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" />
+                </DockPanel>
+            </Expander.Header>
+            <Border Margin="0,8,0,0"
+                    Background="#0B0D14"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="8">
+                <TextBox Text="{Binding DiagnosticLog, Mode=OneWay}"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         FontFamily="Consolas"
+                         FontSize="11"
+                         Foreground="#D1D5DB"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         MinHeight="160"
+                         MaxHeight="320" />
+            </Border>
+        </Expander>
+
+        <TextBlock Grid.Row="5"
+                   Text="{Binding ErrorMessage}"
+                   Foreground="{StaticResource DangerBrush}"
+                   TextWrapping="Wrap"
+                   Margin="0,8,0,0" />
+    </Grid>
+</Window>

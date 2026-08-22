@@ -48,6 +48,9 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
     [ObservableProperty]
     private string? _latestBackupSummary;
 
+    [ObservableProperty]
+    private string? _lastIndexSummary;
+
     public Task InitializeAsync() =>
         RunBusyCoreAsync(LoadAsync, "Cargando configuración...");
 
@@ -112,6 +115,42 @@ public partial class SettingsViewModel : ViewModelBase, INavigableViewModel
             MediaIndexRootPath = normalizedPath;
             SettingsFilePath = _appSettingsService.GetSettingsFilePath();
         }, "Guardando configuración...").ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task IndexMediaVaultAsync()
+    {
+        if (string.IsNullOrWhiteSpace(MediaIndexRootPath))
+        {
+            ErrorMessage = "Indique la carpeta raíz de indexación multimedia.";
+            return;
+        }
+
+        if (!Directory.Exists(MediaIndexRootPath))
+        {
+            ErrorMessage = "La carpeta indicada no existe. Guarde una ruta válida antes de indexar.";
+            return;
+        }
+
+        await ExecuteBusyAsync(async () =>
+        {
+            var normalizedPath = Path.GetFullPath(MediaIndexRootPath);
+            var current = await _appSettingsService.GetAsync().ConfigureAwait(true);
+            if (!string.Equals(current.MediaIndexRootPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                await _appSettingsService.SaveAsync(new AppSettings
+                {
+                    MediaIndexRootPath = normalizedPath,
+                    FolderIconPaths = current.FolderIconPaths,
+                    ShowHiddenFilesAndFolders = current.ShowHiddenFilesAndFolders
+                }).ConfigureAwait(true);
+                MediaIndexRootPath = normalizedPath;
+            }
+
+            var result = await _mediaVaultService.IndexDirectoryAsync(normalizedPath).ConfigureAwait(true);
+            LastIndexSummary =
+                $"Indexados: {result.FilesIndexed} | Nuevos: {result.FilesAdded} | Actualizados: {result.FilesUpdated} | Omitidos: {result.FilesSkipped}";
+        }, "Indexando archivos...").ConfigureAwait(true);
     }
 
     [RelayCommand]

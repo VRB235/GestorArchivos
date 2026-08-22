@@ -36,6 +36,8 @@ internal sealed class MediaFileConfiguration : IEntityTypeConfiguration<MediaFil
         builder.Property(file => file.RankingGusto)
             .HasDefaultValue(0.0);
 
+        builder.Property(file => file.LastOpenedAt);
+
         builder.HasMany(file => file.Categories)
             .WithMany(category => category.MediaFiles)
             .UsingEntity(j => j.ToTable("MediaFileCategories"));

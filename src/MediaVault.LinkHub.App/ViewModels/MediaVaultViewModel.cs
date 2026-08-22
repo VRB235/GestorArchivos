@@ -91,7 +91,7 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     public string Title => "File & Media Vault";
 
-    public string Subtitle => "Indexación y gestión de archivos multimedia locales";
+    public string Subtitle => "Exploración y gestión de archivos multimedia locales";
 
     public ObservableCollection<MediaVaultBrowserEntryItem> BrowserEntries { get; } = [];
 
@@ -180,9 +180,6 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
 
     [ObservableProperty]
     private int _selectedFolderRankedFileCount;
-
-    [ObservableProperty]
-    private string? _lastIndexSummary;
 
     [ObservableProperty]
     private string? _selectedFolderIconPath;
@@ -1316,32 +1313,6 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
             await BrowseDirectoryAsync(currentDirectory, reselectEntryPath: folderPath).ConfigureAwait(true);
             NotifyFolderIconStateChanged();
         }, "Limpiando miniatura...").ConfigureAwait(true);
-    }
-
-    [RelayCommand]
-    private async Task IndexAsync()
-    {
-        await LoadIndexRootPathAsync().ConfigureAwait(true);
-
-        if (string.IsNullOrWhiteSpace(IndexRootPath))
-        {
-            ErrorMessage = "Configure la carpeta de indexación en el módulo Configuración.";
-            return;
-        }
-
-        if (!Directory.Exists(IndexRootPath))
-        {
-            ErrorMessage = "La carpeta configurada no existe. Actualícela en Configuración.";
-            return;
-        }
-
-        await ExecuteBusyAsync(async () =>
-        {
-            var result = await _mediaVaultService.IndexDirectoryAsync(IndexRootPath).ConfigureAwait(true);
-            LastIndexSummary =
-                $"Indexados: {result.FilesIndexed} | Nuevos: {result.FilesAdded} | Actualizados: {result.FilesUpdated} | Omitidos: {result.FilesSkipped}";
-            await BrowseDirectoryAsync(IndexRootPath).ConfigureAwait(true);
-        }, "Indexando archivos...").ConfigureAwait(true);
     }
 
     [RelayCommand(CanExecute = nameof(CanMoveSelectedFile))]

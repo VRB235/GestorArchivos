@@ -88,6 +88,66 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                     b.ToTable("Actresses", (string)null);
                 });
 
+            modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.ActressLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ActressId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastScrapedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScrapeHintsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScraperKey")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("WebLinkId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActressId");
+
+                    b.HasIndex("WebLinkId");
+
+                    b.HasIndex("ActressId", "SortOrder");
+
+                    b.ToTable("ActressLinks", (string)null);
+                });
+
             modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.MediaFile", b =>
                 {
                     b.Property<int>("Id")
@@ -97,6 +157,9 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                     b.Property<string>("Extension")
                         .IsRequired()
                         .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastOpenedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -215,6 +278,71 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                     b.HasIndex("FechaCreacion");
 
                     b.ToTable("QuickNotes", (string)null);
+                });
+
+            modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.ScrapedVideo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ActressId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ActressLinkId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DurationText")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExtraJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsNew")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("PreviewUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ScrapedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActressId");
+
+                    b.HasIndex("ActressLinkId");
+
+                    b.HasIndex("SourceUrl");
+
+                    b.HasIndex("ActressLinkId", "SourceUrl");
+
+                    b.ToTable("ScrapedVideos", (string)null);
                 });
 
             modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.Suggestion", b =>
@@ -422,6 +550,24 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.ActressLink", b =>
+                {
+                    b.HasOne("MediaVault.LinkHub.Domain.Entities.Actress", "Actress")
+                        .WithMany("Links")
+                        .HasForeignKey("ActressId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MediaVault.LinkHub.Domain.Entities.WebLink", "WebLink")
+                        .WithMany()
+                        .HasForeignKey("WebLinkId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Actress");
+
+                    b.Navigation("WebLink");
+                });
+
             modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.MediaFileThumbnail", b =>
                 {
                     b.HasOne("MediaVault.LinkHub.Domain.Entities.MediaFile", "MediaFile")
@@ -431,6 +577,25 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("MediaFile");
+                });
+
+            modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.ScrapedVideo", b =>
+                {
+                    b.HasOne("MediaVault.LinkHub.Domain.Entities.Actress", "Actress")
+                        .WithMany("ScrapedVideos")
+                        .HasForeignKey("ActressId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MediaVault.LinkHub.Domain.Entities.ActressLink", "ActressLink")
+                        .WithMany("ScrapedVideos")
+                        .HasForeignKey("ActressLinkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Actress");
+
+                    b.Navigation("ActressLink");
                 });
 
             modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.SuggestionAttachment", b =>
@@ -457,6 +622,18 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                         .HasForeignKey("WebLinksId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.Actress", b =>
+                {
+                    b.Navigation("Links");
+
+                    b.Navigation("ScrapedVideos");
+                });
+
+            modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.ActressLink", b =>
+                {
+                    b.Navigation("ScrapedVideos");
                 });
 
             modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.MediaFile", b =>

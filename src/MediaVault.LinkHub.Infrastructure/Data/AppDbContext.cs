@@ -30,6 +30,10 @@ public class AppDbContext : DbContext
 
     public DbSet<Actress> Actresses => Set<Actress>();
 
+    public DbSet<ActressLink> ActressLinks => Set<ActressLink>();
+
+    public DbSet<ScrapedVideo> ScrapedVideos => Set<ScrapedVideo>();
+
     public DbSet<Producer> Producers => Set<Producer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -44,6 +48,8 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new SuggestionAttachmentConfiguration());
         modelBuilder.ApplyConfiguration(new VideoCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new ActressConfiguration());
+        modelBuilder.ApplyConfiguration(new ActressLinkConfiguration());
+        modelBuilder.ApplyConfiguration(new ScrapedVideoConfiguration());
         modelBuilder.ApplyConfiguration(new ProducerConfiguration());
     }
 

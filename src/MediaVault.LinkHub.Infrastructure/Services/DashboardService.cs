@@ -149,9 +149,7 @@ public sealed class DashboardService : IDashboardService
     {
       Top10MostViewed = TakeTopByViews(presentStats, 10),
       Top10MostViewedVideos = TakeTopByViews(videos, 10),
-      Top10MostViewedPhotos = TakeTopByViews(photos, 10),
       Top10BestRankedVideos = TakeTopByRanking(rankedVideos, 10),
-      Top10BestRankedPhotos = TakeTopByRanking(rankedPhotos, 10),
       LinkDistributionByCategory = linkDistribution,
       VideoDistributionByCategory = mediaCategoryDistribution,
       AverageRankingByVideoCategory = averageRankingByCategory,

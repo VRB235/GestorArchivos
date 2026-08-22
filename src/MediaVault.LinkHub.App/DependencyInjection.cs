@@ -1,6 +1,8 @@
 using MediaVault.LinkHub.App.Navigation;
+using MediaVault.LinkHub.App.Scraping;
 using MediaVault.LinkHub.App.Shell;
 using MediaVault.LinkHub.App.ViewModels;
+using MediaVault.LinkHub.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaVault.LinkHub.App;
@@ -23,6 +25,8 @@ public static class DependencyInjection
         services.AddTransient<ScratchpadViewModel>();
         services.AddTransient<SuggestionsViewModel>();
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<IHoverPreviewCaptureService, WebView2HoverPreviewCaptureService>();
+        services.AddTransient<IBrowserHtmlFetcher, WebView2HtmlFetcher>();
 
         services.AddTransient<MainWindow>();
 

@@ -190,30 +190,6 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
                 panel,
                 onPointClicked: index => _ = OpenChartMediaFileAsync(panel, index)));
 
-        AddBarChart(
-            SecondaryChartSections,
-            "Top 10 fotos más vistas",
-            "Sin fotos abiertas desde la app. Abra imágenes en Media Vault.",
-            stats.Top10MostViewedPhotos,
-            isExpanded: false,
-            panel => DashboardChartFactory.PopulateTopViewsChart(
-                stats.Top10MostViewedPhotos,
-                panel,
-                SkiaSharp.SKColor.Parse("#10B981"),
-                index => _ = OpenChartMediaFileAsync(panel, index)));
-
-        AddBarChart(
-            SecondaryChartSections,
-            "Top 10 fotos mejor rankeadas",
-            "Sin fotos calificadas. Use estrellas en Media Vault.",
-            stats.Top10BestRankedPhotos,
-            isExpanded: false,
-            panel => DashboardChartFactory.PopulateTopRankedChart(
-                stats.Top10BestRankedPhotos,
-                panel,
-                SkiaSharp.SKColor.Parse("#F59E0B"),
-                index => _ = OpenChartMediaFileAsync(panel, index)));
-
         AddPieChart(
             SecondaryChartSections,
             "Archivos por categoría",

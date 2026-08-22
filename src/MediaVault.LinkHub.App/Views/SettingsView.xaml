@@ -11,7 +11,7 @@
                     <TextBlock Text="Media Vault" Style="{StaticResource SectionTitleStyle}" />
                     <TextBlock Text="Carpeta raíz de indexación"
                                Style="{StaticResource LabelStyle}" />
-                    <TextBlock Text="Ruta fija desde la que se escanean imágenes y videos. Los cambios aplican a futuras indexaciones."
+                    <TextBlock Text="Ruta fija desde la que se escanean imágenes y videos. Guarde la ruta e indexe cuando quiera refrescar el catálogo."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="11"
                                TextWrapping="Wrap"
@@ -29,14 +29,24 @@
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Command="{Binding BrowseMediaIndexFolderCommand}" />
                     </Grid>
-                    <Button Content="Guardar configuración"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            HorizontalAlignment="Left"
-                            Command="{Binding SaveCommand}" />
+                    <WrapPanel Margin="0,0,0,8">
+                        <Button Content="Guardar configuración"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="0,0,8,0"
+                                Command="{Binding SaveCommand}" />
+                        <Button Content="Indexar ahora"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding IndexMediaVaultCommand}" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding LastIndexSummary}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
                     <TextBlock Text="{Binding SettingsFilePath, StringFormat='Archivo: {0}'}"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="11"
-                               Margin="0,12,0,0"
+                               Margin="0,4,0,0"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

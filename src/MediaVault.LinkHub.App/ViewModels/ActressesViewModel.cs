@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Net.Http;
 using System.Windows.Media;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -7,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using MediaVault.LinkHub.App.Shell;
 using MediaVault.LinkHub.App.ViewModels.Base;
+using MediaVault.LinkHub.App.Views;
 using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Domain.Entities;
 
@@ -15,15 +17,27 @@ namespace MediaVault.LinkHub.App.ViewModels;
 public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
 {
     private readonly IActressService _actressService;
+    private readonly IActressLinkService _actressLinkService;
+    private readonly IVideoScrapeService _videoScrapeService;
+    private readonly IWebLinkService _webLinkService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IVideoCategoryService _videoCategoryService;
     private readonly IProducerService _producerService;
     private readonly IMediaVaultService _mediaVaultService;
     private readonly IAppSettingsService _appSettingsService;
     private readonly IAppDialogService _appDialogService;
     private int _thumbnailGeneration;
+    private int _catalogThumbGeneration;
+    private ActressLinksWindow? _openLinksWindow;
+    private int? _openLinksActressId;
+    private bool _suppressLinksOpen;
 
     public ActressesViewModel(
         IActressService actressService,
+        IActressLinkService actressLinkService,
+        IVideoScrapeService videoScrapeService,
+        IWebLinkService webLinkService,
+        IHttpClientFactory httpClientFactory,
         IVideoCategoryService videoCategoryService,
         IProducerService producerService,
         IMediaVaultService mediaVaultService,
@@ -31,6 +45,10 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         IAppDialogService appDialogService)
     {
         _actressService = actressService;
+        _actressLinkService = actressLinkService;
+        _videoScrapeService = videoScrapeService;
+        _webLinkService = webLinkService;
+        _httpClientFactory = httpClientFactory;
         _videoCategoryService = videoCategoryService;
         _producerService = producerService;
         _mediaVaultService = mediaVaultService;
@@ -41,9 +59,9 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
     public string Title => "Actrices";
 
     public string Subtitle =>
-        "Filtro OR dentro de actrices/categorías/productoras; AND entre grupos. Cualquier carpeta.";
+        "Filtros primero; catálogo con miniaturas; enlaces en ventana al seleccionar; videos locales en grid.";
 
-    public ObservableCollection<Actress> Actresses { get; } = [];
+    public ObservableCollection<ActressCatalogItem> Catalog { get; } = [];
 
     public ObservableCollection<ActressFilterTagItem> ActressFilterTags { get; } = [];
 
@@ -54,7 +72,7 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
     public ObservableCollection<ActressVideoListItem> Videos { get; } = [];
 
     [ObservableProperty]
-    private Actress? _selectedActress;
+    private ActressCatalogItem? _selectedCatalogItem;
 
     [ObservableProperty]
     private string _actressName = string.Empty;
@@ -62,7 +80,18 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
     [ObservableProperty]
     private ActressVideoListItem? _selectedVideo;
 
-    public bool CanEditActress => SelectedActress is not null;
+    [ObservableProperty]
+    private DateTime? _seenFromDate;
+
+    [ObservableProperty]
+    private DateTime? _seenToDate;
+
+    [ObservableProperty]
+    private bool _onlyNeverOpened;
+
+    private List<ActressVideoListItem> _allFilteredVideos = [];
+
+    public bool CanEditActress => SelectedCatalogItem is not null;
 
     public bool HasActressFilter => ActressFilterTags.Any(tag => tag.IsSelected);
 
@@ -77,7 +106,7 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         get
         {
             if (!HasActiveFilter)
-                return "Seleccione actrices, categorías y/o productoras (OR dentro de cada grupo).";
+                return "Seleccione filtros (OR dentro de cada grupo; AND entre grupos).";
 
             return Videos.Count == 1 ? "1 video" : $"{Videos.Count} videos";
         }
@@ -96,14 +125,80 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         var categories = await _videoCategoryService.GetAllAsync().ConfigureAwait(true);
         var producers = await _producerService.GetAllAsync().ConfigureAwait(true);
 
-        Actresses.Clear();
+        var previousId = SelectedCatalogItem?.Id;
+        Catalog.Clear();
         foreach (var actress in actresses)
-            Actresses.Add(actress);
+            Catalog.Add(new ActressCatalogItem { Actress = actress });
 
         RebuildActressFilterTags(actresses);
         RebuildCategoryFilterTags(categories);
         RebuildProducerFilterTags(producers);
+
+        _suppressLinksOpen = true;
+        try
+        {
+            SelectedCatalogItem = previousId is int id
+                ? Catalog.FirstOrDefault(item => item.Id == id)
+                : null;
+        }
+        finally
+        {
+            _suppressLinksOpen = false;
+        }
+
         NotifyActressCommands();
+        _ = LoadCatalogThumbnailsAsync();
+    }
+
+    private async Task LoadCatalogThumbnailsAsync()
+    {
+        var generation = ++_catalogThumbGeneration;
+        var items = Catalog.ToList();
+
+        foreach (var item in items)
+        {
+            if (generation != _catalogThumbGeneration)
+                return;
+
+            try
+            {
+                var files = await _mediaVaultService
+                    .FindVideosByActressIdsAsync([item.Id])
+                    .ConfigureAwait(true);
+
+                if (files.Count == 0)
+                    continue;
+
+                var rng = Random.Shared;
+                var sample = files.OrderBy(_ => rng.Next()).Take(Math.Min(8, files.Count)).ToList();
+                ImageSource? thumbnail = null;
+
+                foreach (var file in sample)
+                {
+                    var pictures = await _mediaVaultService
+                        .ListPicturesForVideoAsync(file.Path)
+                        .ConfigureAwait(true);
+
+                    if (pictures.Count == 0)
+                        continue;
+
+                    var picturePath = pictures[rng.Next(pictures.Count)];
+                    thumbnail = await Task.Run(() => LocalImageLoader.TryLoad(picturePath, 160))
+                        .ConfigureAwait(true);
+                    if (thumbnail is not null)
+                        break;
+                }
+
+                if (generation != _catalogThumbGeneration)
+                    return;
+
+                item.Thumbnail = thumbnail;
+            }
+            catch
+            {
+                // Miniatura opcional.
+            }
+        }
     }
 
     private void RebuildActressFilterTags(IReadOnlyList<Actress> actresses)
@@ -184,10 +279,10 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         OnPropertyChanged(nameof(ResultsSummary));
     }
 
-    private async Task OnFilterChangedAsync()
+    private Task OnFilterChangedAsync()
     {
         NotifyFilterStateChanged();
-        await RefreshVideosAsync().ConfigureAwait(true);
+        return RefreshVideosAsync();
     }
 
     private async Task RefreshVideosAsync()
@@ -209,6 +304,7 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
 
         Videos.Clear();
         SelectedVideo = null;
+        _allFilteredVideos = [];
 
         if (actressIds.Count == 0 && categoryIds.Count == 0 && producerIds.Count == 0)
         {
@@ -225,9 +321,11 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         foreach (var file in files)
         {
             var item = new ActressVideoListItem { MediaFile = file };
-            Videos.Add(item);
             videoItems.Add(item);
         }
+
+        _allFilteredVideos = videoItems;
+        ApplySeenDateFilter();
 
         await VideoThumbnailSessionBootstrap
             .PrefetchWithDedicatedAsync(
@@ -241,6 +339,56 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
             _ = LoadThumbnailAsync(item, generation);
 
         OnPropertyChanged(nameof(ResultsSummary));
+    }
+
+    private void ApplySeenDateFilter()
+    {
+        Videos.Clear();
+        SelectedVideo = null;
+
+        IEnumerable<ActressVideoListItem> query = _allFilteredVideos;
+
+        if (OnlyNeverOpened)
+        {
+            query = query.Where(item =>
+                item.MediaFile.LastOpenedAt is null && item.MediaFile.VecesAbierto <= 0);
+        }
+        else
+        {
+            if (SeenFromDate is DateTime from)
+            {
+                var fromUtc = DateTime.SpecifyKind(from.Date, DateTimeKind.Local).ToUniversalTime();
+                query = query.Where(item =>
+                    item.MediaFile.LastOpenedAt is DateTime opened && opened >= fromUtc);
+            }
+
+            if (SeenToDate is DateTime to)
+            {
+                var toExclusive = DateTime.SpecifyKind(to.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+                query = query.Where(item =>
+                    item.MediaFile.LastOpenedAt is DateTime opened && opened < toExclusive);
+            }
+        }
+
+        foreach (var item in query)
+            Videos.Add(item);
+
+        OnPropertyChanged(nameof(ResultsSummary));
+    }
+
+    partial void OnSeenFromDateChanged(DateTime? value) => ApplySeenDateFilter();
+
+    partial void OnSeenToDateChanged(DateTime? value) => ApplySeenDateFilter();
+
+    partial void OnOnlyNeverOpenedChanged(bool value) => ApplySeenDateFilter();
+
+    [RelayCommand]
+    private void ClearSeenDateFilter()
+    {
+        SeenFromDate = null;
+        SeenToDate = null;
+        OnlyNeverOpened = false;
+        ApplySeenDateFilter();
     }
 
     private async Task LoadThumbnailAsync(ActressVideoListItem item, int generation)
@@ -257,16 +405,16 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
                     FolderSessionPicturePicker.TryLoadThumbnailForItem(
                         folderPath,
                         item.MediaFile.Path,
-                        120)).ConfigureAwait(true);
+                        140)).ConfigureAwait(true);
 
                 if (thumbnail is null)
                 {
                     var iconPath = await _appSettingsService.GetFolderIconPathAsync(folderPath).ConfigureAwait(true);
                     if (!string.IsNullOrWhiteSpace(iconPath) && File.Exists(iconPath))
-                        thumbnail = await Task.Run(() => LocalImageLoader.TryLoad(iconPath, 120)).ConfigureAwait(true);
+                        thumbnail = await Task.Run(() => LocalImageLoader.TryLoad(iconPath, 140)).ConfigureAwait(true);
                     else
                         thumbnail = await WindowsShellThumbnailProvider
-                            .GetThumbnailAsync(folderPath, isDirectory: true, 120)
+                            .GetThumbnailAsync(folderPath, isDirectory: true, 140)
                             .ConfigureAwait(true);
                 }
             }
@@ -282,10 +430,50 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         item.Thumbnail = thumbnail;
     }
 
-    partial void OnSelectedActressChanged(Actress? value)
+    partial void OnSelectedCatalogItemChanged(ActressCatalogItem? value)
     {
         ActressName = value?.Name ?? string.Empty;
         NotifyActressCommands();
+
+        if (!_suppressLinksOpen && value is not null)
+            OpenLinksWindow(value.Actress);
+    }
+
+    private void OpenLinksWindow(Actress actress)
+    {
+        if (_openLinksWindow is { IsLoaded: true } && _openLinksActressId == actress.Id)
+        {
+            _openLinksWindow.Activate();
+            return;
+        }
+
+        _openLinksWindow?.Close();
+
+        var vm = new ActressLinksViewModel(
+            actress,
+            _actressLinkService,
+            _videoScrapeService,
+            _webLinkService,
+            _httpClientFactory,
+            _appDialogService);
+
+        var window = new ActressLinksWindow(vm)
+        {
+            Owner = System.Windows.Application.Current.MainWindow
+        };
+
+        _openLinksWindow = window;
+        _openLinksActressId = actress.Id;
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_openLinksWindow, window))
+            {
+                _openLinksWindow = null;
+                _openLinksActressId = null;
+            }
+        };
+
+        window.Show();
     }
 
     private void NotifyActressCommands()
@@ -293,6 +481,7 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         OnPropertyChanged(nameof(CanEditActress));
         RenameActressCommand.NotifyCanExecuteChanged();
         DeleteActressCommand.NotifyCanExecuteChanged();
+        OpenSelectedActressLinksCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -309,7 +498,7 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
             ErrorMessage = null;
             await _actressService.CreateAsync(ActressName).ConfigureAwait(true);
             ActressName = string.Empty;
-            SelectedActress = null;
+            SelectedCatalogItem = null;
             await ReloadCatalogAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -321,13 +510,13 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
     [RelayCommand(CanExecute = nameof(CanEditActress))]
     private async Task RenameActressAsync()
     {
-        if (SelectedActress is null || string.IsNullOrWhiteSpace(ActressName))
+        if (SelectedCatalogItem is null || string.IsNullOrWhiteSpace(ActressName))
             return;
 
         try
         {
             ErrorMessage = null;
-            await _actressService.UpdateAsync(SelectedActress.Id, ActressName).ConfigureAwait(true);
+            await _actressService.UpdateAsync(SelectedCatalogItem.Id, ActressName).ConfigureAwait(true);
             await ReloadCatalogAsync().ConfigureAwait(true);
             await RefreshVideosAsync().ConfigureAwait(true);
         }
@@ -340,20 +529,20 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
     [RelayCommand(CanExecute = nameof(CanEditActress))]
     private async Task DeleteActressAsync()
     {
-        if (SelectedActress is null)
+        if (SelectedCatalogItem is null)
             return;
 
         if (!_appDialogService.ConfirmYesNo(
                 "Confirmar eliminación",
-                $"¿Eliminar la actriz «{SelectedActress.Name}»?\n\nSe quitará de todos los videos.",
+                $"¿Eliminar la actriz «{SelectedCatalogItem.Name}»?\n\nSe quitará de todos los videos y se borrarán sus enlaces/scrapeos.",
                 AppDialogKind.Question))
             return;
 
         try
         {
             ErrorMessage = null;
-            await _actressService.DeleteAsync(SelectedActress.Id).ConfigureAwait(true);
-            SelectedActress = null;
+            await _actressService.DeleteAsync(SelectedCatalogItem.Id).ConfigureAwait(true);
+            SelectedCatalogItem = null;
             ActressName = string.Empty;
             await ReloadCatalogAsync().ConfigureAwait(true);
             await RefreshVideosAsync().ConfigureAwait(true);
@@ -362,6 +551,15 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         {
             ErrorMessage = ex.Message;
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditActress))]
+    private void OpenSelectedActressLinks()
+    {
+        if (SelectedCatalogItem is null)
+            return;
+
+        OpenLinksWindow(SelectedCatalogItem.Actress);
     }
 
     partial void OnSelectedVideoChanged(ActressVideoListItem? value)
