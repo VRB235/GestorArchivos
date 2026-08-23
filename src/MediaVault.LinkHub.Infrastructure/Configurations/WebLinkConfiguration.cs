@@ -46,6 +46,11 @@ internal sealed class WebLinkConfiguration : IEntityTypeConfiguration<WebLink>
         builder.Property(link => link.FechaUltimaActualizacion)
             .IsRequired(false);
 
+        builder.Property(link => link.ScrapeHintsJson);
+
+        builder.Property(link => link.ScraperKey)
+            .HasMaxLength(64);
+
         builder.HasIndex(link => link.FechaUltimaActualizacion);
 
         builder.HasIndex(link => link.Url)

@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Net.Http;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -18,11 +17,6 @@ namespace MediaVault.LinkHub.App.ViewModels;
 
 public partial class ActressScrapeSessionViewModel : ViewModelBase
 {
-    private static readonly JsonSerializerOptions HintsJsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly IVideoScrapeService _videoScrapeService;
     private readonly IHoverPreviewCaptureService _hoverPreviewCaptureService;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -251,11 +245,11 @@ public partial class ActressScrapeSessionViewModel : ViewModelBase
 
     private VideoScrapeHints DeserializeHintsOrThrow()
     {
-        if (string.IsNullOrWhiteSpace(_link.ScrapeHintsJson))
-            throw new InvalidOperationException("El enlace no tiene ScrapeHintsJson.");
+        var hintsJson = !string.IsNullOrWhiteSpace(_link.WebLink?.ScrapeHintsJson)
+            ? _link.WebLink!.ScrapeHintsJson
+            : _link.ScrapeHintsJson;
 
-        return JsonSerializer.Deserialize<VideoScrapeHints>(_link.ScrapeHintsJson, HintsJsonOptions)
-            ?? throw new InvalidOperationException("ScrapeHintsJson inválido.");
+        return VideoScrapeHintsJson.DeserializeRequired(hintsJson);
     }
 
     private async Task ReplaceResultsAsync(IReadOnlyList<ScrapedVideo> videos)

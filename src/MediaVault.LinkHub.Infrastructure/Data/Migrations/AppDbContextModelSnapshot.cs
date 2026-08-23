@@ -473,6 +473,13 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ScrapeHintsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScraperKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Url")
                         .IsRequired()
                         .HasMaxLength(2048)

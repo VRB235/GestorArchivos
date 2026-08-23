@@ -45,8 +45,8 @@ public partial class ActressLinksViewModel : ViewModelBase
 
         LinkActions = new ObservableCollection<ActressLinkAction>(Enum.GetValues<ActressLinkAction>());
         LinkAction = ActressLinkAction.Scrape;
-        LinkHints.LoadTemplate();
         WindowTitle = $"Enlaces · {actress.Name}";
+        RefreshSiteScrapeSummary();
     }
 
     public string WindowTitle { get; }
@@ -60,8 +60,6 @@ public partial class ActressLinksViewModel : ViewModelBase
     public ObservableCollection<ScrapedVideoTileItem> ScrapedVideos { get; } = [];
 
     public ObservableCollection<ActressLinkAction> LinkActions { get; }
-
-    public ScrapeHintsFormViewModel LinkHints { get; } = new();
 
     [ObservableProperty]
     private ActressLinkTileItem? _selectedLinkTile;
@@ -84,7 +82,7 @@ public partial class ActressLinksViewModel : ViewModelBase
     private string _linkNotes = string.Empty;
 
     [ObservableProperty]
-    private string _linkScraperKey = "css-list";
+    private string _siteScrapeSummary = string.Empty;
 
     [ObservableProperty]
     private string _videosSummary = "Seleccione un enlace para ver sus videos.";
@@ -101,7 +99,7 @@ public partial class ActressLinksViewModel : ViewModelBase
 
     public bool CanEditLink => SelectedLink is not null;
 
-    public bool ShowScrapeHints => LinkAction == ActressLinkAction.Scrape;
+    public bool ShowSiteScrapeInfo => LinkAction == ActressLinkAction.Scrape;
 
     public bool HasSelectedScrapeLink =>
         SelectedLink is not null && SelectedLink.Action == ActressLinkAction.Scrape;
@@ -147,9 +145,8 @@ public partial class ActressLinksViewModel : ViewModelBase
         LinkUrl = value.Url;
         LinkAction = value.Action;
         LinkNotes = value.Notes ?? string.Empty;
-        LinkScraperKey = value.ScraperKey ?? "css-list";
-        LinkHints.LoadFromJson(value.ScrapeHintsJson);
         SelectedWebLink = ResolveWebLink(value) ?? AvailableWebLinks.FirstOrDefault(w => w.Id == value.WebLinkId);
+        RefreshSiteScrapeSummary();
 
         NotifyLinkState();
 
@@ -166,16 +163,16 @@ public partial class ActressLinksViewModel : ViewModelBase
 
     partial void OnLinkActionChanged(ActressLinkAction value)
     {
-        OnPropertyChanged(nameof(ShowScrapeHints));
+        OnPropertyChanged(nameof(ShowSiteScrapeInfo));
+        RefreshSiteScrapeSummary();
     }
 
     partial void OnSelectedWebLinkChanged(WebLink? value)
     {
-        if (value is null)
-            return;
-
-        if (string.IsNullOrWhiteSpace(LinkTitle))
+        if (value is not null && string.IsNullOrWhiteSpace(LinkTitle))
             LinkTitle = value.Nombre;
+
+        RefreshSiteScrapeSummary();
     }
 
     private void ClearEditor()
@@ -184,21 +181,47 @@ public partial class ActressLinksViewModel : ViewModelBase
         LinkUrl = string.Empty;
         LinkAction = ActressLinkAction.Scrape;
         LinkNotes = string.Empty;
-        LinkScraperKey = "css-list";
-        LinkHints.LoadTemplate();
         SelectedWebLink = null;
+        RefreshSiteScrapeSummary();
     }
 
     private void NotifyLinkState()
     {
         OnPropertyChanged(nameof(CanEditLink));
         OnPropertyChanged(nameof(SelectedLink));
-        OnPropertyChanged(nameof(ShowScrapeHints));
+        OnPropertyChanged(nameof(ShowSiteScrapeInfo));
         OnPropertyChanged(nameof(HasSelectedScrapeLink));
         SaveLinkCommand.NotifyCanExecuteChanged();
         DeleteLinkCommand.NotifyCanExecuteChanged();
         ScrapeSelectedLinkCommand.NotifyCanExecuteChanged();
         OpenSelectedInBrowserCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RefreshSiteScrapeSummary()
+    {
+        if (LinkAction != ActressLinkAction.Scrape)
+        {
+            SiteScrapeSummary = string.Empty;
+            return;
+        }
+
+        if (SelectedWebLink is null)
+        {
+            SiteScrapeSummary =
+                "Seleccione el sitio/productora del Link Manager. Los selectores CSS se configuran una sola vez ahí (misma estructura para todas las actrices).";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SelectedWebLink.ScrapeHintsJson))
+        {
+            SiteScrapeSummary =
+                $"«{SelectedWebLink.Nombre}» aún no tiene selectores de scraping. Ábralos en Link Manager y guarde el sitio antes de scrapear.";
+            return;
+        }
+
+        var key = string.IsNullOrWhiteSpace(SelectedWebLink.ScraperKey) ? "css-list" : SelectedWebLink.ScraperKey;
+        SiteScrapeSummary =
+            $"Usará los selectores del sitio «{SelectedWebLink.Nombre}» (ScraperKey={key}). Solo cambia la URL específica de esta actriz.";
     }
 
     private async Task ReloadLinksAsync()
@@ -221,8 +244,8 @@ public partial class ActressLinksViewModel : ViewModelBase
                         link.Url,
                         link.Action,
                         link.Notes,
-                        link.ScrapeHintsJson,
-                        link.ScraperKey).ConfigureAwait(true);
+                        null,
+                        null).ConfigureAwait(true);
                     link.WebLinkId = resolved.Id;
                     link.WebLink = resolved;
                 }
@@ -400,19 +423,17 @@ public partial class ActressLinksViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void ApplyHintsTemplate()
-    {
-        LinkHints.LoadTemplate();
-        LinkScraperKey = "css-list";
-        LinkAction = ActressLinkAction.Scrape;
-    }
-
-    [RelayCommand]
     private async Task AddLinkAsync()
     {
         if (string.IsNullOrWhiteSpace(LinkTitle) || string.IsNullOrWhiteSpace(LinkUrl))
         {
             ErrorMessage = "Indique título y URL del enlace (URL específica de la actriz).";
+            return;
+        }
+
+        if (LinkAction == ActressLinkAction.Scrape && SelectedWebLink is null)
+        {
+            ErrorMessage = "Seleccione el sitio/productora del Link Manager para scrapear.";
             return;
         }
 
@@ -429,8 +450,8 @@ public partial class ActressLinksViewModel : ViewModelBase
                 LinkUrl,
                 LinkAction,
                 LinkNotes,
-                LinkAction == ActressLinkAction.Scrape ? LinkHints.ToJson() : null,
-                LinkAction == ActressLinkAction.Scrape ? LinkScraperKey : null).ConfigureAwait(true);
+                null,
+                null).ConfigureAwait(true);
 
             await ReloadLinksAsync().ConfigureAwait(true);
             IsEditorExpanded = false;
@@ -453,6 +474,12 @@ public partial class ActressLinksViewModel : ViewModelBase
             return;
         }
 
+        if (LinkAction == ActressLinkAction.Scrape && SelectedWebLink is null)
+        {
+            ErrorMessage = "Seleccione el sitio/productora del Link Manager para scrapear.";
+            return;
+        }
+
         try
         {
             ErrorMessage = null;
@@ -464,8 +491,8 @@ public partial class ActressLinksViewModel : ViewModelBase
                 LinkUrl,
                 LinkAction,
                 LinkNotes,
-                LinkAction == ActressLinkAction.Scrape ? LinkHints.ToJson() : null,
-                LinkAction == ActressLinkAction.Scrape ? LinkScraperKey : null).ConfigureAwait(true);
+                null,
+                null).ConfigureAwait(true);
 
             await ReloadLinksAsync().ConfigureAwait(true);
         }
@@ -530,16 +557,23 @@ public partial class ActressLinksViewModel : ViewModelBase
 
         await ExecuteBusyAsync(async () =>
         {
+            var site = SelectedWebLink ?? SelectedLink.WebLink;
+            var hintsJson = site?.ScrapeHintsJson ?? SelectedLink.ScrapeHintsJson;
+            var scraperKey = site?.ScraperKey
+                ?? SelectedLink.ScraperKey
+                ?? "css-list";
+
             var header = new List<string>
             {
                 $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Scraping «{SelectedLink.Title}»",
                 $"ActressId={_actress.Id} · ActressLinkId={SelectedLink.Id} · Action={SelectedLink.Action}",
-                $"ScraperKey={SelectedLink.ScraperKey ?? "css-list"}",
-                $"URL: {SelectedLink.Url}",
-                "—— Hints (JSON) ——",
-                string.IsNullOrWhiteSpace(SelectedLink.ScrapeHintsJson)
-                    ? "(sin ScrapeHintsJson)"
-                    : SelectedLink.ScrapeHintsJson!.Trim(),
+                $"WebLinkId={site?.Id.ToString() ?? "(null)"} · Sitio={site?.Nombre ?? "(sin sitio)"}",
+                $"ScraperKey={scraperKey}",
+                $"URL actriz: {SelectedLink.Url}",
+                "—— Hints del sitio (JSON) ——",
+                string.IsNullOrWhiteSpace(hintsJson)
+                    ? "(sin ScrapeHintsJson en el WebLink — configurelos en Link Manager)"
+                    : hintsJson.Trim(),
                 "—— Ejecución ——"
             };
 

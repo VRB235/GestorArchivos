@@ -270,6 +270,33 @@
                                 Command="{Binding ClearVisitDateCommand}" />
                     </WrapPanel>
 
+                    <Expander Header="Scraping del sitio (productora)"
+                              IsExpanded="False"
+                              Margin="0,0,0,12">
+                        <StackPanel Margin="0,8,0,0">
+                            <TextBlock Text="Configure los selectores CSS una sola vez. Todas las actrices de este sitio reutilizan la misma estructura; solo cambia la URL específica."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8" />
+                            <DockPanel Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="ScraperKey" Style="{StaticResource LabelStyle}" />
+                                    <TextBlock Text="Motor a usar (css-list por defecto)."
+                                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                </StackPanel>
+                                <Button Content="Plantilla"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding ApplyScrapeHintsTemplateCommand}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Padding="10,4" />
+                            </DockPanel>
+                            <TextBox Text="{Binding ScraperKey, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+                            <controls:ScrapeHintsEditor DataContext="{Binding SiteHints}" />
+                        </StackPanel>
+                    </Expander>
+
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="Guardar" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding SaveCommand}" />
                         <Button Content="Nuevo" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding ClearFormCommand}" />

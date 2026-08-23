@@ -36,6 +36,7 @@ public sealed class VideoScrapeService : IVideoScrapeService
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
         var link = await context.ActressLinks
+            .Include(item => item.WebLink)
             .FirstOrDefaultAsync(item => item.Id == actressLinkId, cancellationToken)
             .ConfigureAwait(false)
             ?? throw new KeyNotFoundException($"No se encontró el enlace con Id {actressLinkId}.");
@@ -43,10 +44,22 @@ public sealed class VideoScrapeService : IVideoScrapeService
         if (link.Action != ActressLinkAction.Scrape)
             throw new InvalidOperationException("El enlace no está configurado para scraping.");
 
-        var hints = DeserializeHints(link.ScrapeHintsJson);
-        var scraperKey = string.IsNullOrWhiteSpace(link.ScraperKey)
-            ? CssListVideoPageScraper.ScraperKey
-            : link.ScraperKey.Trim();
+        if (link.WebLinkId is null || link.WebLink is null)
+        {
+            throw new InvalidOperationException(
+                "Asocie el enlace a un sitio del Link Manager (productora) antes de scrapear.");
+        }
+
+        var hintsJson = !string.IsNullOrWhiteSpace(link.WebLink.ScrapeHintsJson)
+            ? link.WebLink.ScrapeHintsJson
+            : link.ScrapeHintsJson;
+        var hints = VideoScrapeHintsJson.DeserializeRequired(hintsJson);
+
+        var scraperKey = !string.IsNullOrWhiteSpace(link.WebLink.ScraperKey)
+            ? link.WebLink.ScraperKey.Trim()
+            : string.IsNullOrWhiteSpace(link.ScraperKey)
+                ? CssListVideoPageScraper.ScraperKey
+                : link.ScraperKey.Trim();
 
         if (!_scrapers.TryGetValue(scraperKey, out var scraper))
         {
@@ -240,22 +253,6 @@ public sealed class VideoScrapeService : IVideoScrapeService
             return url.Trim().TrimEnd('/');
 
         return uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
-    }
-
-    private static VideoScrapeHints DeserializeHints(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-            throw new InvalidOperationException("El enlace no tiene ScrapeHintsJson.");
-
-        try
-        {
-            return JsonSerializer.Deserialize<VideoScrapeHints>(json, JsonOptions)
-                ?? throw new InvalidOperationException("ScrapeHintsJson inválido.");
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidOperationException("ScrapeHintsJson no es JSON válido.", ex);
-        }
     }
 
     private static string Truncate(string value, int maxLength)

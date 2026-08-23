@@ -13,8 +13,9 @@ public class ActressLink : EntityBase
     public Actress Actress { get; set; } = null!;
 
     /// <summary>
-    /// Sitio de Link Manager del que se reutiliza logo/categoría.
-    /// La <see cref="Url"/> de este enlace es la específica de la actriz.
+    /// Sitio de Link Manager (productora): logo, categoría y hints de scraping del sitio.
+    /// Obligatorio cuando <see cref="Action"/> es <see cref="ActressLinkAction.Scrape"/>.
+    /// La <see cref="Url"/> de este enlace es la página específica de la actriz.
     /// </summary>
     public int? WebLinkId { get; set; }
 
@@ -35,14 +36,13 @@ public class ActressLink : EntityBase
     public string? Notes { get; set; }
 
     /// <summary>
-    /// JSON de <c>VideoScrapeHints</c>: selectores y opciones para scrapear esta página.
-    /// Obligatorio en la práctica cuando <see cref="Action"/> es <see cref="ActressLinkAction.Scrape"/>.
+    /// Legacy: los hints viven en <see cref="WebLink.ScrapeHintsJson"/>.
+    /// Conservado solo por compatibilidad de esquema; no se escribe en nuevos guardados.
     /// </summary>
     public string? ScrapeHintsJson { get; set; }
 
     /// <summary>
-    /// Clave opcional de scraper especializado (p. ej. «css-list», «site-xyz»).
-    /// Si es null/vacío se usa el scraper CSS genérico guiado por hints.
+    /// Legacy: la clave del scraper vive en <see cref="WebLink.ScraperKey"/>.
     /// </summary>
     public string? ScraperKey { get; set; }
 

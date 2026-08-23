@@ -1,0 +1,189 @@
+<UserControl x:Class="MediaVault.LinkHub.App.Controls.ScrapeHintsEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+    <StackPanel>
+        <TextBlock Text="Listado" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+        <TextBlock Text="ListItemSelector — contenedor de cada video"
+                   Style="{StaticResource LabelStyle}" />
+        <TextBlock Text="CSS del bloque/tarjeta de cada resultado en el listado."
+                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+        <TextBox Text="{Binding ListItemSelector, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+
+        <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="TitleSelector" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Nodo del título dentro del ítem."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding TitleSelector, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="UrlSelector" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Enlace a la ficha (a[href])."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding UrlSelector, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" MinWidth="100" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="UrlAttribute" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Atributo de la URL (href por defecto)."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding UrlAttribute, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="Máx. páginas" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Tope de paginación."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding MaxPages, UpdateSourceTrigger=PropertyChanged}" Width="80" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Text="Miniatura" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="ThumbnailSelector" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="img / picture de portada."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding ThumbnailSelector, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="ThumbnailAttribute" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="src, data-src, data-srcset…"
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding ThumbnailAttribute, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Text="Metadatos opcionales" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+        <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="CodeSelector" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Código / ID de producto."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding CodeSelector, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="DurationSelector" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Duración visible (texto)."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding DurationSelector, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </Grid>
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="DateSelector" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Nodo de fecha de publicación."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding DateSelector, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="DateFormat" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Ej. yyyy-MM-dd (opcional)."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding DateFormat, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Text="Paginación" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+        <TextBlock Text="NextPageSelector — botón «siguiente» (opcional; si no existe, el scrape continúa OK)."
+                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
+        <TextBox Text="{Binding NextPageSelector, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+
+        <TextBlock Text="Preview al hover (opcional)" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+        <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="PreviewSelector" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Elemento con URL de trailer/preview."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding PreviewSelector, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="PreviewAttribute" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="data-preview, src, href…"
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding PreviewAttribute, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </Grid>
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" MinWidth="110" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="PreviewHoverSelector" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Target del hover en captura WebView2."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding PreviewHoverSelector, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="Espera hover (ms)" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Default 900."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding PreviewHoverWaitMs, UpdateSourceTrigger=PropertyChanged}" Width="90" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Text="Avanzado" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+        <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" MinWidth="100" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="BaseUrl" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Base para URLs relativas (opcional)."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding BaseUrl, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="WaitMs (GET)" Style="{StaticResource LabelStyle}" />
+                <TextBlock Text="Pausa antes de cada página."
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding WaitMs, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" Width="80" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Grid>
+        <TextBlock Text="User-Agent" Style="{StaticResource LabelStyle}" />
+        <TextBlock Text="Vacío = User-Agent por defecto del cliente HTTP."
+                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+        <TextBox Text="{Binding UserAgent, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+        <TextBlock Text="Cabeceras extra" Style="{StaticResource LabelStyle}" />
+        <TextBlock Text="Una por línea: Nombre: Valor (p. ej. Cookie: …)."
+                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+        <TextBox Text="{Binding ExtraHeadersText, UpdateSourceTrigger=PropertyChanged}"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 Height="56"
+                 VerticalScrollBarVisibility="Auto"
+                 FontFamily="Consolas"
+                 FontSize="11"
+                 Margin="0,0,0,10" />
+    </StackPanel>
+</UserControl>

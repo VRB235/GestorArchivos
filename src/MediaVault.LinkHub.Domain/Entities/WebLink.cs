@@ -45,4 +45,14 @@ public class WebLink : EntityBase
     /// Productoras/fuentes asociadas a este sitio.
     /// </summary>
     public ICollection<Producer> Producers { get; set; } = [];
+
+    /// <summary>
+    /// JSON de <c>VideoScrapeHints</c>: selectores CSS del sitio (compartidos por todas las actrices).
+    /// </summary>
+    public string? ScrapeHintsJson { get; set; }
+
+    /// <summary>
+    /// Clave del scraper (p. ej. «css-list»). Si es null/vacío se usa el genérico CSS.
+    /// </summary>
+    public string? ScraperKey { get; set; }
 }

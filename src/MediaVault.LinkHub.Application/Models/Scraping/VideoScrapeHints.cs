@@ -2,7 +2,7 @@ namespace MediaVault.LinkHub.Application.Models.Scraping;
 
 /// <summary>
 /// Hints genéricos para scrapear listados/fichas de video mediante selectores CSS.
-/// Se persisten como JSON en <c>ActressLink.ScrapeHintsJson</c>.
+/// Se persisten como JSON en <c>WebLink.ScrapeHintsJson</c> (una vez por sitio/productora).
 /// </summary>
 public sealed class VideoScrapeHints
 {

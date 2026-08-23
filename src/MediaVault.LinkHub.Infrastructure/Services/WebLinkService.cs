@@ -1,3 +1,4 @@
+using MediaVault.LinkHub.Application.Models.Scraping;
 using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Domain.Entities;
 using MediaVault.LinkHub.Domain.Enums;
@@ -73,9 +74,13 @@ public sealed class WebLinkService : IWebLinkService
         double logoZoom = 1.0,
         double logoOffsetX = 0.0,
         double logoOffsetY = 0.0,
+        string? scrapeHintsJson = null,
+        string? scraperKey = null,
         CancellationToken cancellationToken = default)
     {
         ValidateLinkInput(nombre, url);
+        var normalizedHints = VideoScrapeHintsJson.Normalize(scrapeHintsJson, requireSelectors: false);
+        var normalizedKey = NormalizeScraperKey(scraperKey);
 
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
@@ -89,7 +94,9 @@ public sealed class WebLinkService : IWebLinkService
             LogoOffsetX = WebLinkLogoFit.ClampOffset(logoOffsetX),
             LogoOffsetY = WebLinkLogoFit.ClampOffset(logoOffsetY),
             FechaCreacion = DateTime.UtcNow,
-            FechaUltimaActualizacion = NormalizeUserVisitDate(fechaUltimaActualizacionUsuario)
+            FechaUltimaActualizacion = NormalizeUserVisitDate(fechaUltimaActualizacionUsuario),
+            ScrapeHintsJson = normalizedHints,
+            ScraperKey = normalizedKey
         };
 
         context.WebLinks.Add(entity);
@@ -107,9 +114,13 @@ public sealed class WebLinkService : IWebLinkService
         double logoZoom = 1.0,
         double logoOffsetX = 0.0,
         double logoOffsetY = 0.0,
+        string? scrapeHintsJson = null,
+        string? scraperKey = null,
         CancellationToken cancellationToken = default)
     {
         ValidateLinkInput(nombre, url);
+        var normalizedHints = VideoScrapeHintsJson.Normalize(scrapeHintsJson, requireSelectors: false);
+        var normalizedKey = NormalizeScraperKey(scraperKey);
 
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
@@ -127,6 +138,8 @@ public sealed class WebLinkService : IWebLinkService
         entity.LogoOffsetX = WebLinkLogoFit.ClampOffset(logoOffsetX);
         entity.LogoOffsetY = WebLinkLogoFit.ClampOffset(logoOffsetY);
         entity.FechaUltimaActualizacion = NormalizeUserVisitDate(fechaUltimaActualizacionUsuario);
+        entity.ScrapeHintsJson = normalizedHints;
+        entity.ScraperKey = normalizedKey;
 
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -299,6 +312,9 @@ public sealed class WebLinkService : IWebLinkService
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("La URL del enlace es obligatoria.", nameof(url));
     }
+
+    private static string? NormalizeScraperKey(string? scraperKey) =>
+        string.IsNullOrWhiteSpace(scraperKey) ? null : scraperKey.Trim();
 
     private static string NormalizeUrl(string url)
     {

@@ -25,6 +25,8 @@ public interface IWebLinkService
         double logoZoom = 1.0,
         double logoOffsetX = 0.0,
         double logoOffsetY = 0.0,
+        string? scrapeHintsJson = null,
+        string? scraperKey = null,
         CancellationToken cancellationToken = default);
 
     Task<WebLink> UpdateAsync(
@@ -37,6 +39,8 @@ public interface IWebLinkService
         double logoZoom = 1.0,
         double logoOffsetX = 0.0,
         double logoOffsetY = 0.0,
+        string? scrapeHintsJson = null,
+        string? scraperKey = null,
         CancellationToken cancellationToken = default);
 
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);

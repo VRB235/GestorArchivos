@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 using MediaVault.LinkHub.Application.Models.Scraping;
 using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Domain.Entities;
@@ -12,12 +10,6 @@ namespace MediaVault.LinkHub.Infrastructure.Services;
 
 public sealed class ActressLinkService : IActressLinkService
 {
-    private static readonly JsonSerializerOptions HintsJsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = true
-    };
-
     private readonly IDbContextFactory<AppDbContext> _contextFactory;
 
     public ActressLinkService(IDbContextFactory<AppDbContext> contextFactory)
@@ -63,14 +55,23 @@ public sealed class ActressLinkService : IActressLinkService
         string? scraperKey,
         CancellationToken cancellationToken = default)
     {
-        var normalized = Normalize(title, url, action, notes, scrapeHintsJson, scraperKey);
+        // scrapeHintsJson / scraperKey se ignoran: viven en WebLink (sitio/productora).
+        _ = scrapeHintsJson;
+        _ = scraperKey;
+
+        var normalized = Normalize(title, url, action, notes);
 
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
         if (!await context.Actresses.AnyAsync(a => a.Id == actressId, cancellationToken).ConfigureAwait(false))
             throw new KeyNotFoundException($"No se encontró la actriz con Id {actressId}.");
 
-        var resolvedWebLinkId = await ResolveWebLinkIdAsync(context, webLinkId, cancellationToken).ConfigureAwait(false);
+        var resolvedWebLinkId = await ResolveWebLinkIdForActionAsync(
+                context,
+                webLinkId,
+                action,
+                cancellationToken)
+            .ConfigureAwait(false);
 
         var maxSortOrder = await context.ActressLinks
             .Where(link => link.ActressId == actressId)
@@ -85,8 +86,8 @@ public sealed class ActressLinkService : IActressLinkService
             Url = normalized.Url,
             Action = normalized.Action,
             Notes = normalized.Notes,
-            ScrapeHintsJson = normalized.ScrapeHintsJson,
-            ScraperKey = normalized.ScraperKey,
+            ScrapeHintsJson = null,
+            ScraperKey = null,
             SortOrder = maxSortOrder + 1,
             CreatedAt = DateTime.UtcNow
         };
@@ -108,7 +109,10 @@ public sealed class ActressLinkService : IActressLinkService
         string? scraperKey,
         CancellationToken cancellationToken = default)
     {
-        var normalized = Normalize(title, url, action, notes, scrapeHintsJson, scraperKey);
+        _ = scrapeHintsJson;
+        _ = scraperKey;
+
+        var normalized = Normalize(title, url, action, notes);
 
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
@@ -117,13 +121,18 @@ public sealed class ActressLinkService : IActressLinkService
             .ConfigureAwait(false)
             ?? throw new KeyNotFoundException($"No se encontró el enlace con Id {id}.");
 
-        entity.WebLinkId = await ResolveWebLinkIdAsync(context, webLinkId, cancellationToken).ConfigureAwait(false);
+        entity.WebLinkId = await ResolveWebLinkIdForActionAsync(
+                context,
+                webLinkId,
+                action,
+                cancellationToken)
+            .ConfigureAwait(false);
         entity.Title = normalized.Title;
         entity.Url = normalized.Url;
         entity.Action = normalized.Action;
         entity.Notes = normalized.Notes;
-        entity.ScrapeHintsJson = normalized.ScrapeHintsJson;
-        entity.ScraperKey = normalized.ScraperKey;
+        entity.ScrapeHintsJson = null;
+        entity.ScraperKey = null;
 
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return (await GetByIdAsync(entity.Id, cancellationToken).ConfigureAwait(false))!;
@@ -171,11 +180,37 @@ public sealed class ActressLinkService : IActressLinkService
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<int?> ResolveWebLinkIdAsync(
+    private static async Task<int?> ResolveWebLinkIdForActionAsync(
         AppDbContext context,
         int? webLinkId,
+        ActressLinkAction action,
         CancellationToken cancellationToken)
     {
+        if (action == ActressLinkAction.Scrape)
+        {
+            if (webLinkId is null)
+            {
+                throw new ArgumentException(
+                    "Los enlaces de scraping requieren un sitio del Link Manager (productora).",
+                    nameof(webLinkId));
+            }
+
+            var webLink = await context.WebLinks
+                .AsNoTracking()
+                .FirstOrDefaultAsync(link => link.Id == webLinkId.Value, cancellationToken)
+                .ConfigureAwait(false)
+                ?? throw new KeyNotFoundException($"No se encontró el WebLink con Id {webLinkId.Value}.");
+
+            if (string.IsNullOrWhiteSpace(webLink.ScrapeHintsJson))
+            {
+                throw new ArgumentException(
+                    $"El sitio «{webLink.Nombre}» no tiene selectores de scraping. Configurelos una vez en Link Manager.",
+                    nameof(webLinkId));
+            }
+
+            return webLinkId;
+        }
+
         if (webLinkId is null)
             return null;
 
@@ -189,61 +224,19 @@ public sealed class ActressLinkService : IActressLinkService
         string Title,
         string Url,
         ActressLinkAction Action,
-        string? Notes,
-        string? ScrapeHintsJson,
-        string? ScraperKey) Normalize(
+        string? Notes) Normalize(
         string title,
         string url,
         ActressLinkAction action,
-        string? notes,
-        string? scrapeHintsJson,
-        string? scraperKey)
+        string? notes)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("El título del enlace es obligatorio.", nameof(title));
 
         var normalizedUrl = NormalizeUrl(url);
         var trimmedNotes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
-        var trimmedKey = string.IsNullOrWhiteSpace(scraperKey) ? null : scraperKey.Trim();
-        var hintsJson = NormalizeHintsJson(scrapeHintsJson, action);
 
-        return (title.Trim(), normalizedUrl, action, trimmedNotes, hintsJson, trimmedKey);
-    }
-
-    private static string? NormalizeHintsJson(string? scrapeHintsJson, ActressLinkAction action)
-    {
-        if (string.IsNullOrWhiteSpace(scrapeHintsJson))
-        {
-            if (action == ActressLinkAction.Scrape)
-            {
-                throw new ArgumentException(
-                    "Los enlaces de scraping requieren configuración de selectores.",
-                    nameof(scrapeHintsJson));
-            }
-
-            return null;
-        }
-
-        try
-        {
-            var hints = JsonSerializer.Deserialize<VideoScrapeHints>(scrapeHintsJson, HintsJsonOptions)
-                ?? throw new ArgumentException("ScrapeHintsJson inválido.", nameof(scrapeHintsJson));
-
-            if (action == ActressLinkAction.Scrape
-                && string.IsNullOrWhiteSpace(hints.ListItemSelector)
-                && string.IsNullOrWhiteSpace(hints.TitleSelector))
-            {
-                throw new ArgumentException(
-                    "Indique al menos ListItemSelector o TitleSelector en los hints de scraping.",
-                    nameof(scrapeHintsJson));
-            }
-
-            return JsonSerializer.Serialize(hints, HintsJsonOptions);
-        }
-        catch (JsonException ex)
-        {
-            throw new ArgumentException("ScrapeHintsJson no es JSON válido.", nameof(scrapeHintsJson), ex);
-        }
+        return (title.Trim(), normalizedUrl, action, trimmedNotes);
     }
 
     private static string NormalizeUrl(string url)
