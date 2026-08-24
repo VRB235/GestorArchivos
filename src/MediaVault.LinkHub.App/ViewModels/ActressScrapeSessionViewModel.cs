@@ -20,6 +20,7 @@ public partial class ActressScrapeSessionViewModel : ViewModelBase
     private readonly IVideoScrapeService _videoScrapeService;
     private readonly IHoverPreviewCaptureService _hoverPreviewCaptureService;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IBrowserLauncher _browserLauncher;
     private readonly ActressLink _link;
     private readonly string _actressName;
     private int _thumbnailGeneration;
@@ -28,12 +29,14 @@ public partial class ActressScrapeSessionViewModel : ViewModelBase
         IVideoScrapeService videoScrapeService,
         IHoverPreviewCaptureService hoverPreviewCaptureService,
         IHttpClientFactory httpClientFactory,
+        IBrowserLauncher browserLauncher,
         ActressLink link,
         string actressName)
     {
         _videoScrapeService = videoScrapeService;
         _hoverPreviewCaptureService = hoverPreviewCaptureService;
         _httpClientFactory = httpClientFactory;
+        _browserLauncher = browserLauncher;
         _link = link;
         _actressName = actressName;
     }
@@ -229,18 +232,8 @@ public partial class ActressScrapeSessionViewModel : ViewModelBase
         if (SelectedResult is null || string.IsNullOrWhiteSpace(SelectedResult.SourceUrl))
             return;
 
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = SelectedResult.SourceUrl,
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-        }
+        if (!_browserLauncher.TryOpenInFirefox(SelectedResult.SourceUrl))
+            ErrorMessage = "No se pudo abrir el video en Firefox.";
     }
 
     private VideoScrapeHints DeserializeHintsOrThrow()

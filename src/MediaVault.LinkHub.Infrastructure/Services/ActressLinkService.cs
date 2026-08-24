@@ -3,7 +3,6 @@ using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Domain.Entities;
 using MediaVault.LinkHub.Domain.Enums;
 using MediaVault.LinkHub.Infrastructure.Data;
-using MediaVault.LinkHub.Infrastructure.Launchers;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaVault.LinkHub.Infrastructure.Services;
@@ -11,10 +10,14 @@ namespace MediaVault.LinkHub.Infrastructure.Services;
 public sealed class ActressLinkService : IActressLinkService
 {
     private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IBrowserLauncher _browserLauncher;
 
-    public ActressLinkService(IDbContextFactory<AppDbContext> contextFactory)
+    public ActressLinkService(
+        IDbContextFactory<AppDbContext> contextFactory,
+        IBrowserLauncher browserLauncher)
     {
         _contextFactory = contextFactory;
+        _browserLauncher = browserLauncher;
     }
 
     public async Task<IReadOnlyList<ActressLink>> GetByActressIdAsync(
@@ -162,7 +165,7 @@ public sealed class ActressLinkService : IActressLinkService
             .FirstOrDefaultAsync(link => link.Id == id, cancellationToken)
             .ConfigureAwait(false);
 
-        return entity is not null && BrowserLauncher.TryOpenInFirefox(entity.Url);
+        return entity is not null && _browserLauncher.TryOpenInFirefox(entity.Url);
     }
 
     public async Task MarkScrapedAsync(int id, CancellationToken cancellationToken = default)

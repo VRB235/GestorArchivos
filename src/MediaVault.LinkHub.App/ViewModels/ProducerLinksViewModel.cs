@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Net.Http;
 using System.Windows.Media.Imaging;
 
@@ -24,6 +23,7 @@ public partial class ProducerLinksViewModel : ViewModelBase
     private readonly IWebLinkService _webLinkService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IAppDialogService _appDialogService;
+    private readonly IBrowserLauncher _browserLauncher;
     private readonly Producer _producer;
     private int? _activeLinkIdForSeen;
     private int _thumbGeneration;
@@ -34,7 +34,8 @@ public partial class ProducerLinksViewModel : ViewModelBase
         IVideoScrapeService videoScrapeService,
         IWebLinkService webLinkService,
         IHttpClientFactory httpClientFactory,
-        IAppDialogService appDialogService)
+        IAppDialogService appDialogService,
+        IBrowserLauncher browserLauncher)
     {
         _producer = producer;
         _producerLinkService = producerLinkService;
@@ -42,6 +43,7 @@ public partial class ProducerLinksViewModel : ViewModelBase
         _webLinkService = webLinkService;
         _httpClientFactory = httpClientFactory;
         _appDialogService = appDialogService;
+        _browserLauncher = browserLauncher;
 
         LinkActions = new ObservableCollection<ActressLinkAction>(Enum.GetValues<ActressLinkAction>());
         LinkAction = ActressLinkAction.Scrape;
@@ -153,7 +155,7 @@ public partial class ProducerLinksViewModel : ViewModelBase
         if (value.Action == ActressLinkAction.Browse)
         {
             ScrapedVideos.Clear();
-            VideosSummary = "Enlace de navegación: use «Abrir en navegador».";
+            VideosSummary = "Enlace de navegación: use «Abrir en Firefox».";
             return;
         }
 
@@ -536,7 +538,7 @@ public partial class ProducerLinksViewModel : ViewModelBase
             ErrorMessage = null;
             var opened = await _producerLinkService.OpenInBrowserAsync(SelectedLink.Id).ConfigureAwait(true);
             if (!opened)
-                ErrorMessage = "No se pudo abrir el enlace en el navegador.";
+                ErrorMessage = "No se pudo abrir el enlace en Firefox.";
         }
         catch (Exception ex)
         {
@@ -686,13 +688,7 @@ public partial class ProducerLinksViewModel : ViewModelBase
         if (item is null || string.IsNullOrWhiteSpace(item.SourceUrl))
             return;
 
-        try
-        {
-            Process.Start(new ProcessStartInfo(item.SourceUrl) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-        }
+        if (!_browserLauncher.TryOpenInFirefox(item.SourceUrl))
+            ErrorMessage = "No se pudo abrir el video en Firefox.";
     }
 }

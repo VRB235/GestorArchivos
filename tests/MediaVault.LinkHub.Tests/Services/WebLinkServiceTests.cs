@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Domain.Enums;
 using MediaVault.LinkHub.Infrastructure.Media;
 using MediaVault.LinkHub.Infrastructure.Services;
@@ -18,7 +19,12 @@ public sealed class WebLinkServiceTests : IDisposable
         _logoRoot = Path.Combine(Path.GetTempPath(), "MediaVaultLinkHubTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_logoRoot);
         _logoStorage = new LinkLogoStorage(_logoRoot);
-        _sut = new WebLinkService(_contextFactory, _logoStorage);
+        _sut = new WebLinkService(_contextFactory, _logoStorage, new NoOpBrowserLauncher());
+    }
+
+    private sealed class NoOpBrowserLauncher : IBrowserLauncher
+    {
+        public bool TryOpenInFirefox(string url) => true;
     }
 
     [Fact]

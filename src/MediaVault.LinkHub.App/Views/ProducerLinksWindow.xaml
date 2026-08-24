@@ -39,7 +39,7 @@
                         Style="{StaticResource SecondaryButtonStyle}"
                         Command="{Binding ToggleEditorCommand}"
                         Margin="0,0,8,0" />
-                <Button Content="Abrir en navegador"
+                <Button Content="Abrir en Firefox"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Command="{Binding OpenSelectedInBrowserCommand}"
                         Margin="0,0,8,0" />

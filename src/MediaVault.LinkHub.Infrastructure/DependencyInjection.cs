@@ -1,5 +1,6 @@
 using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Infrastructure.Data;
+using MediaVault.LinkHub.Infrastructure.Launchers;
 using MediaVault.LinkHub.Infrastructure.Media;
 using MediaVault.LinkHub.Infrastructure.Scraping;
 using MediaVault.LinkHub.Infrastructure.Services;
@@ -21,6 +22,7 @@ public static class DependencyInjection
     services.AddDbContextFactory<AppDbContext>(options =>
       options.UseSqlite(SqliteDatabasePathProvider.BuildConnectionString(databasePath)));
 
+    services.AddSingleton<IBrowserLauncher, BrowserLauncher>();
     services.AddSingleton<ISqliteDatabaseBackupService>(_ =>
       new SqliteDatabaseBackupService(
         databasePath: databasePath ?? SqliteDatabasePathProvider.GetDefaultDatabasePath()));

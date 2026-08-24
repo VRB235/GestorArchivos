@@ -4,7 +4,6 @@ using MediaVault.LinkHub.Domain.Entities;
 using MediaVault.LinkHub.Domain.Enums;
 using MediaVault.LinkHub.Domain.Media;
 using MediaVault.LinkHub.Infrastructure.Data;
-using MediaVault.LinkHub.Infrastructure.Launchers;
 using MediaVault.LinkHub.Infrastructure.Media;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,16 +13,23 @@ public sealed class WebLinkService : IWebLinkService
 {
     private readonly IDbContextFactory<AppDbContext> _contextFactory;
     private readonly LinkLogoStorage _logoStorage;
+    private readonly IBrowserLauncher _browserLauncher;
 
-    public WebLinkService(IDbContextFactory<AppDbContext> contextFactory)
-        : this(contextFactory, new LinkLogoStorage())
+    public WebLinkService(
+        IDbContextFactory<AppDbContext> contextFactory,
+        IBrowserLauncher browserLauncher)
+        : this(contextFactory, new LinkLogoStorage(), browserLauncher)
     {
     }
 
-    public WebLinkService(IDbContextFactory<AppDbContext> contextFactory, LinkLogoStorage logoStorage)
+    public WebLinkService(
+        IDbContextFactory<AppDbContext> contextFactory,
+        LinkLogoStorage logoStorage,
+        IBrowserLauncher browserLauncher)
     {
         _contextFactory = contextFactory;
         _logoStorage = logoStorage;
+        _browserLauncher = browserLauncher;
     }
 
     public async Task<IReadOnlyList<WebLink>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -236,7 +242,7 @@ public sealed class WebLinkService : IWebLinkService
         if (entity is null)
             return false;
 
-        return BrowserLauncher.TryOpenInFirefox(entity.Url);
+        return _browserLauncher.TryOpenInFirefox(entity.Url);
     }
 
     /// <summary>

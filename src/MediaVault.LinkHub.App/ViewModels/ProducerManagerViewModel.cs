@@ -20,6 +20,7 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
     private readonly IWebLinkService _webLinkService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IAppDialogService _appDialogService;
+    private readonly IBrowserLauncher _browserLauncher;
     private ProducerLinksWindow? _openLinksWindow;
     private int? _openLinksProducerId;
 
@@ -29,7 +30,8 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
         IVideoScrapeService videoScrapeService,
         IWebLinkService webLinkService,
         IHttpClientFactory httpClientFactory,
-        IAppDialogService appDialogService)
+        IAppDialogService appDialogService,
+        IBrowserLauncher browserLauncher)
     {
         _producerService = producerService;
         _producerLinkService = producerLinkService;
@@ -37,6 +39,7 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
         _webLinkService = webLinkService;
         _httpClientFactory = httpClientFactory;
         _appDialogService = appDialogService;
+        _browserLauncher = browserLauncher;
     }
 
     public string Title => "Productoras";
@@ -120,7 +123,8 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
             _videoScrapeService,
             _webLinkService,
             _httpClientFactory,
-            _appDialogService);
+            _appDialogService,
+            _browserLauncher);
 
         var window = new ProducerLinksWindow(vm)
         {

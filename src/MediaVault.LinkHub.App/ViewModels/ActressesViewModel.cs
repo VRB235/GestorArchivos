@@ -26,6 +26,7 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
     private readonly IMediaVaultService _mediaVaultService;
     private readonly IAppSettingsService _appSettingsService;
     private readonly IAppDialogService _appDialogService;
+    private readonly IBrowserLauncher _browserLauncher;
     private int _thumbnailGeneration;
     private int _catalogThumbGeneration;
     private ActressLinksWindow? _openLinksWindow;
@@ -42,7 +43,8 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         IProducerService producerService,
         IMediaVaultService mediaVaultService,
         IAppSettingsService appSettingsService,
-        IAppDialogService appDialogService)
+        IAppDialogService appDialogService,
+        IBrowserLauncher browserLauncher)
     {
         _actressService = actressService;
         _actressLinkService = actressLinkService;
@@ -54,6 +56,7 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
         _mediaVaultService = mediaVaultService;
         _appSettingsService = appSettingsService;
         _appDialogService = appDialogService;
+        _browserLauncher = browserLauncher;
     }
 
     public string Title => "Actrices";
@@ -455,7 +458,8 @@ public partial class ActressesViewModel : ViewModelBase, INavigableViewModel
             _videoScrapeService,
             _webLinkService,
             _httpClientFactory,
-            _appDialogService);
+            _appDialogService,
+            _browserLauncher);
 
         var window = new ActressLinksWindow(vm)
         {
