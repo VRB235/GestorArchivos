@@ -129,7 +129,7 @@
                 <StackPanel>
                     <TextBlock Text="Sitio Link Manager (productora)"
                                Style="{StaticResource LabelStyle}" />
-                    <TextBlock Text="Obligatorio para scrapear: aporta logo y los selectores CSS del sitio (configurados una vez en Link Manager). La URL de abajo es la de esta actriz."
+                    <TextBlock Text="Obligatorio para scrapear: elija el sitio (logo + CSS del Link Manager, una vez por productora). Aquí solo pega la URL del perfil de esta actriz."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="11"
                                TextWrapping="Wrap"
@@ -209,6 +209,12 @@
                                 Style="{StaticResource DangerButtonStyle}"
                                 Command="{Binding DeleteLinkCommand}" />
                     </WrapPanel>
+
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="{StaticResource DangerBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,12,0,0"
+                               FontWeight="SemiBold" />
                 </StackPanel>
             </ScrollViewer>
         </Border>

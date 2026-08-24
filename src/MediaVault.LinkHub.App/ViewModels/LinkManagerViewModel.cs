@@ -86,10 +86,15 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
     [ObservableProperty]
     private DateTime? _fechaVisitaSeleccionada;
 
-    public ScrapeHintsFormViewModel SiteHints { get; } = new();
+    public ScrapeHintsFormViewModel ActressHints { get; } = new();
+
+    public ScrapeHintsFormViewModel ProducerHints { get; } = new();
 
     [ObservableProperty]
     private string _scraperKey = "css-list";
+
+    [ObservableProperty]
+    private string _producerScraperKey = "css-list";
 
     public string FechaUltimaActualizacionTexto =>
         FechaUltimaActualizacion.HasValue
@@ -99,7 +104,7 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
     public string LinkProducerHint =>
         LinkProducerSelections.Count == 0
             ? "Cree productoras en el módulo Productoras para asociarlas al enlace."
-            : "Seleccione las productoras/fuentes de este sitio. Se guardan con el enlace.";
+            : "Desplegable con búsqueda · selección múltiple · se guarda con el enlace.";
 
     public Task InitializeAsync() =>
         RunBusyCoreAsync(async () =>
@@ -206,8 +211,10 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
         if (value is null)
         {
             SyncLinkProducerSelections(null);
-            SiteHints.LoadTemplate();
+            ActressHints.LoadTemplate();
+            ProducerHints.LoadTemplate();
             ScraperKey = "css-list";
+            ProducerScraperKey = "css-list";
             return;
         }
 
@@ -221,10 +228,15 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
         FechaUltimaActualizacion = value.FechaUltimaActualizacion;
         FechaVisitaSeleccionada = value.FechaUltimaActualizacion?.ToLocalTime().Date;
         ScraperKey = string.IsNullOrWhiteSpace(value.ScraperKey) ? "css-list" : value.ScraperKey;
+        ProducerScraperKey = string.IsNullOrWhiteSpace(value.ProducerScraperKey) ? "css-list" : value.ProducerScraperKey;
         if (string.IsNullOrWhiteSpace(value.ScrapeHintsJson))
-            SiteHints.LoadTemplate();
+            ActressHints.LoadTemplate();
         else
-            SiteHints.LoadFromJson(value.ScrapeHintsJson);
+            ActressHints.LoadFromJson(value.ScrapeHintsJson);
+        if (string.IsNullOrWhiteSpace(value.ProducerScrapeHintsJson))
+            ProducerHints.LoadTemplate();
+        else
+            ProducerHints.LoadFromJson(value.ProducerScrapeHintsJson);
         SyncLinkProducerSelections(value);
         NotifyFechaVisitaChanged();
     }
@@ -255,16 +267,25 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
         FechaUltimaActualizacion = null;
         FechaVisitaSeleccionada = null;
         ScraperKey = "css-list";
-        SiteHints.LoadTemplate();
+        ProducerScraperKey = "css-list";
+        ActressHints.LoadTemplate();
+        ProducerHints.LoadTemplate();
         SyncLinkProducerSelections(null);
         NotifyFechaVisitaChanged();
     }
 
     [RelayCommand]
-    private void ApplyScrapeHintsTemplate()
+    private void ApplyActressScrapeHintsTemplate()
     {
-        SiteHints.LoadTemplate();
+        ActressHints.LoadTemplate();
         ScraperKey = "css-list";
+    }
+
+    [RelayCommand]
+    private void ApplyProducerScrapeHintsTemplate()
+    {
+        ProducerHints.LoadTemplate();
+        ProducerScraperKey = "css-list";
     }
 
     [RelayCommand]
@@ -337,8 +358,10 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
                     LogoZoom,
                     LogoOffsetX,
                     LogoOffsetY,
-                    HasConfiguredSiteHints() ? SiteHints.ToJson() : null,
-                    ScraperKey).ConfigureAwait(true);
+                    HasConfiguredHints(ActressHints) ? ActressHints.ToJson() : null,
+                    ScraperKey,
+                    HasConfiguredHints(ProducerHints) ? ProducerHints.ToJson() : null,
+                    ProducerScraperKey).ConfigureAwait(true);
                 savedId = created.Id;
             }
             else
@@ -354,8 +377,10 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
                     LogoZoom,
                     LogoOffsetX,
                     LogoOffsetY,
-                    HasConfiguredSiteHints() ? SiteHints.ToJson() : null,
-                    ScraperKey).ConfigureAwait(true);
+                    HasConfiguredHints(ActressHints) ? ActressHints.ToJson() : null,
+                    ScraperKey,
+                    HasConfiguredHints(ProducerHints) ? ProducerHints.ToJson() : null,
+                    ProducerScraperKey).ConfigureAwait(true);
             }
 
             var producerIds = LinkProducerSelections
@@ -410,9 +435,9 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
         }, "Abriendo enlace...").ConfigureAwait(true);
     }
 
-    private bool HasConfiguredSiteHints() =>
-        !string.IsNullOrWhiteSpace(SiteHints.ListItemSelector)
-        || !string.IsNullOrWhiteSpace(SiteHints.TitleSelector);
+    private static bool HasConfiguredHints(ScrapeHintsFormViewModel hints) =>
+        !string.IsNullOrWhiteSpace(hints.ListItemSelector)
+        || !string.IsNullOrWhiteSpace(hints.TitleSelector);
 }
 
 public sealed record CategoryFilterOption(string Label, LinkCategory? Category);

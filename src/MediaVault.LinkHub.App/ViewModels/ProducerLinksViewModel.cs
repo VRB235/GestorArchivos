@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Net.Http;
-using System.Windows.Media.Imaging;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -172,12 +171,25 @@ public partial class ProducerLinksViewModel : ViewModelBase
     partial void OnSelectedWebLinkChanged(WebLink? value)
     {
         if (value is not null && string.IsNullOrWhiteSpace(LinkTitle))
-            LinkTitle = value.Nombre;
+        {
+            var nombre = value.Nombre.Trim();
+            LinkTitle = nombre.Length <= 80 ? nombre : TruncateTitle(nombre, 80);
+        }
 
         if (value is not null && string.IsNullOrWhiteSpace(LinkUrl))
             LinkUrl = value.Url;
 
         RefreshSiteScrapeSummary();
+    }
+
+    partial void OnLinkUrlChanged(string value)
+    {
+        if (SelectedWebLink is not null || string.IsNullOrWhiteSpace(value))
+            return;
+
+        var resolved = ResolveWebLink(new ProducerLink { Title = LinkTitle, Url = value });
+        if (resolved is not null)
+            SelectedWebLink = resolved;
     }
 
     private void ClearEditor()
@@ -213,21 +225,23 @@ public partial class ProducerLinksViewModel : ViewModelBase
         if (SelectedWebLink is null)
         {
             SiteScrapeSummary =
-                "Seleccione el sitio del Link Manager. Los selectores CSS se configuran una sola vez ahí.";
+                "Seleccione el sitio del Link Manager. Los selectores de catálogo de productora se configuran ahí (Scraping productora).";
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(SelectedWebLink.ScrapeHintsJson))
+        if (string.IsNullOrWhiteSpace(SelectedWebLink.ProducerScrapeHintsJson))
         {
             SiteScrapeSummary =
-                $"«{SelectedWebLink.Nombre}» aún no tiene selectores de scraping. Ábralos en Link Manager y guarde el sitio antes de scrapear.";
+                $"«{SelectedWebLink.Nombre}» aún no tiene selectores de scraping de productora. Ábralos en Link Manager → Scraping productora y guarde antes de scrapear.";
             return;
         }
 
-        var key = string.IsNullOrWhiteSpace(SelectedWebLink.ScraperKey) ? "css-list" : SelectedWebLink.ScraperKey;
+        var key = string.IsNullOrWhiteSpace(SelectedWebLink.ProducerScraperKey)
+            ? "css-list"
+            : SelectedWebLink.ProducerScraperKey;
         var paginationHint = "Primera corrida: solo página 1. Luego pagina mientras haya videos nuevos.";
         SiteScrapeSummary =
-            $"Usará los selectores del sitio «{SelectedWebLink.Nombre}» (ScraperKey={key}). {paginationHint}";
+            $"Usará los selectores de productora de «{SelectedWebLink.Nombre}» (ScraperKey={key}). {paginationHint}";
     }
 
     private async Task ReloadLinksAsync()
@@ -345,10 +359,6 @@ public partial class ProducerLinksViewModel : ViewModelBase
 
         try
         {
-            var client = _httpClientFactory.CreateClient("VideoScraper");
-            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
-
             var referer = SelectedLink?.Url;
             if (string.IsNullOrWhiteSpace(referer)
                 || !Uri.TryCreate(referer, UriKind.Absolute, out var refererUri))
@@ -358,30 +368,12 @@ public partial class ProducerLinksViewModel : ViewModelBase
                     : new Uri($"{uri.Scheme}://{uri.Host}/");
             }
 
-            request.Headers.Referrer = refererUri;
+            var client = _httpClientFactory.CreateClient("VideoScraper");
+            var image = await RemoteHttpImageLoader
+                .TryLoadAsync(client, uri, refererUri, decodePixelWidth: 220)
+                .ConfigureAwait(true);
 
-            using var response = await client.SendAsync(request).ConfigureAwait(true);
-            if (!response.IsSuccessStatusCode)
-                return;
-
-            var bytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(true);
-            if (bytes.Length == 0 || generation != _thumbGeneration)
-                return;
-
-            var image = await Task.Run(() =>
-            {
-                using var stream = new System.IO.MemoryStream(bytes);
-                var bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.StreamSource = stream;
-                bitmap.DecodePixelWidth = 220;
-                bitmap.EndInit();
-                bitmap.Freeze();
-                return bitmap;
-            }).ConfigureAwait(true);
-
-            if (generation != _thumbGeneration)
+            if (image is null || generation != _thumbGeneration)
                 return;
 
             tile.Thumbnail = image;
@@ -426,40 +418,71 @@ public partial class ProducerLinksViewModel : ViewModelBase
     [RelayCommand]
     private async Task AddLinkAsync()
     {
-        if (string.IsNullOrWhiteSpace(LinkTitle) || string.IsNullOrWhiteSpace(LinkUrl))
+        IsEditorExpanded = true;
+
+        if (string.IsNullOrWhiteSpace(LinkUrl))
         {
-            ErrorMessage = "Indique título y URL del listado de videos.";
+            ErrorMessage = "Indique la URL del listado de videos de la productora.";
             return;
+        }
+
+        if (SelectedWebLink is null)
+        {
+            SelectedWebLink = ResolveWebLink(new ProducerLink
+            {
+                Title = LinkTitle,
+                Url = LinkUrl
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(LinkTitle))
+        {
+            LinkTitle = SelectedWebLink?.Nombre is { Length: > 0 } nombre
+                ? TruncateTitle(nombre.Trim(), 80)
+                : "Catálogo";
         }
 
         if (LinkAction == ActressLinkAction.Scrape && SelectedWebLink is null)
         {
-            ErrorMessage = "Seleccione el sitio del Link Manager para scrapear.";
+            ErrorMessage =
+                "Seleccione el sitio del Link Manager. Sin ese sitio no se pueden usar los selectores de scraping.";
+            return;
+        }
+
+        if (LinkAction == ActressLinkAction.Scrape
+            && SelectedWebLink is not null
+            && string.IsNullOrWhiteSpace(SelectedWebLink.ProducerScrapeHintsJson))
+        {
+            ErrorMessage =
+                $"El sitio «{SelectedWebLink.Nombre}» no tiene selectores de scraping de productora. " +
+                "Configurelos en Link Manager → Scraping productora y guarde el sitio.";
             return;
         }
 
         try
         {
             ErrorMessage = null;
-            var webLinkId = SelectedWebLink?.Id
-                ?? ResolveWebLink(new ProducerLink { Title = LinkTitle, Url = LinkUrl })?.Id;
-
-            await _producerLinkService.CreateAsync(
+            var created = await _producerLinkService.CreateAsync(
                 _producer.Id,
-                webLinkId,
+                SelectedWebLink?.Id,
                 LinkTitle,
                 LinkUrl,
                 LinkAction,
                 LinkNotes).ConfigureAwait(true);
 
             await ReloadLinksAsync().ConfigureAwait(true);
+            SelectedLinkTile = LinkTiles.FirstOrDefault(tile => tile.Link.Id == created.Id);
             IsEditorExpanded = false;
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
+            IsEditorExpanded = true;
         }
     }
+
+    private static string TruncateTitle(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..(maxLength - 1)].TrimEnd() + "…";
 
     [RelayCommand(CanExecute = nameof(CanEditLink))]
     private async Task SaveLinkAsync()
@@ -555,20 +578,20 @@ public partial class ProducerLinksViewModel : ViewModelBase
         await ExecuteBusyAsync(async () =>
         {
             var site = SelectedWebLink ?? SelectedLink.WebLink;
-            var hintsJson = site?.ScrapeHintsJson;
-            var scraperKey = site?.ScraperKey ?? "css-list";
+            var hintsJson = site?.ProducerScrapeHintsJson;
+            var scraperKey = site?.ProducerScraperKey ?? "css-list";
 
             var header = new List<string>
             {
                 $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Scraping «{SelectedLink.Title}»",
                 $"ProducerId={_producer.Id} · ProducerLinkId={SelectedLink.Id} · Action={SelectedLink.Action}",
                 $"WebLinkId={site?.Id.ToString() ?? "(null)"} · Sitio={site?.Nombre ?? "(sin sitio)"}",
-                $"ScraperKey={scraperKey}",
+                $"ProducerScraperKey={scraperKey}",
                 $"URL catálogo: {SelectedLink.Url}",
                 $"LastScrapedAt={(SelectedLink.LastScrapedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "(primera corrida → MaxPages=1)")}",
-                "—— Hints del sitio (JSON) ——",
+                "—— Hints de productora (JSON) ——",
                 string.IsNullOrWhiteSpace(hintsJson)
-                    ? "(sin ScrapeHintsJson en el WebLink — configurelos en Link Manager)"
+                    ? "(sin ProducerScrapeHintsJson — configurelos en Link Manager → Scraping productora)"
                     : hintsJson.Trim(),
                 "—— Ejecución ——"
             };

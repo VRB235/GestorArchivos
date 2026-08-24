@@ -147,7 +147,7 @@ public sealed class VideoScrapeService : IVideoScrapeService
 
         ValidateScrapeLink(link.Action, link.WebLinkId, link.WebLink);
 
-        var (hints, scraper) = ResolveHintsAndScraper(link.WebLink!, link.ScrapeHintsJson, link.ScraperKey);
+        var (hints, scraper) = ResolveActressHintsAndScraper(link.WebLink!);
         var previous = await context.ScrapedVideos
             .Where(video => video.ActressLinkId == actressLinkId)
             .ToListAsync(cancellationToken)
@@ -232,7 +232,7 @@ public sealed class VideoScrapeService : IVideoScrapeService
 
         ValidateScrapeLink(link.Action, link.WebLinkId, link.WebLink);
 
-        var (hints, scraper) = ResolveHintsAndScraper(link.WebLink!, null, null);
+        var (hints, scraper) = ResolveProducerHintsAndScraper(link.WebLink!);
         var previous = await context.ScrapedVideos
             .Where(video => video.ProducerLinkId == producerLinkId)
             .ToListAsync(cancellationToken)
@@ -318,29 +318,42 @@ public sealed class VideoScrapeService : IVideoScrapeService
         }
     }
 
-    private (VideoScrapeHints Hints, IVideoPageScraper Scraper) ResolveHintsAndScraper(
-        WebLink webLink,
-        string? legacyHintsJson,
-        string? legacyScraperKey)
+    private (VideoScrapeHints Hints, IVideoPageScraper Scraper) ResolveActressHintsAndScraper(WebLink webLink)
     {
-        var hintsJson = !string.IsNullOrWhiteSpace(webLink.ScrapeHintsJson)
-            ? webLink.ScrapeHintsJson
-            : legacyHintsJson;
-        var hints = VideoScrapeHintsJson.DeserializeRequired(hintsJson);
+        // Una sola configuración por sitio: todas las páginas de actriz comparten el mismo DOM.
+        var hints = VideoScrapeHintsJson.DeserializeRequired(
+            webLink.ScrapeHintsJson,
+            "No hay selectores de scraping de actriz en el sitio (Link Manager → Scraping actriz).");
 
-        var scraperKey = !string.IsNullOrWhiteSpace(webLink.ScraperKey)
-            ? webLink.ScraperKey.Trim()
-            : string.IsNullOrWhiteSpace(legacyScraperKey)
-                ? CssListVideoPageScraper.ScraperKey
-                : legacyScraperKey.Trim();
+        var scraperKey = string.IsNullOrWhiteSpace(webLink.ScraperKey)
+            ? CssListVideoPageScraper.ScraperKey
+            : webLink.ScraperKey.Trim();
 
+        return (hints, ResolveScraper(scraperKey));
+    }
+
+    private (VideoScrapeHints Hints, IVideoPageScraper Scraper) ResolveProducerHintsAndScraper(WebLink webLink)
+    {
+        var hints = VideoScrapeHintsJson.DeserializeRequired(
+            webLink.ProducerScrapeHintsJson,
+            "No hay selectores de scraping de catálogo de productora en el sitio (Link Manager → Scraping productora).");
+
+        var scraperKey = string.IsNullOrWhiteSpace(webLink.ProducerScraperKey)
+            ? CssListVideoPageScraper.ScraperKey
+            : webLink.ProducerScraperKey.Trim();
+
+        return (hints, ResolveScraper(scraperKey));
+    }
+
+    private IVideoPageScraper ResolveScraper(string scraperKey)
+    {
         if (!_scrapers.TryGetValue(scraperKey, out var scraper))
         {
             throw new InvalidOperationException(
                 $"No hay scraper registrado para la clave «{scraperKey}». Use «{CssListVideoPageScraper.ScraperKey}» o registre uno especializado.");
         }
 
-        return (hints, scraper);
+        return scraper;
     }
 
     private async Task<VideoPageScrapeOutcome> ExecuteScrapeAsync(

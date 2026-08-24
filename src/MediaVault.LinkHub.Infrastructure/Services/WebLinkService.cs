@@ -82,11 +82,15 @@ public sealed class WebLinkService : IWebLinkService
         double logoOffsetY = 0.0,
         string? scrapeHintsJson = null,
         string? scraperKey = null,
+        string? producerScrapeHintsJson = null,
+        string? producerScraperKey = null,
         CancellationToken cancellationToken = default)
     {
         ValidateLinkInput(nombre, url);
         var normalizedHints = VideoScrapeHintsJson.Normalize(scrapeHintsJson, requireSelectors: false);
         var normalizedKey = NormalizeScraperKey(scraperKey);
+        var normalizedProducerHints = VideoScrapeHintsJson.Normalize(producerScrapeHintsJson, requireSelectors: false);
+        var normalizedProducerKey = NormalizeScraperKey(producerScraperKey);
 
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
@@ -102,7 +106,9 @@ public sealed class WebLinkService : IWebLinkService
             FechaCreacion = DateTime.UtcNow,
             FechaUltimaActualizacion = NormalizeUserVisitDate(fechaUltimaActualizacionUsuario),
             ScrapeHintsJson = normalizedHints,
-            ScraperKey = normalizedKey
+            ScraperKey = normalizedKey,
+            ProducerScrapeHintsJson = normalizedProducerHints,
+            ProducerScraperKey = normalizedProducerKey
         };
 
         context.WebLinks.Add(entity);
@@ -122,11 +128,15 @@ public sealed class WebLinkService : IWebLinkService
         double logoOffsetY = 0.0,
         string? scrapeHintsJson = null,
         string? scraperKey = null,
+        string? producerScrapeHintsJson = null,
+        string? producerScraperKey = null,
         CancellationToken cancellationToken = default)
     {
         ValidateLinkInput(nombre, url);
         var normalizedHints = VideoScrapeHintsJson.Normalize(scrapeHintsJson, requireSelectors: false);
         var normalizedKey = NormalizeScraperKey(scraperKey);
+        var normalizedProducerHints = VideoScrapeHintsJson.Normalize(producerScrapeHintsJson, requireSelectors: false);
+        var normalizedProducerKey = NormalizeScraperKey(producerScraperKey);
 
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
@@ -146,6 +156,8 @@ public sealed class WebLinkService : IWebLinkService
         entity.FechaUltimaActualizacion = NormalizeUserVisitDate(fechaUltimaActualizacionUsuario);
         entity.ScrapeHintsJson = normalizedHints;
         entity.ScraperKey = normalizedKey;
+        entity.ProducerScrapeHintsJson = normalizedProducerHints;
+        entity.ProducerScraperKey = normalizedProducerKey;
 
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

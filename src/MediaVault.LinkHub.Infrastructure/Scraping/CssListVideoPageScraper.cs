@@ -233,33 +233,41 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         var contentType = response.Content.Headers.ContentType?.ToString();
 
-        if (response.IsSuccessStatusCode)
-            return new FetchResult(response.StatusCode, contentType, html);
-
-        log.Add(
-            $"HTTP {(int)response.StatusCode} {response.StatusCode} (HttpClient). " +
-            $"HTML={html.Length:N0} chars.");
-
         var blockedStatus = response.StatusCode is HttpStatusCode.Forbidden
             or HttpStatusCode.Unauthorized
             or HttpStatusCode.TooManyRequests
             or HttpStatusCode.ServiceUnavailable;
 
+        var looksBlocked = LooksLikeBotBlock(html);
+        var looksAgeGate = LooksLikeAgeGate(html);
+
+        // Importante: Cloudflare/age-gate a menudo responden HTTP 200 con HTML de muro.
+        // Sin este chequeo el scraper parseaba la página de challenge y devolvía 0 videos.
         var shouldUseBrowser =
             _browserHtmlFetcher is not null
-            && (blockedStatus || LooksLikeBotBlock(html));
+            && (blockedStatus || looksBlocked || looksAgeGate);
 
         if (!shouldUseBrowser)
         {
-            throw new VideoScrapeException(
-                $"La petición devolvió {(int)response.StatusCode} {response.StatusCode}. HTML={html.Length} chars. " +
-                "El sitio bloquea clientes HTTP; configure Cookie en cabeceras extra o use un sitio compatible.",
-                log.ToList());
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new VideoScrapeException(
+                    $"La petición devolvió {(int)response.StatusCode} {response.StatusCode}. HTML={html.Length} chars. " +
+                    "El sitio bloquea clientes HTTP; configure Cookie en cabeceras extra o use un sitio compatible.",
+                    log.ToList());
+            }
+
+            return new FetchResult(response.StatusCode, contentType, html);
         }
 
         log.Add(
-            "El sitio bloquea HttpClient (403/anti-bot). Reintentando con WebView2 " +
-            "(puede pedir age-gate en la ventana emergente)…");
+            $"HTTP {(int)response.StatusCode} {response.StatusCode} (HttpClient) · HTML={html.Length:N0} chars. " +
+            (looksBlocked
+                ? "Detectado anti-bot/Cloudflare. "
+                : looksAgeGate
+                    ? "Detectado age-gate. "
+                    : "Estado HTTP bloqueado. ") +
+            "Reintentando con WebView2 (complete age-gate/login si aparece)…");
 
         string browserHtml;
         try
@@ -331,14 +339,39 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
 
     private static bool LooksLikeBotBlock(string html)
     {
-        if (string.IsNullOrEmpty(html) || html.Length > 50_000)
+        if (string.IsNullOrEmpty(html))
             return false;
 
+        // No limitar por tamaño: los challenges de Cloudflare suelen incluir mucho JS (>50 KB).
         return html.Contains("cf-browser-verification", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("challenge-platform", StringComparison.OrdinalIgnoreCase)
             || html.Contains("Just a moment", StringComparison.OrdinalIgnoreCase)
             || html.Contains("Access denied", StringComparison.OrdinalIgnoreCase)
             || html.Contains("Attention Required", StringComparison.OrdinalIgnoreCase)
-            || html.Contains("Enable JavaScript and cookies", StringComparison.OrdinalIgnoreCase);
+            || html.Contains("Enable JavaScript and cookies", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("cf-turnstile", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("Checking your browser", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool LooksLikeAgeGate(string html)
+    {
+        if (string.IsNullOrEmpty(html))
+            return false;
+
+        var hasAge = html.Contains("age", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("18+", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("18 years", StringComparison.OrdinalIgnoreCase);
+
+        if (!hasAge)
+            return false;
+
+        return html.Contains("I Agree", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("I AGREE", StringComparison.Ordinal)
+            || html.Contains("Enter Site", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("age-gate", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("agegate", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("verify your age", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("CONTENT FOR OVER 18", StringComparison.OrdinalIgnoreCase);
     }
 
     private static ParseResult ParseItemsWithDiagnostics(
@@ -349,6 +382,7 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         int pageNumber)
     {
         List<IElement> nodes;
+        var usedListItemFallback = false;
         if (string.IsNullOrWhiteSpace(hints.ListItemSelector))
         {
             nodes = document.QuerySelectorAll(hints.TitleSelector!).Cast<IElement>().ToList();
@@ -360,6 +394,34 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         {
             nodes = document.QuerySelectorAll(hints.ListItemSelector).ToList();
             log.Add($"ListItemSelector «{hints.ListItemSelector}» → {nodes.Count} nodo(s)");
+
+            // Fallbacks: en sitios como TeamSkeet el ítem es <a.vcard>, no <div.vcard>.
+            if (nodes.Count == 0 && !string.IsNullOrWhiteSpace(hints.UrlSelector))
+            {
+                var urlNodes = document.QuerySelectorAll(hints.UrlSelector).ToList();
+                if (urlNodes.Count > 0)
+                {
+                    nodes = urlNodes;
+                    usedListItemFallback = true;
+                    log.Add(
+                        $"FALLBACK: ListItemSelector vacío → usando UrlSelector «{hints.UrlSelector}» " +
+                        $"como contenedor ({nodes.Count} nodo(s)). " +
+                        "Recomendación: ponga ese mismo selector en ListItemSelector y deje UrlSelector vacío o relativo.");
+                }
+            }
+
+            if (nodes.Count == 0 && !string.IsNullOrWhiteSpace(hints.TitleSelector))
+            {
+                var titleNodes = document.QuerySelectorAll(hints.TitleSelector).Cast<IElement>().ToList();
+                if (titleNodes.Count > 0)
+                {
+                    nodes = titleNodes;
+                    usedListItemFallback = true;
+                    log.Add(
+                        $"FALLBACK: ListItemSelector vacío → usando TitleSelector «{hints.TitleSelector}» " +
+                        $"como contenedor ({nodes.Count} nodo(s)).");
+                }
+            }
         }
 
         if (nodes.Count == 0)
@@ -371,13 +433,15 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         var fieldHits = new FieldHitCounters();
         var items = new List<ScrapedVideoCandidate>(nodes.Count);
         var sampleLimit = Math.Min(3, nodes.Count);
+        // Con fallback a Url/Title, el nodo ya es el ítem: buscar campos relativos a él.
+        var treatNodeAsItem = !string.IsNullOrWhiteSpace(hints.ListItemSelector) || usedListItemFallback;
 
         for (var i = 0; i < nodes.Count; i++)
         {
             var node = nodes[i];
-            IParentNode scope = string.IsNullOrWhiteSpace(hints.ListItemSelector)
-                ? (IParentNode?)node.ParentElement ?? document
-                : node;
+            IParentNode scope = treatNodeAsItem
+                ? node
+                : (IParentNode?)node.ParentElement ?? document;
 
             var titleEl = ResolveRelative(scope, node, hints.TitleSelector);
             var urlEl = ResolveRelative(scope, node, hints.UrlSelector) ?? titleEl ?? node;
@@ -415,7 +479,7 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
                 ?? ExtractBackgroundImageUrl(node);
             var thumbnailUrl = string.IsNullOrWhiteSpace(thumbAttr)
                 ? null
-                : ResolveUrl(pageBase, thumbAttr);
+                : PreferRasterImageUrl(ResolveUrl(pageBase, thumbAttr));
 
             var previewRaw = ResolvePreviewAttribute(previewEl, node, hints.PreviewAttribute);
             var previewUrl = string.IsNullOrWhiteSpace(previewRaw)
@@ -492,6 +556,11 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
     {
         log.Add("AVISO: 0 nodos con el selector principal. El HTML no contiene esos elementos.");
 
+        WarnIfSelectorLooksLikeChainedTags(log, "ListItemSelector", hints.ListItemSelector);
+        WarnIfSelectorLooksLikeChainedTags(log, "TitleSelector", hints.TitleSelector);
+        WarnIfSelectorLooksLikeChainedTags(log, "UrlSelector", hints.UrlSelector);
+        WarnIfSelectorLooksLikeChainedTags(log, "ThumbnailSelector", hints.ThumbnailSelector);
+
         if (!string.IsNullOrWhiteSpace(hints.TitleSelector)
             && !string.IsNullOrWhiteSpace(hints.ListItemSelector))
         {
@@ -503,12 +572,46 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         {
             var urlHits = document.QuerySelectorAll(hints.UrlSelector).Length;
             log.Add($"  Prueba UrlSelector «{hints.UrlSelector}» a nivel documento → {urlHits} nodo(s)");
+            if (urlHits > 0 && !string.IsNullOrWhiteSpace(hints.ListItemSelector))
+            {
+                log.Add(
+                    $"  PISTA: UrlSelector sí encuentra nodos. Pruebe ListItemSelector=«{hints.UrlSelector}» " +
+                    "(en TeamSkeet el ítem suele ser <a.vcard>, no <div.vcard>).");
+            }
         }
 
         var anchors = document.QuerySelectorAll("a[href]").Length;
         var images = document.QuerySelectorAll("img").Length;
         var scripts = document.QuerySelectorAll("script").Length;
         log.Add($"  Conteo bruto del documento: a[href]={anchors}, img={images}, script={scripts}");
+    }
+
+    /// <summary>
+    /// Detecta selectores tipo <c>div.foo.a.bar</c> donde el usuario quiso <c>div.foo a.bar</c>
+    /// (espacio = descendiente; punto = clase en el mismo elemento).
+    /// </summary>
+    private static void WarnIfSelectorLooksLikeChainedTags(List<string> log, string fieldName, string? selector)
+    {
+        if (string.IsNullOrWhiteSpace(selector))
+            return;
+
+        // Patrón: ...tagName.otroTag... (p. ej. .video-grid.a.vcard o div.info.div.title)
+        if (!System.Text.RegularExpressions.Regex.IsMatch(
+                selector,
+                @"\.(a|div|span|img|ul|li|h[1-6]|p|section|article)\.",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            return;
+
+        var suggested = System.Text.RegularExpressions.Regex.Replace(
+            selector,
+            @"\.(a|div|span|img|ul|li|h[1-6]|p|section|article)\.",
+            " $1.",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        log.Add(
+            $"  PISTA {fieldName}: «{selector}» parece usar puntos donde debería haber espacios. " +
+            $"En CSS, «div.foo.a.bar» = un div con clases foo+a+bar; " +
+            $"para un <a> dentro de div.foo use «div.foo a.bar». ¿Quiso decir «{suggested}»?");
     }
 
     private static void LogSpaHints(List<string> log, string html, IDocument document)
@@ -520,7 +623,17 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
             || html.Contains("challenge-platform", StringComparison.OrdinalIgnoreCase)
             || html.Contains("Attention Required", StringComparison.OrdinalIgnoreCase))
         {
-            log.Add("AVISO: el HTML parece un challenge/Cloudflare. El scraper HTTP no puede pasar ese muro.");
+            // Tras WebView2 el HTML útil puede conservar scripts CF; solo alertar si el cuerpo parece vacío.
+            if (bodyTextLen < 200)
+            {
+                log.Add("AVISO: el HTML parece un challenge/Cloudflare. El scraper HTTP no puede pasar ese muro.");
+            }
+            else
+            {
+                log.Add(
+                    "INFO: rastros de Cloudflare en el HTML, pero hay contenido visible; " +
+                    "si ListItemSelector falla, revise el selector (no el muro).");
+            }
         }
 
         if (html.Contains("age", StringComparison.OrdinalIgnoreCase)
@@ -679,8 +792,9 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
     }
 
     /// <summary>
-    /// Acepta URL directa o el primer/mejor candidato de un srcset (`url 1x, url2 2x`).
-    /// Ignora placeholders data: y vacíos.
+    /// Acepta URL directa o el mejor candidato de un srcset.
+    /// No parte por comas sueltas: CDNs tipo Cloudflare Image usan
+    /// <c>.../cdn-cgi/image/width=360,quality=89,format=auto,fit=scale-down/...</c>.
     /// </summary>
     private static string? ExtractImageUrlCandidate(string? raw)
     {
@@ -691,13 +805,18 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         if (trimmed.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
             return null;
 
-        // srcset: "https://…/a.jpg 1x, https://…/a@2x.jpg 2x" — preferir el último (suele ser mayor res)
-        if (trimmed.Contains(',', StringComparison.Ordinal) || trimmed.Contains(' ', StringComparison.Ordinal))
+        // srcset real: entradas separadas por ", " y/o descriptor "360w"/"2x".
+        if (IsLikelySrcset(trimmed))
         {
-            var parts = trimmed.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length > 0)
+            var entries = System.Text.RegularExpressions.Regex.Split(trimmed, @",\s+")
+                .Select(static part => part.Trim())
+                .Where(static part => part.Length > 0)
+                .ToArray();
+
+            if (entries.Length > 0)
             {
-                var last = parts[^1].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                // Preferir la última entrada (suele ser mayor resolución).
+                var last = entries[^1].Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (last.Length > 0)
                     trimmed = last[0];
             }
@@ -705,6 +824,13 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
 
         return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
+
+    private static bool IsLikelySrcset(string value) =>
+        value.Contains(", ", StringComparison.Ordinal)
+        || System.Text.RegularExpressions.Regex.IsMatch(
+            value,
+            @"\s+\d+(\.\d+)?[wx]\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     private static bool LooksLikePlaceholderImageUrl(string url)
     {
@@ -746,8 +872,31 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         if (string.IsNullOrWhiteSpace(selector))
             return null;
 
+        // El propio ítem puede ser el enlace (p. ej. ListItem = a.vcard).
+        try
+        {
+            if (item.Matches(selector))
+                return item;
+        }
+        catch (DomException)
+        {
+            // Selector inválido para Matches; se intenta QuerySelector abajo.
+        }
+
         if (scope is IElement scopeElement)
+        {
+            try
+            {
+                if (scopeElement.Matches(selector))
+                    return scopeElement;
+            }
+            catch (DomException)
+            {
+                // ignore
+            }
+
             return scopeElement.QuerySelector(selector) ?? item.QuerySelector(selector);
+        }
 
         return item.QuerySelector(selector);
     }
@@ -766,10 +915,28 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
 
     private static string ResolveUrl(Uri pageBase, string href)
     {
+        if (href.StartsWith("//", StringComparison.Ordinal))
+            href = $"{pageBase.Scheme}:{href}";
+
         if (Uri.TryCreate(href, UriKind.Absolute, out var absolute))
             return absolute.AbsoluteUri;
 
         return new Uri(pageBase, href).AbsoluteUri;
+    }
+
+    /// <summary>
+    /// Cloudflare Image Resizing con format=auto entrega AVIF/WebP; WPF no los decodifica.
+    /// </summary>
+    private static string PreferRasterImageUrl(string url)
+    {
+        if (!url.Contains("format=auto", StringComparison.OrdinalIgnoreCase))
+            return url;
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            url,
+            "format=auto",
+            "format=jpeg",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
     private static string? CleanText(string? value)

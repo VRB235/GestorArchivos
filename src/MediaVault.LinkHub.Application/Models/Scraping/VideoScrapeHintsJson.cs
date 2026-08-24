@@ -52,10 +52,12 @@ public static class VideoScrapeHintsJson
         }
     }
 
-    public static VideoScrapeHints DeserializeRequired(string? json)
+    public static VideoScrapeHints DeserializeRequired(
+        string? json,
+        string missingMessage = "No hay ScrapeHintsJson configurado en el sitio (Link Manager).")
     {
         if (string.IsNullOrWhiteSpace(json))
-            throw new InvalidOperationException("No hay ScrapeHintsJson configurado en el sitio (Link Manager).");
+            throw new InvalidOperationException(missingMessage);
 
         try
         {

@@ -188,10 +188,10 @@ public sealed class ProducerLinkService : IProducerLinkService
                 .ConfigureAwait(false)
                 ?? throw new KeyNotFoundException($"No se encontró el WebLink con Id {webLinkId.Value}.");
 
-            if (string.IsNullOrWhiteSpace(webLink.ScrapeHintsJson))
+            if (string.IsNullOrWhiteSpace(webLink.ProducerScrapeHintsJson))
             {
                 throw new ArgumentException(
-                    $"El sitio «{webLink.Nombre}» no tiene selectores de scraping. Configurelos una vez en Link Manager.",
+                    $"El sitio «{webLink.Nombre}» no tiene selectores de scraping de catálogo de productora. Configurelos en Link Manager → Scraping productora.",
                     nameof(webLinkId));
             }
 

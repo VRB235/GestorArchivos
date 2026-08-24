@@ -163,22 +163,9 @@
                               SelectedItem="{Binding Categoria}" />
 
                     <TextBlock Text="Productoras / fuentes" Style="{StaticResource LabelStyle}" Margin="0,8,0,0" />
-                    <ItemsControl ItemsSource="{Binding LinkProducerSelections}"
-                                  Margin="0,0,0,4">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <ToggleButton Style="{StaticResource CategoryTagToggleStyle}"
-                                              Content="{Binding Name}"
-                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                              Margin="0,0,6,6" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <controls:MultiSelectDropDown ItemsSource="{Binding LinkProducerSelections}"
+                                                  Placeholder="Ninguna productora"
+                                                  Margin="0,0,0,4" />
                     <TextBlock Text="{Binding LinkProducerHint}"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="11"
@@ -270,30 +257,57 @@
                                 Command="{Binding ClearVisitDateCommand}" />
                     </WrapPanel>
 
-                    <Expander Header="Scraping del sitio (productora)"
+                    <Expander Header="Scraping actriz (perfil / model)"
                               IsExpanded="False"
-                              Margin="0,0,0,12">
+                              Margin="0,0,0,8">
                         <StackPanel Margin="0,8,0,0">
-                            <TextBlock Text="Configure los selectores CSS una sola vez. Todas las actrices de este sitio reutilizan la misma estructura; solo cambia la URL específica."
+                            <TextBlock Text="Configure una sola vez por sitio. Todas las páginas de actriz reutilizan estos selectores; en cada ActressLink solo cambia la URL del perfil."
                                        Foreground="{StaticResource TextSecondaryBrush}"
                                        FontSize="11"
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,8" />
                             <DockPanel Margin="0,0,0,8">
                                 <StackPanel>
-                                    <TextBlock Text="ScraperKey" Style="{StaticResource LabelStyle}" />
+                                    <TextBlock Text="ScraperKey (actriz)" Style="{StaticResource LabelStyle}" />
                                     <TextBlock Text="Motor a usar (css-list por defecto)."
                                                Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
                                 </StackPanel>
                                 <Button Content="Plantilla"
                                         Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding ApplyScrapeHintsTemplateCommand}"
+                                        Command="{Binding ApplyActressScrapeHintsTemplateCommand}"
                                         HorizontalAlignment="Right"
                                         VerticalAlignment="Top"
                                         Padding="10,4" />
                             </DockPanel>
                             <TextBox Text="{Binding ScraperKey, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
-                            <controls:ScrapeHintsEditor DataContext="{Binding SiteHints}" />
+                            <controls:ScrapeHintsEditor DataContext="{Binding ActressHints}" />
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Scraping productora (catálogo de videos)"
+                              IsExpanded="False"
+                              Margin="0,0,0,12">
+                        <StackPanel Margin="0,8,0,0">
+                            <TextBlock Text="Selectores CSS del listado general de la productora. Independientes de los de actriz: el DOM suele ser distinto."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8" />
+                            <DockPanel Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="ScraperKey (productora)" Style="{StaticResource LabelStyle}" />
+                                    <TextBlock Text="Motor a usar (css-list por defecto)."
+                                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
+                                </StackPanel>
+                                <Button Content="Plantilla"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding ApplyProducerScrapeHintsTemplateCommand}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Padding="10,4" />
+                            </DockPanel>
+                            <TextBox Text="{Binding ProducerScraperKey, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+                            <controls:ScrapeHintsEditor DataContext="{Binding ProducerHints}" />
                         </StackPanel>
                     </Expander>
 

@@ -207,7 +207,7 @@ public sealed class ActressLinkService : IActressLinkService
             if (string.IsNullOrWhiteSpace(webLink.ScrapeHintsJson))
             {
                 throw new ArgumentException(
-                    $"El sitio «{webLink.Nombre}» no tiene selectores de scraping. Configurelos una vez en Link Manager.",
+                    $"El sitio «{webLink.Nombre}» no tiene selectores de scraping de actriz. Configurelos en Link Manager → Scraping actriz.",
                     nameof(webLinkId));
             }
 

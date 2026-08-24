@@ -228,12 +228,12 @@ public partial class MediaVaultViewModel : ViewModelBase, INavigableViewModel
     public string FileActressHint =>
         FileActressSelections.Count == 0
             ? "Cree actrices en el módulo Actrices para asignarlas aquí."
-            : "Pulse para asignar o quitar. Filtro global OR en la vista Actrices.";
+            : "Desplegable con búsqueda · selección múltiple · se guarda al marcar/desmarcar.";
 
     public string FileProducerHint =>
         FileProducerSelections.Count == 0
             ? "Cree productoras en el módulo Productoras para asignarlas aquí."
-            : "Pulse para asignar o quitar. Filtro global OR en la vista Actrices.";
+            : "Desplegable con búsqueda · selección múltiple · se guarda al marcar/desmarcar.";
 
     public string FileCategoryHint =>
         "Pulse un tag para asignar o quitar. Gestione la lista en el módulo «Categorías».";

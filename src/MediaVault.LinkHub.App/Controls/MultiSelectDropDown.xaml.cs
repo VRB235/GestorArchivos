@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -33,10 +35,14 @@ public partial class MultiSelectDropDown : UserControl
             typeof(MultiSelectDropDown),
             new PropertyMetadata("Ninguno"));
 
+    private INotifyCollectionChanged? _collectionChangedSource;
+    private readonly List<(INotifyPropertyChanged Item, PropertyChangedEventHandler Handler)> _itemHandlers = [];
+
     public MultiSelectDropDown()
     {
         InitializeComponent();
         Loaded += (_, _) => RefreshSummary();
+        Unloaded += (_, _) => DetachItemsSourceListeners();
     }
 
     public IEnumerable? ItemsSource
@@ -59,8 +65,86 @@ public partial class MultiSelectDropDown : UserControl
 
     private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is MultiSelectDropDown control)
-            control.RefreshSummary();
+        if (d is not MultiSelectDropDown control)
+            return;
+
+        control.DetachItemsSourceListeners();
+        control.AttachItemsSourceListeners();
+        control.RefreshSummary();
+    }
+
+    private void AttachItemsSourceListeners()
+    {
+        if (ItemsSource is INotifyCollectionChanged collectionChanged)
+        {
+            _collectionChangedSource = collectionChanged;
+            collectionChanged.CollectionChanged += ItemsSource_CollectionChanged;
+        }
+
+        if (ItemsSource is null)
+            return;
+
+        foreach (var item in ItemsSource)
+            AttachItemListener(item);
+    }
+
+    private void DetachItemsSourceListeners()
+    {
+        if (_collectionChangedSource is not null)
+        {
+            _collectionChangedSource.CollectionChanged -= ItemsSource_CollectionChanged;
+            _collectionChangedSource = null;
+        }
+
+        foreach (var (item, handler) in _itemHandlers)
+            item.PropertyChanged -= handler;
+
+        _itemHandlers.Clear();
+    }
+
+    private void ItemsSource_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
+        {
+            foreach (var item in e.OldItems)
+                DetachItemListener(item);
+        }
+
+        if (e.NewItems is not null)
+        {
+            foreach (var item in e.NewItems)
+                AttachItemListener(item);
+        }
+
+        RefreshSummary();
+    }
+
+    private void AttachItemListener(object? item)
+    {
+        if (item is not INotifyPropertyChanged observable)
+            return;
+
+        PropertyChangedEventHandler handler = (_, args) =>
+        {
+            if (args.PropertyName is null or "IsSelected")
+                RefreshSummary();
+        };
+
+        observable.PropertyChanged += handler;
+        _itemHandlers.Add((observable, handler));
+    }
+
+    private void DetachItemListener(object? item)
+    {
+        if (item is not INotifyPropertyChanged observable)
+            return;
+
+        var index = _itemHandlers.FindIndex(pair => ReferenceEquals(pair.Item, observable));
+        if (index < 0)
+            return;
+
+        observable.PropertyChanged -= _itemHandlers[index].Handler;
+        _itemHandlers.RemoveAt(index);
     }
 
     private void DropToggle_OnChecked(object sender, RoutedEventArgs e)
@@ -112,7 +196,7 @@ public partial class MultiSelectDropDown : UserControl
         }
     }
 
-    private void RefreshSummary()
+    public void RefreshSummary()
     {
         if (ItemsSource is null)
         {
@@ -136,11 +220,6 @@ public partial class MultiSelectDropDown : UserControl
             _ when selectedNames.Count == total => $"Todas ({total})",
             _ => $"{selectedNames.Count} seleccionadas"
         };
-    }
-
-    private void Root_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        // Mantener popup abierto al interactuar dentro.
     }
 
     private static string GetItemName(object? item)

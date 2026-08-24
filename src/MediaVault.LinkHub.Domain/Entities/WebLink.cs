@@ -47,12 +47,24 @@ public class WebLink : EntityBase
     public ICollection<Producer> Producers { get; set; } = [];
 
     /// <summary>
-    /// JSON de <c>VideoScrapeHints</c>: selectores CSS del sitio (compartidos por todas las actrices).
+    /// JSON de <c>VideoScrapeHints</c> para páginas de <b>actriz</b> (perfil/model).
+    /// Compartido por todas las ActressLink de este sitio.
     /// </summary>
     public string? ScrapeHintsJson { get; set; }
 
     /// <summary>
-    /// Clave del scraper (p. ej. «css-list»). Si es null/vacío se usa el genérico CSS.
+    /// Clave del scraper para páginas de actriz (p. ej. «css-list»).
     /// </summary>
     public string? ScraperKey { get; set; }
+
+    /// <summary>
+    /// JSON de <c>VideoScrapeHints</c> para el <b>catálogo de productora</b> (listado general de videos).
+    /// Independiente de los hints de actriz: el DOM suele ser distinto.
+    /// </summary>
+    public string? ProducerScrapeHintsJson { get; set; }
+
+    /// <summary>
+    /// Clave del scraper para catálogo de productora (p. ej. «css-list»).
+    /// </summary>
+    public string? ProducerScraperKey { get; set; }
 }

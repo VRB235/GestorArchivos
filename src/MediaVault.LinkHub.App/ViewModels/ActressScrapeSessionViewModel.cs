@@ -3,11 +3,11 @@ using System.IO;
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using MediaVault.LinkHub.App.Shell;
 using MediaVault.LinkHub.App.ViewModels.Base;
 using MediaVault.LinkHub.Application.Models.Scraping;
 using MediaVault.LinkHub.Application.Services;
@@ -238,11 +238,9 @@ public partial class ActressScrapeSessionViewModel : ViewModelBase
 
     private VideoScrapeHints DeserializeHintsOrThrow()
     {
-        var hintsJson = !string.IsNullOrWhiteSpace(_link.WebLink?.ScrapeHintsJson)
-            ? _link.WebLink!.ScrapeHintsJson
-            : _link.ScrapeHintsJson;
-
-        return VideoScrapeHintsJson.DeserializeRequired(hintsJson);
+        return VideoScrapeHintsJson.DeserializeRequired(
+            _link.WebLink?.ScrapeHintsJson,
+            "No hay selectores de scraping de actriz en el sitio (Link Manager → Scraping actriz).");
     }
 
     private async Task ReplaceResultsAsync(IReadOnlyList<ScrapedVideo> videos)
@@ -275,32 +273,11 @@ public partial class ActressScrapeSessionViewModel : ViewModelBase
         try
         {
             var client = _httpClientFactory.CreateClient("VideoScraper");
-            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.Referrer = new Uri(_link.Url);
-            request.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/*,*/*;q=0.8");
+            var image = await RemoteHttpImageLoader
+                .TryLoadAsync(client, uri, new Uri(_link.Url), decodePixelWidth: 160)
+                .ConfigureAwait(true);
 
-            using var response = await client.SendAsync(request).ConfigureAwait(true);
-            if (!response.IsSuccessStatusCode)
-                return;
-
-            var bytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(true);
-            if (bytes.Length == 0 || generation != _thumbnailGeneration)
-                return;
-
-            var image = await Task.Run(() =>
-            {
-                using var stream = new MemoryStream(bytes);
-                var bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.StreamSource = stream;
-                bitmap.DecodePixelWidth = 160;
-                bitmap.EndInit();
-                bitmap.Freeze();
-                return bitmap;
-            }).ConfigureAwait(true);
-
-            if (generation != _thumbnailGeneration)
+            if (image is null || generation != _thumbnailGeneration)
                 return;
 
             item.Thumbnail = image;
