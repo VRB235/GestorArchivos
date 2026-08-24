@@ -33,10 +33,12 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
     public async Task<VideoPageScrapeOutcome> ScrapeAsync(
         string startUrl,
         VideoScrapeHints hints,
+        VideoPageScrapeOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(startUrl);
         ArgumentNullException.ThrowIfNull(hints);
+        options ??= VideoPageScrapeOptions.Default;
 
         var log = new List<string>();
 
@@ -108,6 +110,7 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
             log.Add($"Base URL de resolución: {pageBase}");
 
             var parse = ParseItemsWithDiagnostics(document, hints, pageBase, log, page + 1);
+            var pageNewCount = 0;
 
             foreach (var item in parse.Items)
             {
@@ -126,12 +129,30 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
                 if (string.IsNullOrWhiteSpace(item.Title))
                     item.Title = item.Code ?? item.SourceUrl;
 
+                if (options.StopWhenPageHasNoNewVideos
+                    && options.KnownUrlKeys is not null
+                    && !options.KnownUrlKeys.Contains(NormalizeUrlKey(item.SourceUrl)))
+                {
+                    pageNewCount++;
+                }
+
                 results.Add(item);
             }
 
             log.Add(
                 $"Página {page + 1}: nodos={parse.NodeCount}, candidatos crudos={parse.Items.Count}, " +
                 $"aceptados acumulados={results.Count}");
+
+            if (options.StopWhenPageHasNoNewVideos
+                && options.KnownUrlKeys is { Count: > 0 }
+                && parse.Items.Count > 0
+                && pageNewCount == 0)
+            {
+                log.Add(
+                    "Paginación: la página no aportó videos nuevos (todos ya obtenidos). " +
+                    "Se conservan los videos ya extraídos · OK.");
+                break;
+            }
 
             // NextPageSelector es opcional: si no hay botón "siguiente", se conservan
             // los videos de las páginas ya parseadas y se termina sin error.
@@ -789,6 +810,14 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         value.Length <= maxLength ? value : value[..(maxLength - 1)] + "…";
 
     private static string UtcNow() => DateTime.UtcNow.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+
+    private static string NormalizeUrlKey(string url)
+    {
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+            return url.Trim().TrimEnd('/');
+
+        return uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
+    }
 
     private sealed record FetchResult(HttpStatusCode StatusCode, string? ContentType, string Html);
 

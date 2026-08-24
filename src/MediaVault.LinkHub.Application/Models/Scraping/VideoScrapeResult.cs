@@ -5,9 +5,13 @@ namespace MediaVault.LinkHub.Application.Models.Scraping;
 /// </summary>
 public sealed class VideoScrapeResult
 {
-    public int ActressLinkId { get; init; }
+    public int? ActressLinkId { get; init; }
 
-    public int ActressId { get; init; }
+    public int? ActressId { get; init; }
+
+    public int? ProducerLinkId { get; init; }
+
+    public int? ProducerId { get; init; }
 
     public string SourceUrl { get; init; } = string.Empty;
 

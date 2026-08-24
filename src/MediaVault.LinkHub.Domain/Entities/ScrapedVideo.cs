@@ -7,13 +7,21 @@ namespace MediaVault.LinkHub.Domain.Entities;
 /// </summary>
 public class ScrapedVideo : EntityBase
 {
-    public int ActressLinkId { get; set; }
+    public int? ActressLinkId { get; set; }
 
-    public ActressLink ActressLink { get; set; } = null!;
+    public ActressLink? ActressLink { get; set; }
 
-    public int ActressId { get; set; }
+    public int? ActressId { get; set; }
 
-    public Actress Actress { get; set; } = null!;
+    public Actress? Actress { get; set; }
+
+    public int? ProducerLinkId { get; set; }
+
+    public ProducerLink? ProducerLink { get; set; }
+
+    public int? ProducerId { get; set; }
+
+    public Producer? Producer { get; set; }
 
     public string Title { get; set; } = string.Empty;
 

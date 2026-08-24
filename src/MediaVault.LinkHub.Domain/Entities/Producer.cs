@@ -14,4 +14,8 @@ public class Producer : EntityBase
     public ICollection<MediaFile> MediaFiles { get; set; } = [];
 
     public ICollection<WebLink> WebLinks { get; set; } = [];
+
+    public ICollection<ProducerLink> Links { get; set; } = [];
+
+    public ICollection<ScrapedVideo> ScrapedVideos { get; set; } = [];
 }

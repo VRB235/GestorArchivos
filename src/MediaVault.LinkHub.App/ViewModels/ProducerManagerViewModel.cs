@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
+using System.Net.Http;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using MediaVault.LinkHub.App.Shell;
 using MediaVault.LinkHub.App.ViewModels.Base;
+using MediaVault.LinkHub.App.Views;
 using MediaVault.LinkHub.Application.Services;
 using MediaVault.LinkHub.Domain.Entities;
 
@@ -13,29 +15,47 @@ namespace MediaVault.LinkHub.App.ViewModels;
 public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewModel
 {
     private readonly IProducerService _producerService;
+    private readonly IProducerLinkService _producerLinkService;
+    private readonly IVideoScrapeService _videoScrapeService;
+    private readonly IWebLinkService _webLinkService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IAppDialogService _appDialogService;
+    private ProducerLinksWindow? _openLinksWindow;
+    private int? _openLinksProducerId;
 
     public ProducerManagerViewModel(
         IProducerService producerService,
+        IProducerLinkService producerLinkService,
+        IVideoScrapeService videoScrapeService,
+        IWebLinkService webLinkService,
+        IHttpClientFactory httpClientFactory,
         IAppDialogService appDialogService)
     {
         _producerService = producerService;
+        _producerLinkService = producerLinkService;
+        _videoScrapeService = videoScrapeService;
+        _webLinkService = webLinkService;
+        _httpClientFactory = httpClientFactory;
         _appDialogService = appDialogService;
     }
 
     public string Title => "Productoras";
 
-    public string Subtitle => "Productoras o fuentes asociadas a enlaces web (y opcionalmente a videos)";
+    public string Subtitle => "Catálogo con logo del Link Manager · scrape de videos y etiquetado en Media Vault";
 
-    public ObservableCollection<Producer> Producers { get; } = [];
+    public ObservableCollection<ProducerCatalogItem> Catalog { get; } = [];
 
     [ObservableProperty]
-    private Producer? _selectedProducer;
+    private ProducerCatalogItem? _selectedCatalogItem;
 
     [ObservableProperty]
     private string _producerName = string.Empty;
 
-    public bool CanEditProducer => SelectedProducer is not null;
+    public Producer? SelectedProducer => SelectedCatalogItem?.Producer;
+
+    public bool CanEditProducer => SelectedCatalogItem is not null;
+
+    public bool CanOpenCatalog => SelectedCatalogItem is not null;
 
     public Task InitializeAsync() =>
         RunBusyCoreAsync(() => ReloadAsync(), "Cargando productoras...");
@@ -43,15 +63,28 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
     private async Task ReloadAsync()
     {
         var producers = await _producerService.GetAllAsync().ConfigureAwait(true);
+        var webLinks = await _webLinkService.GetAllAsync().ConfigureAwait(true);
 
-        Producers.Clear();
+        var previousId = SelectedCatalogItem?.Id;
+        Catalog.Clear();
+
         foreach (var producer in producers)
-            Producers.Add(producer);
+        {
+            Catalog.Add(new ProducerCatalogItem
+            {
+                Producer = producer,
+                PrimaryWebLink = ResolvePrimaryWebLink(producer, webLinks)
+            });
+        }
+
+        SelectedCatalogItem = previousId is int id
+            ? Catalog.FirstOrDefault(item => item.Id == id)
+            : null;
 
         NotifyProducerCommands();
     }
 
-    partial void OnSelectedProducerChanged(Producer? value)
+    partial void OnSelectedCatalogItemChanged(ProducerCatalogItem? value)
     {
         ProducerName = value?.Name ?? string.Empty;
         NotifyProducerCommands();
@@ -60,8 +93,52 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
     private void NotifyProducerCommands()
     {
         OnPropertyChanged(nameof(CanEditProducer));
+        OnPropertyChanged(nameof(CanOpenCatalog));
+        OnPropertyChanged(nameof(SelectedProducer));
         RenameProducerCommand.NotifyCanExecuteChanged();
         DeleteProducerCommand.NotifyCanExecuteChanged();
+        OpenCatalogLinksCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpenCatalog))]
+    private void OpenCatalogLinks()
+    {
+        if (SelectedProducer is null)
+            return;
+
+        if (_openLinksWindow is { IsLoaded: true } && _openLinksProducerId == SelectedProducer.Id)
+        {
+            _openLinksWindow.Activate();
+            return;
+        }
+
+        _openLinksWindow?.Close();
+
+        var vm = new ProducerLinksViewModel(
+            SelectedProducer,
+            _producerLinkService,
+            _videoScrapeService,
+            _webLinkService,
+            _httpClientFactory,
+            _appDialogService);
+
+        var window = new ProducerLinksWindow(vm)
+        {
+            Owner = System.Windows.Application.Current.MainWindow
+        };
+
+        _openLinksWindow = window;
+        _openLinksProducerId = SelectedProducer.Id;
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_openLinksWindow, window))
+            {
+                _openLinksWindow = null;
+                _openLinksProducerId = null;
+            }
+        };
+
+        window.Show();
     }
 
     [RelayCommand]
@@ -78,7 +155,7 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
             ErrorMessage = null;
             await _producerService.CreateAsync(ProducerName).ConfigureAwait(true);
             ProducerName = string.Empty;
-            SelectedProducer = null;
+            SelectedCatalogItem = null;
             await ReloadAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -90,13 +167,13 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
     [RelayCommand(CanExecute = nameof(CanEditProducer))]
     private async Task RenameProducerAsync()
     {
-        if (SelectedProducer is null || string.IsNullOrWhiteSpace(ProducerName))
+        if (SelectedCatalogItem is null || string.IsNullOrWhiteSpace(ProducerName))
             return;
 
         try
         {
             ErrorMessage = null;
-            await _producerService.UpdateAsync(SelectedProducer.Id, ProducerName).ConfigureAwait(true);
+            await _producerService.UpdateAsync(SelectedCatalogItem.Id, ProducerName).ConfigureAwait(true);
             await ReloadAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -108,20 +185,20 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
     [RelayCommand(CanExecute = nameof(CanEditProducer))]
     private async Task DeleteProducerAsync()
     {
-        if (SelectedProducer is null)
+        if (SelectedCatalogItem is null)
             return;
 
         if (!_appDialogService.ConfirmYesNo(
                 "Confirmar eliminación",
-                $"¿Eliminar la productora «{SelectedProducer.Name}»?\n\nSe quitará de todos los videos.",
+                $"¿Eliminar la productora «{SelectedCatalogItem.Name}»?\n\nSe quitará de todos los videos.",
                 AppDialogKind.Question))
             return;
 
         try
         {
             ErrorMessage = null;
-            await _producerService.DeleteAsync(SelectedProducer.Id).ConfigureAwait(true);
-            SelectedProducer = null;
+            await _producerService.DeleteAsync(SelectedCatalogItem.Id).ConfigureAwait(true);
+            SelectedCatalogItem = null;
             ProducerName = string.Empty;
             await ReloadAsync().ConfigureAwait(true);
         }
@@ -129,5 +206,27 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
         {
             ErrorMessage = ex.Message;
         }
+    }
+
+    private static WebLink? ResolvePrimaryWebLink(Producer producer, IReadOnlyList<WebLink> webLinks)
+    {
+        var associated = webLinks
+            .Where(link => link.Producers.Any(item => item.Id == producer.Id))
+            .ToList();
+
+        if (associated.Count == 0)
+        {
+            var byName = webLinks.FirstOrDefault(link =>
+                string.Equals(link.Nombre, producer.Name, StringComparison.OrdinalIgnoreCase));
+            if (byName is not null)
+                return byName;
+
+            return webLinks.FirstOrDefault(link =>
+                link.Producers.Any(item =>
+                    string.Equals(item.Name, producer.Name, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        return associated.FirstOrDefault(link => !string.IsNullOrWhiteSpace(link.LogoPath))
+            ?? associated.OrderBy(link => link.Nombre, StringComparer.CurrentCultureIgnoreCase).First();
     }
 }

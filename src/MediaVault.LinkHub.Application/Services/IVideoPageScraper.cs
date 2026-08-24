@@ -16,5 +16,6 @@ public interface IVideoPageScraper
     Task<VideoPageScrapeOutcome> ScrapeAsync(
         string startUrl,
         VideoScrapeHints hints,
+        VideoPageScrapeOptions? options = null,
         CancellationToken cancellationToken = default);
 }

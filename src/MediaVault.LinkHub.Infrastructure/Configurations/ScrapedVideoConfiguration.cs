@@ -44,19 +44,30 @@ internal sealed class ScrapedVideoConfiguration : IEntityTypeConfiguration<Scrap
 
         builder.HasIndex(video => video.ActressLinkId);
         builder.HasIndex(video => video.ActressId);
+        builder.HasIndex(video => video.ProducerLinkId);
+        builder.HasIndex(video => video.ProducerId);
         builder.HasIndex(video => video.SourceUrl);
         builder.HasIndex(video => new { video.ActressLinkId, video.SourceUrl });
+        builder.HasIndex(video => new { video.ProducerLinkId, video.SourceUrl });
 
         builder.HasOne(video => video.ActressLink)
             .WithMany(link => link.ScrapedVideos)
             .HasForeignKey(video => video.ActressLinkId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Restrict evita múltiples rutas de cascade Actress→ScrapedVideo vs Actress→Link→ScrapedVideo.
-        // Al borrar actriz, los links caen en cascade y arrastran ScrapedVideos.
         builder.HasOne(video => video.Actress)
             .WithMany(actress => actress.ScrapedVideos)
             .HasForeignKey(video => video.ActressId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(video => video.ProducerLink)
+            .WithMany(link => link.ScrapedVideos)
+            .HasForeignKey(video => video.ProducerLinkId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(video => video.Producer)
+            .WithMany(producer => producer.ScrapedVideos)
+            .HasForeignKey(video => video.ProducerId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

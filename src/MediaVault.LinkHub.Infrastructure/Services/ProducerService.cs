@@ -90,6 +90,18 @@ public sealed class ProducerService : IProducerService
         if (entity is null)
             return;
 
+        var scrapedVideos = await context.ScrapedVideos
+            .Where(video => video.ProducerId == id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        context.ScrapedVideos.RemoveRange(scrapedVideos);
+
+        var links = await context.ProducerLinks
+            .Where(link => link.ProducerId == id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        context.ProducerLinks.RemoveRange(links);
+
         context.Producers.Remove(entity);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }

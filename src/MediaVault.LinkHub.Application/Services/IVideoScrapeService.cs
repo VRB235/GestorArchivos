@@ -13,14 +13,31 @@ public interface IVideoScrapeService
     /// </summary>
     Task<VideoScrapeResult> ScrapeAndPersistAsync(int actressLinkId, CancellationToken cancellationToken = default);
 
+    Task<VideoScrapeResult> ScrapeAndPersistByProducerLinkAsync(
+        int producerLinkId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ScrapedVideo>> GetPersistedByLinkAsync(int actressLinkId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ScrapedVideo>> GetPersistedByProducerLinkAsync(
+        int producerLinkId,
+        CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ScrapedVideo>> GetPersistedByActressAsync(int actressId, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ScrapedVideo>> GetPersistedByProducerAsync(
+        int producerId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
-    /// Marca como vistos (<c>IsNew = false</c>) los videos scrapeados del enlace.
+    /// Marca como vistos (<c>IsNew = false</c>) los videos scrapeados del enlace de actriz.
     /// </summary>
     Task MarkVideosSeenAsync(int actressLinkId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marca como vistos (<c>IsNew = false</c>) los videos scrapeados del enlace de productora.
+    /// </summary>
+    Task MarkProducerVideosSeenAsync(int producerLinkId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Actualiza <see cref="ScrapedVideo.PreviewUrl"/> emparejando por <c>SourceUrl</c> (normalizada).

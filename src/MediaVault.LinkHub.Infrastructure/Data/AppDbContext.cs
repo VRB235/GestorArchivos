@@ -32,6 +32,8 @@ public class AppDbContext : DbContext
 
     public DbSet<ActressLink> ActressLinks => Set<ActressLink>();
 
+    public DbSet<ProducerLink> ProducerLinks => Set<ProducerLink>();
+
     public DbSet<ScrapedVideo> ScrapedVideos => Set<ScrapedVideo>();
 
     public DbSet<Producer> Producers => Set<Producer>();
@@ -49,6 +51,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new VideoCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new ActressConfiguration());
         modelBuilder.ApplyConfiguration(new ActressLinkConfiguration());
+        modelBuilder.ApplyConfiguration(new ProducerLinkConfiguration());
         modelBuilder.ApplyConfiguration(new ScrapedVideoConfiguration());
         modelBuilder.ApplyConfiguration(new ProducerConfiguration());
     }

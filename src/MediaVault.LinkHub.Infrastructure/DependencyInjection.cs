@@ -56,6 +56,7 @@ public static class DependencyInjection
     services.AddTransient<IVideoCategoryService, VideoCategoryService>();
     services.AddTransient<IActressService, ActressService>();
     services.AddTransient<IActressLinkService, ActressLinkService>();
+    services.AddTransient<IProducerLinkService, ProducerLinkService>();
     services.AddTransient<IVideoScrapeService, VideoScrapeService>();
     services.AddTransient<IProducerService, ProducerService>();
 
