@@ -44,8 +44,13 @@ public partial class ActressLinksViewModel : ViewModelBase
         _appDialogService = appDialogService;
         _browserLauncher = browserLauncher;
 
-        LinkActions = new ObservableCollection<ActressLinkAction>(Enum.GetValues<ActressLinkAction>());
-        LinkAction = ActressLinkAction.Scrape;
+        LinkActions = new ObservableCollection<ActressLinkAction>(
+            AppFeatureFlags.IsWebScrapingEnabled
+                ? Enum.GetValues<ActressLinkAction>()
+                : [ActressLinkAction.Browse]);
+        LinkAction = AppFeatureFlags.IsWebScrapingEnabled
+            ? ActressLinkAction.Scrape
+            : ActressLinkAction.Browse;
         WindowTitle = $"Enlaces · {actress.Name}";
         RefreshSiteScrapeSummary();
     }
@@ -100,10 +105,13 @@ public partial class ActressLinksViewModel : ViewModelBase
 
     public bool CanEditLink => SelectedLink is not null;
 
-    public bool ShowSiteScrapeInfo => LinkAction == ActressLinkAction.Scrape;
+    public bool ShowSiteScrapeInfo =>
+        AppFeatureFlags.IsWebScrapingEnabled && LinkAction == ActressLinkAction.Scrape;
 
     public bool HasSelectedScrapeLink =>
-        SelectedLink is not null && SelectedLink.Action == ActressLinkAction.Scrape;
+        AppFeatureFlags.IsWebScrapingEnabled
+        && SelectedLink is not null
+        && SelectedLink.Action == ActressLinkAction.Scrape;
 
     public async Task InitializeAsync()
     {
@@ -151,10 +159,12 @@ public partial class ActressLinksViewModel : ViewModelBase
 
         NotifyLinkState();
 
-        if (value.Action == ActressLinkAction.Browse)
+        if (value.Action == ActressLinkAction.Browse || !AppFeatureFlags.IsWebScrapingEnabled)
         {
             ScrapedVideos.Clear();
-            VideosSummary = "Enlace de navegación: use «Abrir en Firefox».";
+            VideosSummary = !AppFeatureFlags.IsWebScrapingEnabled
+                ? "Web scraping desactivado temporalmente."
+                : "Enlace de navegación: use «Abrir en Firefox».";
             return;
         }
 
@@ -194,7 +204,9 @@ public partial class ActressLinksViewModel : ViewModelBase
     {
         LinkTitle = string.Empty;
         LinkUrl = string.Empty;
-        LinkAction = ActressLinkAction.Scrape;
+        LinkAction = AppFeatureFlags.IsWebScrapingEnabled
+            ? ActressLinkAction.Scrape
+            : ActressLinkAction.Browse;
         LinkNotes = string.Empty;
         SelectedWebLink = null;
         RefreshSiteScrapeSummary();
@@ -577,6 +589,12 @@ public partial class ActressLinksViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(HasSelectedScrapeLink))]
     private async Task ScrapeSelectedLinkAsync()
     {
+        if (!AppFeatureFlags.IsWebScrapingEnabled)
+        {
+            ErrorMessage = "El web scraping está desactivado temporalmente.";
+            return;
+        }
+
         if (SelectedLink is null || SelectedLink.Action != ActressLinkAction.Scrape)
             return;
 

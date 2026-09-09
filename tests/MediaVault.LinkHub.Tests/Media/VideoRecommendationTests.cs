@@ -89,7 +89,56 @@ public sealed class VideoRecommendationTests
             .Should().BeGreaterThan(VideoRecommendation.ComputeScore(low, randomNoise: 0));
     }
 
-    private static MediaFileViewStats CreateVideo(int id, string name, double ranking, int opens) =>
+    [Fact]
+    public void PickWeightedMany_does_not_repeat_actresses()
+    {
+        var videos = new[]
+        {
+            CreateVideo(1, "a1.mp4", ranking: 5, opens: 10, actressIds: [10]),
+            CreateVideo(2, "a2.mp4", ranking: 5, opens: 9, actressIds: [10]),
+            CreateVideo(3, "b1.mp4", ranking: 4, opens: 8, actressIds: [20]),
+            CreateVideo(4, "c1.mp4", ranking: 4, opens: 7, actressIds: [30]),
+            CreateVideo(5, "d1.mp4", ranking: 3, opens: 6, actressIds: [40])
+        };
+
+        var picks = VideoRecommendation.PickWeightedMany(
+            videos,
+            excludeMediaFileIds: [],
+            count: 4,
+            random: new Random(21));
+
+        picks.Should().HaveCount(4);
+        picks.SelectMany(video => video.ActressIds).Should().OnlyHaveUniqueItems();
+        picks.Count(video => video.ActressIds.Contains(10)).Should().Be(1);
+    }
+
+    [Fact]
+    public void PickWeightedMany_allows_multiple_videos_without_actresses()
+    {
+        var videos = new[]
+        {
+            CreateVideo(1, "a.mp4", ranking: 5, opens: 5, actressIds: [10]),
+            CreateVideo(2, "u1.mp4", ranking: 4, opens: 4),
+            CreateVideo(3, "u2.mp4", ranking: 3, opens: 3),
+            CreateVideo(4, "u3.mp4", ranking: 2, opens: 2)
+        };
+
+        var picks = VideoRecommendation.PickWeightedMany(
+            videos,
+            excludeMediaFileIds: [],
+            count: 4,
+            random: new Random(8));
+
+        picks.Should().HaveCount(4);
+        picks.Count(video => video.ActressIds.Contains(10)).Should().BeLessThanOrEqualTo(1);
+    }
+
+    private static MediaFileViewStats CreateVideo(
+        int id,
+        string name,
+        double ranking,
+        int opens,
+        IReadOnlyList<int>? actressIds = null) =>
         new()
         {
             Id = id,
@@ -98,6 +147,7 @@ public sealed class VideoRecommendationTests
             Extension = ".mp4",
             RankingGlobal = ranking,
             VecesAbierto = opens,
-            IsVideo = true
+            IsVideo = true,
+            ActressIds = actressIds ?? []
         };
 }

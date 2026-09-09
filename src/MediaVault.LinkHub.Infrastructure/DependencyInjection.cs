@@ -30,26 +30,33 @@ public static class DependencyInjection
     services.AddSingleton<IRankedVideoRecommendationSession, RankedVideoRecommendationSession>();
 
     services.AddSingleton<SuggestionImageStorage>();
+    services.AddSingleton<VideoScraperSession>();
     services.AddHttpClient("VideoScraper", client =>
     {
       client.Timeout = TimeSpan.FromSeconds(60);
-      client.DefaultRequestHeaders.UserAgent.ParseAdd(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+      // UA se aplica por request en el scraper (evita duplicar cabeceras).
       client.DefaultRequestHeaders.Accept.ParseAdd(
         "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
       client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
     })
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    .ConfigurePrimaryHttpMessageHandler(sp =>
     {
-      AutomaticDecompression = System.Net.DecompressionMethods.All,
-      UseCookies = true,
-      CookieContainer = new System.Net.CookieContainer()
+      var session = sp.GetRequiredService<VideoScraperSession>();
+      var inner = new HttpClientHandler
+      {
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+        UseCookies = true,
+        CookieContainer = session.CookieContainer
+      };
+      return new TransientHttpRetryHandler(inner, maxRetries: 3);
     });
 
     services.AddTransient<IVideoPageScraper>(sp =>
       new CssListVideoPageScraper(
         sp.GetRequiredService<System.Net.Http.IHttpClientFactory>(),
+        sp.GetRequiredService<VideoScraperSession>(),
         sp.GetService<IBrowserHtmlFetcher>()));
+    services.AddTransient<IVideoScrapeProbeService, VideoScrapeProbeService>();
     services.AddTransient<IWebLinkService, WebLinkService>();
     services.AddTransient<IMediaVaultService, MediaVaultService>();
     services.AddTransient<IDashboardService, DashboardService>();

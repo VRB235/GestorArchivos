@@ -152,6 +152,17 @@
         </Grid>
 
         <TextBlock Text="Avanzado" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4" />
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <CheckBox Content="ForceBrowser (siempre WebView2)"
+                      IsChecked="{Binding ForceBrowser}"
+                      Margin="0,0,16,0"
+                      VerticalAlignment="Center"
+                      ToolTip="Usa el navegador embebido desde la primera página (SPA / Cloudflare)." />
+            <CheckBox Content="PreferBrowserFetch"
+                      IsChecked="{Binding PreferBrowserFetch}"
+                      VerticalAlignment="Center"
+                      ToolTip="Si HttpClient no aporta ítems o detecta muro, reintenta con WebView2." />
+        </StackPanel>
         <Grid Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

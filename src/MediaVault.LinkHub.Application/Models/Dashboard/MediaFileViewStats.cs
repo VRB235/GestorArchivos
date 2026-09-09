@@ -20,4 +20,10 @@ public sealed class MediaFileViewStats
     public bool IsVideo { get; init; }
 
     public string? CategoryName { get; init; }
+
+    /// <summary>
+    /// Ids de actrices asociadas al video (vacío si no tiene etiquetas).
+    /// Usado para diversificar recomendaciones.
+    /// </summary>
+    public IReadOnlyList<int> ActressIds { get; init; } = [];
 }

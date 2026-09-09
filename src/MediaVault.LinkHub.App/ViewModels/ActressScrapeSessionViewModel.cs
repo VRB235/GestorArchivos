@@ -114,6 +114,12 @@ public partial class ActressScrapeSessionViewModel : ViewModelBase
     [RelayCommand]
     private async Task RunScrapeAsync()
     {
+        if (!AppFeatureFlags.IsWebScrapingEnabled)
+        {
+            ErrorMessage = "El web scraping está desactivado temporalmente.";
+            return;
+        }
+
         await ExecuteBusyAsync(async () =>
         {
             Warnings.Clear();

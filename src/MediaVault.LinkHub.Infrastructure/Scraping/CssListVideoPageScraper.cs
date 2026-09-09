@@ -16,15 +16,19 @@ namespace MediaVault.LinkHub.Infrastructure.Scraping;
 public sealed class CssListVideoPageScraper : IVideoPageScraper
 {
     public const string ScraperKey = "css-list";
+    private const int DefaultInterPageDelayMs = 450;
 
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly VideoScraperSession _session;
     private readonly IBrowserHtmlFetcher? _browserHtmlFetcher;
 
     public CssListVideoPageScraper(
         IHttpClientFactory httpClientFactory,
+        VideoScraperSession session,
         IBrowserHtmlFetcher? browserHtmlFetcher = null)
     {
         _httpClientFactory = httpClientFactory;
+        _session = session;
         _browserHtmlFetcher = browserHtmlFetcher;
     }
 
@@ -54,6 +58,10 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         log.Add(DescribeHints(hints));
 
         var maxPages = Math.Clamp(hints.MaxPages <= 0 ? 1 : hints.MaxPages, 1, 50);
+        var waitMs = hints.WaitMs is > 0
+            ? hints.WaitMs.Value
+            : maxPages > 1 ? DefaultInterPageDelayMs : 0;
+
         var results = new List<ScrapedVideoCandidate>();
         var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var currentUrl = startUrl;
@@ -62,139 +70,199 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         var skippedNoUrl = 0;
         var skippedDuplicate = 0;
 
-        for (var page = 0; page < maxPages && !string.IsNullOrWhiteSpace(currentUrl); page++)
+        var useBrowser = hints.ForceBrowser;
+        IBrowserHtmlSession? browserSession = null;
+
+        try
         {
-            if (hints.WaitMs is > 0)
+            if (useBrowser)
             {
-                log.Add($"Página {page + 1}: WaitMs={hints.WaitMs} ms…");
-                await Task.Delay(hints.WaitMs.Value, cancellationToken).ConfigureAwait(false);
+                log.Add("ForceBrowser=true · se usará WebView2 desde la primera página.");
+                browserSession = await EnsureBrowserSessionAsync(log, cancellationToken).ConfigureAwait(false);
+            }
+            else if (hints.PreferBrowserFetch)
+            {
+                log.Add("PreferBrowserFetch=true · se preferirá WebView2 si HTTP no aporta ítems o parece bloqueado.");
             }
 
-            log.Add($"── Página {page + 1}/{maxPages} ──");
-            log.Add($"GET {currentUrl}");
-
-            FetchResult fetch;
-            try
+            for (var page = 0; page < maxPages && !string.IsNullOrWhiteSpace(currentUrl); page++)
             {
-                fetch = await FetchHtmlAsync(currentUrl, hints, log, cancellationToken).ConfigureAwait(false);
-            }
-            catch (VideoScrapeException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                log.Add($"ERROR HTTP: {ex.GetType().Name}: {ex.Message}");
-                throw new VideoScrapeException(ex.Message, log.ToList(), ex);
-            }
-
-            pagesFetched++;
-            log.Add(
-                $"HTTP {(int)fetch.StatusCode} {fetch.StatusCode} · Content-Type={fetch.ContentType ?? "(ninguno)"} · HTML={fetch.Html.Length:N0} chars");
-
-            if (fetch.Html.Length == 0)
-            {
-                log.Add("AVISO: cuerpo HTML vacío.");
-                break;
-            }
-
-            var document = await browsingContext
-                .OpenAsync(req => req.Content(fetch.Html).Address(currentUrl), cancellationToken)
-                .ConfigureAwait(false);
-
-            var docTitle = CleanText(document.Title) ?? "(sin <title>)";
-            log.Add($"Documento: <title>={Truncate(docTitle, 80)}");
-            LogSpaHints(log, fetch.Html, document);
-
-            var pageBase = ResolveBaseUri(currentUrl, hints.BaseUrl, document);
-            log.Add($"Base URL de resolución: {pageBase}");
-
-            var parse = ParseItemsWithDiagnostics(document, hints, pageBase, log, page + 1);
-            var pageNewCount = 0;
-
-            foreach (var item in parse.Items)
-            {
-                if (string.IsNullOrWhiteSpace(item.SourceUrl))
+                if (waitMs > 0)
                 {
-                    skippedNoUrl++;
-                    continue;
+                    log.Add($"Página {page + 1}: WaitMs={waitMs} ms…");
+                    await Task.Delay(waitMs, cancellationToken).ConfigureAwait(false);
                 }
 
-                if (!seenUrls.Add(item.SourceUrl))
+                log.Add($"── Página {page + 1}/{maxPages} ──");
+                log.Add($"GET {currentUrl}");
+
+                FetchResult fetch;
+                try
                 {
-                    skippedDuplicate++;
-                    continue;
+                    var pageFetch = await FetchHtmlAsync(
+                            currentUrl,
+                            hints,
+                            log,
+                            useBrowser,
+                            browserSession,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    fetch = pageFetch.Fetch;
+                    useBrowser = pageFetch.UseBrowser;
+                    browserSession = pageFetch.BrowserSession;
+                }
+                catch (VideoScrapeException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    log.Add($"ERROR HTTP: {ex.GetType().Name}: {ex.Message}");
+                    throw new VideoScrapeException(ex.Message, log.ToList(), ex);
                 }
 
-                if (string.IsNullOrWhiteSpace(item.Title))
-                    item.Title = item.Code ?? item.SourceUrl;
+                pagesFetched++;
+                log.Add(
+                    $"HTTP {(int)fetch.StatusCode} {fetch.StatusCode} · Content-Type={fetch.ContentType ?? "(ninguno)"} · HTML={fetch.Html.Length:N0} chars · vía={(fetch.ViaBrowser ? "WebView2" : "HttpClient")}");
+
+                if (fetch.Html.Length == 0)
+                {
+                    log.Add("AVISO: cuerpo HTML vacío.");
+                    break;
+                }
+
+                var document = await browsingContext
+                    .OpenAsync(req => req.Content(fetch.Html).Address(currentUrl), cancellationToken)
+                    .ConfigureAwait(false);
+
+                var docTitle = CleanText(document.Title) ?? "(sin <title>)";
+                log.Add($"Documento: <title>={Truncate(docTitle, 80)}");
+                LogSpaHints(log, fetch.Html, document);
+
+                var pageBase = ResolveBaseUri(currentUrl, hints.BaseUrl, document);
+                log.Add($"Base URL de resolución: {pageBase}");
+
+                var parse = ParseItemsWithDiagnostics(document, hints, pageBase, log, page + 1);
+
+                // HTTP devolvió HTML pero 0 ítems: reintentar una vez con navegador (SPA / muro 200).
+                if (parse.NodeCount == 0
+                    && !fetch.ViaBrowser
+                    && _browserHtmlFetcher is not null
+                    && (hints.PreferBrowserFetch || LooksLikeBotBlock(fetch.Html) || LooksLikeAgeGate(fetch.Html) || LooksLikeSpaShell(fetch.Html, document)))
+                {
+                    log.Add(
+                        "0 nodos vía HttpClient · reintentando esta página con WebView2 " +
+                        "(PreferBrowserFetch / anti-bot / SPA)…");
+                    useBrowser = true;
+                    browserSession = await EnsureBrowserSessionAsync(log, cancellationToken, browserSession)
+                        .ConfigureAwait(false);
+
+                    var browserFetch = await FetchViaBrowserAsync(
+                            currentUrl,
+                            log,
+                            browserSession,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    fetch = browserFetch;
+                    pagesFetched++;
+                    log.Add($"WebView2 reintento · HTML={fetch.Html.Length:N0} chars");
+
+                    document = await browsingContext
+                        .OpenAsync(req => req.Content(fetch.Html).Address(currentUrl), cancellationToken)
+                        .ConfigureAwait(false);
+                    pageBase = ResolveBaseUri(currentUrl, hints.BaseUrl, document);
+                    parse = ParseItemsWithDiagnostics(document, hints, pageBase, log, page + 1);
+                }
+
+                var pageNewCount = 0;
+
+                foreach (var item in parse.Items)
+                {
+                    if (string.IsNullOrWhiteSpace(item.SourceUrl))
+                    {
+                        skippedNoUrl++;
+                        continue;
+                    }
+
+                    if (!seenUrls.Add(item.SourceUrl))
+                    {
+                        skippedDuplicate++;
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(item.Title))
+                        item.Title = item.Code ?? item.SourceUrl;
+
+                    if (options.StopWhenPageHasNoNewVideos
+                        && options.KnownUrlKeys is not null
+                        && !options.KnownUrlKeys.Contains(NormalizeUrlKey(item.SourceUrl)))
+                    {
+                        pageNewCount++;
+                    }
+
+                    results.Add(item);
+                }
+
+                log.Add(
+                    $"Página {page + 1}: nodos={parse.NodeCount}, candidatos crudos={parse.Items.Count}, " +
+                    $"aceptados acumulados={results.Count}");
 
                 if (options.StopWhenPageHasNoNewVideos
-                    && options.KnownUrlKeys is not null
-                    && !options.KnownUrlKeys.Contains(NormalizeUrlKey(item.SourceUrl)))
+                    && options.KnownUrlKeys is { Count: > 0 }
+                    && parse.Items.Count > 0
+                    && pageNewCount == 0)
                 {
-                    pageNewCount++;
+                    log.Add(
+                        "Paginación: la página no aportó videos nuevos (todos ya obtenidos). " +
+                        "Se conservan los videos ya extraídos · OK.");
+                    break;
                 }
 
-                results.Add(item);
+                if (page >= maxPages - 1)
+                {
+                    log.Add($"Paginación: alcanzado MaxPages={maxPages}. Se conservan {results.Count} video(s).");
+                    break;
+                }
+
+                if (string.IsNullOrWhiteSpace(hints.NextPageSelector))
+                {
+                    log.Add("Paginación: NextPageSelector no configurado · solo página actual (OK).");
+                    break;
+                }
+
+                var nextEl = document.QuerySelector(hints.NextPageSelector);
+                if (nextEl is null)
+                {
+                    log.Add(
+                        $"Paginación: «{hints.NextPageSelector}» no está en esta página " +
+                        "(normal si aún no hay más resultados). Se conservan los videos ya extraídos · OK.");
+                    break;
+                }
+
+                var nextHref = nextEl.GetAttribute("href");
+                if (string.IsNullOrWhiteSpace(nextHref))
+                {
+                    log.Add(
+                        "Paginación: el nodo «siguiente» existe pero sin href · " +
+                        "se conservan los videos ya extraídos · OK.");
+                    break;
+                }
+
+                var nextUrl = ResolveUrl(pageBase, nextHref);
+                if (string.Equals(nextUrl, currentUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    log.Add("Paginación: href de «siguiente» apunta a la misma URL · OK, fin.");
+                    break;
+                }
+
+                log.Add($"Paginación: botón siguiente encontrado → {nextUrl}");
+                currentUrl = nextUrl;
             }
-
-            log.Add(
-                $"Página {page + 1}: nodos={parse.NodeCount}, candidatos crudos={parse.Items.Count}, " +
-                $"aceptados acumulados={results.Count}");
-
-            if (options.StopWhenPageHasNoNewVideos
-                && options.KnownUrlKeys is { Count: > 0 }
-                && parse.Items.Count > 0
-                && pageNewCount == 0)
-            {
-                log.Add(
-                    "Paginación: la página no aportó videos nuevos (todos ya obtenidos). " +
-                    "Se conservan los videos ya extraídos · OK.");
-                break;
-            }
-
-            // NextPageSelector es opcional: si no hay botón "siguiente", se conservan
-            // los videos de las páginas ya parseadas y se termina sin error.
-            if (page >= maxPages - 1)
-            {
-                log.Add($"Paginación: alcanzado MaxPages={maxPages}. Se conservan {results.Count} video(s).");
-                break;
-            }
-
-            if (string.IsNullOrWhiteSpace(hints.NextPageSelector))
-            {
-                log.Add("Paginación: NextPageSelector no configurado · solo página actual (OK).");
-                break;
-            }
-
-            var nextEl = document.QuerySelector(hints.NextPageSelector);
-            if (nextEl is null)
-            {
-                log.Add(
-                    $"Paginación: «{hints.NextPageSelector}» no está en esta página " +
-                    "(normal si aún no hay más resultados). Se conservan los videos ya extraídos · OK.");
-                break;
-            }
-
-            var nextHref = nextEl.GetAttribute("href");
-            if (string.IsNullOrWhiteSpace(nextHref))
-            {
-                log.Add(
-                    "Paginación: el nodo «siguiente» existe pero sin href · " +
-                    "se conservan los videos ya extraídos · OK.");
-                break;
-            }
-
-            var nextUrl = ResolveUrl(pageBase, nextHref);
-            if (string.Equals(nextUrl, currentUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                log.Add("Paginación: href de «siguiente» apunta a la misma URL · OK, fin.");
-                break;
-            }
-
-            log.Add($"Paginación: botón siguiente encontrado → {nextUrl}");
-            currentUrl = nextUrl;
+        }
+        finally
+        {
+            if (browserSession is not null)
+                await browserSession.DisposeAsync().ConfigureAwait(false);
         }
 
         if (skippedNoUrl > 0)
@@ -219,12 +287,23 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         };
     }
 
-    private async Task<FetchResult> FetchHtmlAsync(
+    private async Task<(FetchResult Fetch, bool UseBrowser, IBrowserHtmlSession? BrowserSession)> FetchHtmlAsync(
         string url,
         VideoScrapeHints hints,
         List<string> log,
+        bool useBrowser,
+        IBrowserHtmlSession? browserSession,
         CancellationToken cancellationToken)
     {
+        if (useBrowser)
+        {
+            browserSession = await EnsureBrowserSessionAsync(log, cancellationToken, browserSession)
+                .ConfigureAwait(false);
+            var browserFetch = await FetchViaBrowserAsync(url, log, browserSession, cancellationToken)
+                .ConfigureAwait(false);
+            return (browserFetch, true, browserSession);
+        }
+
         var client = _httpClientFactory.CreateClient("VideoScraper");
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         ApplyBrowserHeaders(request, url, hints);
@@ -241,11 +320,9 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         var looksBlocked = LooksLikeBotBlock(html);
         var looksAgeGate = LooksLikeAgeGate(html);
 
-        // Importante: Cloudflare/age-gate a menudo responden HTTP 200 con HTML de muro.
-        // Sin este chequeo el scraper parseaba la página de challenge y devolvía 0 videos.
         var shouldUseBrowser =
             _browserHtmlFetcher is not null
-            && (blockedStatus || looksBlocked || looksAgeGate);
+            && (blockedStatus || looksBlocked || looksAgeGate || hints.PreferBrowserFetch && !response.IsSuccessStatusCode);
 
         if (!shouldUseBrowser)
         {
@@ -253,11 +330,11 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
             {
                 throw new VideoScrapeException(
                     $"La petición devolvió {(int)response.StatusCode} {response.StatusCode}. HTML={html.Length} chars. " +
-                    "El sitio bloquea clientes HTTP; configure Cookie en cabeceras extra o use un sitio compatible.",
+                    "El sitio bloquea clientes HTTP; active ForceBrowser o complete Cookie en cabeceras extra.",
                     log.ToList());
             }
 
-            return new FetchResult(response.StatusCode, contentType, html);
+            return (new FetchResult(response.StatusCode, contentType, html, ViaBrowser: false), false, browserSession);
         }
 
         log.Add(
@@ -266,35 +343,74 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
                 ? "Detectado anti-bot/Cloudflare. "
                 : looksAgeGate
                     ? "Detectado age-gate. "
-                    : "Estado HTTP bloqueado. ") +
-            "Reintentando con WebView2 (complete age-gate/login si aparece)…");
+                    : "Estado HTTP bloqueado / PreferBrowserFetch. ") +
+            "Continuando paginación con WebView2 (sesión reutilizable)…");
 
-        string browserHtml;
+        browserSession = await EnsureBrowserSessionAsync(log, cancellationToken, browserSession)
+            .ConfigureAwait(false);
+        var viaBrowser = await FetchViaBrowserAsync(url, log, browserSession, cancellationToken)
+            .ConfigureAwait(false);
+        return (viaBrowser, true, browserSession);
+    }
+
+    private async Task<IBrowserHtmlSession> EnsureBrowserSessionAsync(
+        List<string> log,
+        CancellationToken cancellationToken,
+        IBrowserHtmlSession? existing = null)
+    {
+        if (existing is not null)
+            return existing;
+
+        if (_browserHtmlFetcher is null)
+        {
+            throw new VideoScrapeException(
+                "Se requiere WebView2 pero no hay IBrowserHtmlFetcher registrado (¿ejecutando sin UI?).",
+                log.ToList());
+        }
+
+        log.Add("Abriendo sesión WebView2 (perfil persistente)…");
+        return await _browserHtmlFetcher.BeginSessionAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<FetchResult> FetchViaBrowserAsync(
+        string url,
+        List<string> log,
+        IBrowserHtmlSession browserSession,
+        CancellationToken cancellationToken)
+    {
+        BrowserHtmlFetchResult browserResult;
         try
         {
-            browserHtml = await _browserHtmlFetcher!
-                .FetchHtmlAsync(url, progress: null, cancellationToken)
+            browserResult = await browserSession
+                .NavigateAsync(url, progress: null, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             log.Add($"ERROR WebView2: {ex.GetType().Name}: {ex.Message}");
-            throw new VideoScrapeException(
-                $"HTTP {(int)response.StatusCode} y WebView2 falló: {ex.Message}",
-                log.ToList(),
-                ex);
+            throw new VideoScrapeException($"WebView2 falló: {ex.Message}", log.ToList(), ex);
         }
 
-        if (string.IsNullOrWhiteSpace(browserHtml))
+        if (string.IsNullOrWhiteSpace(browserResult.Html))
         {
             throw new VideoScrapeException(
-                $"HTTP {(int)response.StatusCode} y WebView2 no devolvió HTML. " +
-                "Complete el age-gate y vuelva a scrapear.",
+                "WebView2 no devolvió HTML. Complete el age-gate y vuelva a scrapear.",
                 log.ToList());
         }
 
-        log.Add($"WebView2 OK · HTML={browserHtml.Length:N0} chars");
-        return new FetchResult(HttpStatusCode.OK, "text/html; charset=utf-8", browserHtml);
+        if (browserResult.Cookies.Count > 0)
+        {
+            var uri = Uri.TryCreate(browserResult.FinalUrl ?? url, UriKind.Absolute, out var parsed)
+                ? parsed
+                : new Uri(url, UriKind.Absolute);
+            _session.MergeCookies(browserResult.Cookies, uri);
+            log.Add(
+                $"Cookies WebView2 → HttpClient: +{browserResult.Cookies.Count} " +
+                $"(jar activo≈{_session.CountCookies(uri)})");
+        }
+
+        log.Add($"WebView2 OK · HTML={browserResult.Html.Length:N0} chars");
+        return new FetchResult(HttpStatusCode.OK, "text/html; charset=utf-8", browserResult.Html, ViaBrowser: true);
     }
 
     private static void ApplyBrowserHeaders(HttpRequestMessage request, string url, VideoScrapeHints hints)
@@ -335,6 +451,13 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
             if (!request.Headers.TryAddWithoutValidation(headerName, headerValue))
                 request.Content?.Headers.TryAddWithoutValidation(headerName, headerValue);
         }
+    }
+
+    private static bool LooksLikeSpaShell(string html, IDocument document)
+    {
+        var scriptCount = document.QuerySelectorAll("script").Length;
+        var bodyTextLen = CleanText(document.Body?.TextContent)?.Length ?? 0;
+        return scriptCount >= 8 && bodyTextLen < 400;
     }
 
     private static bool LooksLikeBotBlock(string html)
@@ -444,7 +567,7 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
                 : (IParentNode?)node.ParentElement ?? document;
 
             var titleEl = ResolveRelative(scope, node, hints.TitleSelector);
-            var urlEl = ResolveRelative(scope, node, hints.UrlSelector) ?? titleEl ?? node;
+            var urlEl = ResolveUrlElement(scope, node, titleEl, hints);
             var thumbEl = ResolveRelative(scope, node, hints.ThumbnailSelector)
                 ?? node.QuerySelector("img")
                 ?? node.QuerySelector("picture source, source");
@@ -467,8 +590,16 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
             var href = urlEl?.GetAttribute(hints.UrlAttribute) ?? urlEl?.GetAttribute("href");
             if (string.IsNullOrWhiteSpace(href) && urlEl is not null && urlEl.LocalName == "a")
                 href = urlEl.GetAttribute("href");
+            // El ítem mismo puede ser el enlace (p. ej. TeamSkeet a.vcard).
+            if (string.IsNullOrWhiteSpace(href) && node.LocalName == "a")
+                href = node.GetAttribute(hints.UrlAttribute) ?? node.GetAttribute("href");
 
-            var sourceUrl = string.IsNullOrWhiteSpace(href) ? string.Empty : ResolveUrl(pageBase, href);
+                    var sourceUrl = string.IsNullOrWhiteSpace(href) ? string.Empty : ResolveUrl(pageBase, href);
+                    if (IsMembershipOrNoiseUrl(sourceUrl))
+                    {
+                        fieldHits.SkippedNoise++;
+                        continue;
+                    }
             var title = CleanText(titleEl?.TextContent)
                 ?? CleanText(urlEl?.GetAttribute("title"))
                 ?? CleanText(thumbEl?.GetAttribute("title"))
@@ -527,6 +658,9 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
             $"code={DescribeOptional(hints.CodeSelector, fieldHits.Code)}, " +
             $"date={DescribeOptional(hints.DateSelector, fieldHits.Date)}, " +
             $"duration={DescribeOptional(hints.DurationSelector, fieldHits.Duration)}");
+
+        if (fieldHits.SkippedNoise > 0)
+            log.Add($"INFO: omitidos {fieldHits.SkippedNoise} enlace(s) de membresía/CTA (join/unlock).");
 
         if (fieldHits.Preview == 0)
         {
@@ -671,6 +805,8 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         sb.Append(", duration=").Append(Quote(hints.DurationSelector));
         sb.Append(", next=").Append(Quote(hints.NextPageSelector));
         sb.Append(", maxPages=").Append(hints.MaxPages);
+        sb.Append(", forceBrowser=").Append(hints.ForceBrowser ? "yes" : "no");
+        sb.Append(", preferBrowser=").Append(hints.PreferBrowserFetch ? "yes" : "no");
         if (!string.IsNullOrWhiteSpace(hints.BaseUrl))
             sb.Append(", baseUrl=").Append(hints.BaseUrl);
         return sb.ToString();
@@ -681,6 +817,19 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
 
     private static string Quote(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "∅" : $"«{value}»";
+
+    private static bool IsMembershipOrNoiseUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        var lower = url.ToLowerInvariant();
+        return lower.Contains("join.", StringComparison.Ordinal)
+            || lower.Contains("/join?", StringComparison.Ordinal)
+            || lower.Contains("/track/", StringComparison.Ordinal)
+            || lower.Contains("unlock", StringComparison.Ordinal)
+            || lower.Contains("membership", StringComparison.Ordinal);
+    }
 
     private static string? ResolvePreviewAttribute(
         IElement? previewEl,
@@ -867,6 +1016,40 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         return ExtractImageUrlCandidate(raw);
     }
 
+    private static IElement? ResolveUrlElement(
+        IParentNode scope,
+        IElement item,
+        IElement? titleEl,
+        VideoScrapeHints hints)
+    {
+        var configured = ResolveRelative(scope, item, hints.UrlSelector);
+        if (configured is not null)
+            return configured;
+
+        // Preferir el propio ítem si ya es un enlace (evita caer en un TitleSelector div sin href).
+        if (HasNavigableHref(item, hints.UrlAttribute))
+            return item;
+
+        if (titleEl is not null && HasNavigableHref(titleEl, hints.UrlAttribute))
+            return titleEl;
+
+        var nestedLink = item.QuerySelector("a[href]");
+        if (nestedLink is not null)
+            return nestedLink;
+
+        return titleEl ?? item;
+    }
+
+    private static bool HasNavigableHref(IElement element, string urlAttribute)
+    {
+        if (!string.IsNullOrWhiteSpace(element.GetAttribute(urlAttribute)))
+            return true;
+        if (!string.IsNullOrWhiteSpace(element.GetAttribute("href")))
+            return true;
+        return element.LocalName.Equals("a", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(element.GetAttribute("href"));
+    }
+
     private static IElement? ResolveRelative(IParentNode scope, IElement item, string? selector)
     {
         if (string.IsNullOrWhiteSpace(selector))
@@ -986,7 +1169,7 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         return uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
     }
 
-    private sealed record FetchResult(HttpStatusCode StatusCode, string? ContentType, string Html);
+    private sealed record FetchResult(HttpStatusCode StatusCode, string? ContentType, string Html, bool ViaBrowser);
 
     private sealed record ParseResult(List<ScrapedVideoCandidate> Items, int NodeCount);
 
@@ -1001,5 +1184,6 @@ public sealed class CssListVideoPageScraper : IVideoPageScraper
         public int Date;
         public int Duration;
         public int DateParseFail;
+        public int SkippedNoise;
     }
 }

@@ -1,9 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
+using MediaVault.LinkHub.App;
+
 namespace MediaVault.LinkHub.App.ViewModels.Base;
 
 public abstract partial class ViewModelBase : ObservableObject
 {
+    /// <summary>Expone el flag de scraping para bindings de Visibility en XAML.</summary>
+    public bool IsWebScrapingEnabled => AppFeatureFlags.IsWebScrapingEnabled;
+
     [ObservableProperty]
     private bool _isBusy;
 

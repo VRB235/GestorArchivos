@@ -22,7 +22,7 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Text="{Binding WindowTitle}" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="Catálogo de videos de la productora (sin actriz). Primera corrida: solo página 1; luego pagina mientras haya videos nuevos. Los nuevos se marcan al scrapear; al salir del enlace pasan a «Visto»."
+                <TextBlock Text="Enlaces de catálogo de la productora. Use «Abrir en Firefox» para navegar."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="11"
                            TextWrapping="Wrap"
@@ -45,7 +45,8 @@
                         Margin="0,0,8,0" />
                 <Button Content="Scrapear / actualizar"
                         Style="{StaticResource PrimaryButtonStyle}"
-                        Command="{Binding ScrapeSelectedLinkCommand}" />
+                        Command="{Binding ScrapeSelectedLinkCommand}"
+                        Visibility="{Binding IsWebScrapingEnabled, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </WrapPanel>
         </DockPanel>
 
@@ -204,7 +205,8 @@
             </ScrollViewer>
         </Border>
 
-        <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}">
+        <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}"
+                Visibility="{Binding IsWebScrapingEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                     <TextBlock Text="Videos scrapeados"
@@ -306,7 +308,8 @@
                   Background="#12151F"
                   BorderBrush="{StaticResource BorderBrush}"
                   BorderThickness="1"
-                  Padding="8,6">
+                  Padding="8,6"
+                  Visibility="{Binding IsWebScrapingEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Expander.Header>
                 <DockPanel LastChildFill="True">
                     <Button DockPanel.Dock="Right"

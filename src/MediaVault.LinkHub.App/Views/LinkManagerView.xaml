@@ -259,7 +259,8 @@
 
                     <Expander Header="Scraping actriz (perfil / model)"
                               IsExpanded="False"
-                              Margin="0,0,0,8">
+                              Margin="0,0,0,8"
+                              Visibility="{Binding IsWebScrapingEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Margin="0,8,0,0">
                             <TextBlock Text="Configure una sola vez por sitio. Todas las páginas de actriz reutilizan estos selectores; en cada ActressLink solo cambia la URL del perfil."
                                        Foreground="{StaticResource TextSecondaryBrush}"
@@ -272,12 +273,18 @@
                                     <TextBlock Text="Motor a usar (css-list por defecto)."
                                                Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
                                 </StackPanel>
-                                <Button Content="Plantilla"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding ApplyActressScrapeHintsTemplateCommand}"
-                                        HorizontalAlignment="Right"
-                                        VerticalAlignment="Top"
-                                        Padding="10,4" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                    <Button Content="Probar"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Command="{Binding ProbeActressScrapeHintsCommand}"
+                                            Margin="0,0,6,0"
+                                            Padding="10,4"
+                                            ToolTip="Dry-run: 1 página contra una URL de actriz guardada (o la URL del sitio)." />
+                                    <Button Content="Plantilla"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Command="{Binding ApplyActressScrapeHintsTemplateCommand}"
+                                            Padding="10,4" />
+                                </StackPanel>
                             </DockPanel>
                             <TextBox Text="{Binding ScraperKey, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
                             <controls:ScrapeHintsEditor DataContext="{Binding ActressHints}" />
@@ -286,7 +293,8 @@
 
                     <Expander Header="Scraping productora (catálogo de videos)"
                               IsExpanded="False"
-                              Margin="0,0,0,12">
+                              Margin="0,0,0,12"
+                              Visibility="{Binding IsWebScrapingEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Margin="0,8,0,0">
                             <TextBlock Text="Selectores CSS del listado general de la productora. Independientes de los de actriz: el DOM suele ser distinto."
                                        Foreground="{StaticResource TextSecondaryBrush}"
@@ -299,12 +307,18 @@
                                     <TextBlock Text="Motor a usar (css-list por defecto)."
                                                Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4" />
                                 </StackPanel>
-                                <Button Content="Plantilla"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding ApplyProducerScrapeHintsTemplateCommand}"
-                                        HorizontalAlignment="Right"
-                                        VerticalAlignment="Top"
-                                        Padding="10,4" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                    <Button Content="Probar"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Command="{Binding ProbeProducerScrapeHintsCommand}"
+                                            Margin="0,0,6,0"
+                                            Padding="10,4"
+                                            ToolTip="Dry-run: 1 página contra un catálogo de productora guardado (o la URL del sitio)." />
+                                    <Button Content="Plantilla"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Command="{Binding ApplyProducerScrapeHintsTemplateCommand}"
+                                            Padding="10,4" />
+                                </StackPanel>
                             </DockPanel>
                             <TextBox Text="{Binding ProducerScraperKey, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
                             <controls:ScrapeHintsEditor DataContext="{Binding ProducerHints}" />

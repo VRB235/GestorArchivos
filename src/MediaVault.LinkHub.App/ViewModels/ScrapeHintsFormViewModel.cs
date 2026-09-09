@@ -69,6 +69,12 @@ public partial class ScrapeHintsFormViewModel : ObservableObject
     private int? _waitMs;
 
     [ObservableProperty]
+    private bool _forceBrowser;
+
+    [ObservableProperty]
+    private bool _preferBrowserFetch;
+
+    [ObservableProperty]
     private string _userAgent = string.Empty;
 
     [ObservableProperty]
@@ -126,6 +132,8 @@ public partial class ScrapeHintsFormViewModel : ObservableObject
         NextPageSelector = hints.NextPageSelector ?? string.Empty;
         MaxPages = hints.MaxPages <= 0 ? 1 : hints.MaxPages;
         WaitMs = hints.WaitMs;
+        ForceBrowser = hints.ForceBrowser;
+        PreferBrowserFetch = hints.PreferBrowserFetch;
         UserAgent = hints.UserAgent ?? string.Empty;
         BaseUrl = hints.BaseUrl ?? string.Empty;
         ExtraHeadersText = FormatExtraHeaders(hints.ExtraHeaders);
@@ -157,6 +165,8 @@ public partial class ScrapeHintsFormViewModel : ObservableObject
             NextPageSelector = NullIfWhiteSpace(NextPageSelector),
             MaxPages = MaxPages <= 0 ? 1 : MaxPages,
             WaitMs = WaitMs is > 0 ? WaitMs : null,
+            ForceBrowser = ForceBrowser,
+            PreferBrowserFetch = PreferBrowserFetch,
             UserAgent = NullIfWhiteSpace(UserAgent),
             BaseUrl = NullIfWhiteSpace(BaseUrl),
             ExtraHeaders = ParseExtraHeaders(ExtraHeadersText)

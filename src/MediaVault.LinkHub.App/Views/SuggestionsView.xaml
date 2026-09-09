@@ -70,41 +70,45 @@
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="Padding" Value="6,4" />
+                            <Setter Property="Padding" Value="4,2" />
                         </Style>
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="0,2">
+                            <StackPanel Margin="0,1">
                                 <DockPanel LastChildFill="True">
                                     <Border DockPanel.Dock="Right"
                                             Background="#2E7D32"
-                                            CornerRadius="4"
-                                            Padding="6,2"
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Top"
+                                            CornerRadius="3"
+                                            Padding="4,1"
+                                            Margin="6,0,0,0"
+                                            VerticalAlignment="Center"
                                             Visibility="{Binding Resuelto, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <TextBlock Text="Resuelto" Foreground="White" FontSize="10" />
+                                        <TextBlock Text="Resuelto" Foreground="White" FontSize="9" />
                                     </Border>
                                     <Border DockPanel.Dock="Right"
                                             Background="#C62828"
-                                            CornerRadius="4"
-                                            Padding="6,2"
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Top"
+                                            CornerRadius="3"
+                                            Padding="4,1"
+                                            Margin="6,0,0,0"
+                                            VerticalAlignment="Center"
                                             Visibility="{Binding Resuelto, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                                        <TextBlock Text="Pendiente" Foreground="White" FontSize="10" />
+                                        <TextBlock Text="Pendiente" Foreground="White" FontSize="9" />
                                     </Border>
                                     <TextBlock Text="{Binding Tipo}"
                                                FontWeight="SemiBold"
+                                               FontSize="12"
                                                Foreground="{StaticResource AccentBrush}" />
                                 </DockPanel>
                                 <TextBlock Text="{Binding Texto}"
                                            TextWrapping="Wrap"
-                                           Margin="0,2,0,0" />
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxHeight="32"
+                                           FontSize="11"
+                                           Margin="0,1,0,0" />
                                 <TextBlock Text="{Binding FechaCreacion, Converter={StaticResource DateTimeLocalConverter}}"
                                            Foreground="{StaticResource TextSecondaryBrush}"
-                                           FontSize="11" />
+                                           FontSize="10" />
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

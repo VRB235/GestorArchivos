@@ -22,7 +22,7 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Text="{Binding WindowTitle}" Style="{StaticResource SectionTitleStyle}" />
-                <TextBlock Text="Tiles con logo de Link Manager; la URL es la de esta actriz. Los videos nuevos se marcan al scrapear; al salir del enlace pasan a «Visto»."
+                <TextBlock Text="Tiles con logo de Link Manager; la URL es la página específica de esta actriz. Use «Abrir en Firefox» para navegar."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="11"
                            TextWrapping="Wrap"
@@ -45,7 +45,8 @@
                         Margin="0,0,8,0" />
                 <Button Content="Scrapear / actualizar"
                         Style="{StaticResource PrimaryButtonStyle}"
-                        Command="{Binding ScrapeSelectedLinkCommand}" />
+                        Command="{Binding ScrapeSelectedLinkCommand}"
+                        Visibility="{Binding IsWebScrapingEnabled, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </WrapPanel>
         </DockPanel>
 
@@ -129,7 +130,7 @@
                 <StackPanel>
                     <TextBlock Text="Sitio Link Manager (productora)"
                                Style="{StaticResource LabelStyle}" />
-                    <TextBlock Text="Obligatorio para scrapear: elija el sitio (logo + CSS del Link Manager, una vez por productora). Aquí solo pega la URL del perfil de esta actriz."
+                    <TextBlock Text="Elija el sitio del Link Manager (logo) y pegue la URL específica de esta actriz."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="11"
                                TextWrapping="Wrap"
@@ -155,7 +156,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1" Margin="6,0,0,0">
                             <TextBlock Text="Acción" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="Browse = abrir en navegador. Scrape = extraer listado de videos."
+                            <TextBlock Text="Browse = abrir en navegador."
                                        Foreground="{StaticResource TextSecondaryBrush}"
                                        FontSize="11"
                                        TextWrapping="Wrap"
@@ -219,7 +220,8 @@
             </ScrollViewer>
         </Border>
 
-        <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}">
+        <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}"
+                Visibility="{Binding IsWebScrapingEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                     <TextBlock Text="Videos scrapeados"
@@ -322,7 +324,8 @@
                   Background="#12151F"
                   BorderBrush="{StaticResource BorderBrush}"
                   BorderThickness="1"
-                  Padding="8,6">
+                  Padding="8,6"
+                  Visibility="{Binding IsWebScrapingEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Expander.Header>
                 <DockPanel LastChildFill="True">
                     <Button DockPanel.Dock="Right"

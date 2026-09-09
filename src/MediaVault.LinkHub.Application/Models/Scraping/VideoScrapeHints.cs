@@ -79,9 +79,20 @@ public sealed class VideoScrapeHints
     public int MaxPages { get; set; } = 1;
 
     /// <summary>
-    /// Espera opcional antes de parsear (ms). Útil si el HTML se sirve con delay; el scraper HTTP lo ignora.
+    /// Espera opcional antes de cada página (ms). Si es null y hay paginación, se usa un default suave (~450 ms).
     /// </summary>
     public int? WaitMs { get; set; }
+
+    /// <summary>
+    /// Si es true, fuerza WebView2 desde la primera página (SPA / WAF conocidos).
+    /// </summary>
+    public bool ForceBrowser { get; set; }
+
+    /// <summary>
+    /// Si es true, prefiere WebView2 cuando el GET HTTP no aporta ítems o parece bloqueado.
+    /// Más agresivo que el fallback automático por status/heurística.
+    /// </summary>
+    public bool PreferBrowserFetch { get; set; }
 
     /// <summary>
     /// User-Agent override. Si es null se usa el del cliente HTTP por defecto.
@@ -116,6 +127,8 @@ public sealed class VideoScrapeHints
             DateSelector = ".date",
             DurationSelector = ".duration",
             NextPageSelector = "a.next",
-            MaxPages = 3
+            MaxPages = 3,
+            PreferBrowserFetch = false,
+            ForceBrowser = false
         };
 }

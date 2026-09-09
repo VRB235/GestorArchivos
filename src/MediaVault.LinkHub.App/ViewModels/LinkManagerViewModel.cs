@@ -15,16 +15,19 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
 {
     private readonly IWebLinkService _webLinkService;
     private readonly IProducerService _producerService;
+    private readonly IVideoScrapeProbeService _scrapeProbeService;
     private readonly IAppDialogService _appDialogService;
     private List<WebLink> _allWebLinks = [];
 
     public LinkManagerViewModel(
         IWebLinkService webLinkService,
         IProducerService producerService,
+        IVideoScrapeProbeService scrapeProbeService,
         IAppDialogService appDialogService)
     {
         _webLinkService = webLinkService;
         _producerService = producerService;
+        _scrapeProbeService = scrapeProbeService;
         _appDialogService = appDialogService;
         Categories = new ObservableCollection<LinkCategory>(Enum.GetValues<LinkCategory>());
         CategoryFilters =
@@ -289,6 +292,86 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
     }
 
     [RelayCommand]
+    private async Task ProbeActressScrapeHintsAsync() =>
+        await ProbeHintsAsync(
+            preferActressProfile: true,
+            ActressHints,
+            ScraperKey,
+            "Probar selectores (actriz)").ConfigureAwait(true);
+
+    [RelayCommand]
+    private async Task ProbeProducerScrapeHintsAsync() =>
+        await ProbeHintsAsync(
+            preferActressProfile: false,
+            ProducerHints,
+            ProducerScraperKey,
+            "Probar selectores (productora)").ConfigureAwait(true);
+
+    private async Task ProbeHintsAsync(
+        bool preferActressProfile,
+        ScrapeHintsFormViewModel hintsForm,
+        string scraperKey,
+        string title)
+    {
+        if (!AppFeatureFlags.IsWebScrapingEnabled)
+        {
+            ErrorMessage = "El web scraping está desactivado temporalmente.";
+            return;
+        }
+
+        if (!HasConfiguredHints(hintsForm))
+        {
+            ErrorMessage = "Configure al menos ListItemSelector o TitleSelector antes de probar.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Url) && SelectedWebLink is null)
+        {
+            ErrorMessage = "Indique la URL del sitio o seleccione un enlace guardado.";
+            return;
+        }
+
+        await ExecuteBusyAsync(async () =>
+        {
+            string? probeUrl = null;
+            if (SelectedWebLink is not null)
+            {
+                probeUrl = await _scrapeProbeService
+                    .ResolveSampleUrlAsync(SelectedWebLink.Id, preferActressProfile)
+                    .ConfigureAwait(true);
+            }
+
+            if (string.IsNullOrWhiteSpace(probeUrl))
+                probeUrl = Url;
+
+            if (string.IsNullOrWhiteSpace(probeUrl))
+                throw new InvalidOperationException("No hay URL de muestra para el dry-run.");
+
+            var outcome = await _scrapeProbeService
+                .ProbeAsync(probeUrl, hintsForm.ToModel(), scraperKey)
+                .ConfigureAwait(true);
+
+            var samples = outcome.Items
+                .Take(5)
+                .Select((item, index) =>
+                    $"  {index + 1}. {(string.IsNullOrWhiteSpace(item.Title) ? "(sin título)" : item.Title)}\n     {item.SourceUrl}")
+                .ToList();
+
+            var body =
+                $"URL: {probeUrl}\n" +
+                $"Videos detectados: {outcome.Items.Count} · Páginas: {outcome.PagesFetched}\n\n" +
+                (samples.Count == 0 ? "(sin muestras)\n" : "Muestras:\n" + string.Join('\n', samples) + "\n") +
+                "\n—— Log ——\n" +
+                string.Join('\n', outcome.Log.TakeLast(40));
+
+            _appDialogService.ShowMessage(
+                title,
+                body,
+                outcome.Items.Count > 0 ? AppDialogKind.Information : AppDialogKind.Warning);
+        }, "Probando selectores…").ConfigureAwait(true);
+    }
+
+    [RelayCommand]
     private void BrowseLogo()
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
@@ -346,6 +429,8 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
         await ExecuteBusyAsync(async () =>
         {
             int savedId;
+            var (actressHintsJson, actressScraperKey, producerHintsJson, producerScraperKey) =
+                ResolveScrapeFieldsForSave();
 
             if (SelectedWebLink is null)
             {
@@ -358,10 +443,10 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
                     LogoZoom,
                     LogoOffsetX,
                     LogoOffsetY,
-                    HasConfiguredHints(ActressHints) ? ActressHints.ToJson() : null,
-                    ScraperKey,
-                    HasConfiguredHints(ProducerHints) ? ProducerHints.ToJson() : null,
-                    ProducerScraperKey).ConfigureAwait(true);
+                    actressHintsJson,
+                    actressScraperKey,
+                    producerHintsJson,
+                    producerScraperKey).ConfigureAwait(true);
                 savedId = created.Id;
             }
             else
@@ -377,10 +462,10 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
                     LogoZoom,
                     LogoOffsetX,
                     LogoOffsetY,
-                    HasConfiguredHints(ActressHints) ? ActressHints.ToJson() : null,
-                    ScraperKey,
-                    HasConfiguredHints(ProducerHints) ? ProducerHints.ToJson() : null,
-                    ProducerScraperKey).ConfigureAwait(true);
+                    actressHintsJson,
+                    actressScraperKey,
+                    producerHintsJson,
+                    producerScraperKey).ConfigureAwait(true);
             }
 
             var producerIds = LinkProducerSelections
@@ -393,6 +478,30 @@ public partial class LinkManagerViewModel : ViewModelBase, INavigableViewModel
             SelectedWebLink = WebLinks.FirstOrDefault(link => link.Id == savedId)
                 ?? _allWebLinks.FirstOrDefault(link => link.Id == savedId);
         }, "Guardando enlace...").ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Con scraping oculto se preservan los hints ya guardados (no se pisan con la plantilla).
+    /// </summary>
+    private (string? ActressHints, string ActressKey, string? ProducerHints, string ProducerKey)
+        ResolveScrapeFieldsForSave()
+    {
+        if (!AppFeatureFlags.IsWebScrapingEnabled)
+        {
+            return (
+                SelectedWebLink?.ScrapeHintsJson,
+                string.IsNullOrWhiteSpace(SelectedWebLink?.ScraperKey) ? "css-list" : SelectedWebLink!.ScraperKey!,
+                SelectedWebLink?.ProducerScrapeHintsJson,
+                string.IsNullOrWhiteSpace(SelectedWebLink?.ProducerScraperKey)
+                    ? "css-list"
+                    : SelectedWebLink!.ProducerScraperKey!);
+        }
+
+        return (
+            HasConfiguredHints(ActressHints) ? ActressHints.ToJson() : null,
+            ScraperKey,
+            HasConfiguredHints(ProducerHints) ? ProducerHints.ToJson() : null,
+            ProducerScraperKey);
     }
 
     [RelayCommand]

@@ -57,6 +57,9 @@ public sealed class DashboardService : IDashboardService
         CategoryNames = file.Categories
           .OrderBy(category => category.Name)
           .Select(category => category.Name)
+          .ToList(),
+        ActressIds = file.Actresses
+          .Select(actress => actress.Id)
           .ToList()
       })
       .ToListAsync(cancellationToken)
@@ -71,7 +74,8 @@ public sealed class DashboardService : IDashboardService
       row.RankingCalidad,
       row.RankingContenido,
       row.RankingGusto,
-      FormatCategoryNames(row.CategoryNames))).ToList();
+      FormatCategoryNames(row.CategoryNames),
+      row.ActressIds)).ToList();
 
     // Tops / métricas de disco: excluir papelera y rutas inexistentes (evita stickers de $RECYCLE.BIN).
     var presentStats = allStats
@@ -213,6 +217,9 @@ public sealed class DashboardService : IDashboardService
         CategoryNames = file.Categories
           .OrderBy(category => category.Name)
           .Select(category => category.Name)
+          .ToList(),
+        ActressIds = file.Actresses
+          .Select(actress => actress.Id)
           .ToList()
       })
       .FirstOrDefaultAsync(cancellationToken)
@@ -230,7 +237,8 @@ public sealed class DashboardService : IDashboardService
       row.RankingCalidad,
       row.RankingContenido,
       row.RankingGusto,
-      FormatCategoryNames(row.CategoryNames));
+      FormatCategoryNames(row.CategoryNames),
+      row.ActressIds);
 
     if (!stats.IsVideo || !MediaPathEligibility.ExistsSafely(stats.Path))
       return null;
@@ -258,6 +266,9 @@ public sealed class DashboardService : IDashboardService
         CategoryNames = file.Categories
           .OrderBy(category => category.Name)
           .Select(category => category.Name)
+          .ToList(),
+        ActressIds = file.Actresses
+          .Select(actress => actress.Id)
           .ToList()
       })
       .ToListAsync(cancellationToken)
@@ -275,7 +286,8 @@ public sealed class DashboardService : IDashboardService
         row.RankingCalidad,
         row.RankingContenido,
         row.RankingGusto,
-        FormatCategoryNames(row.CategoryNames)))
+        FormatCategoryNames(row.CategoryNames),
+        row.ActressIds))
       .Where(file => file.IsVideo)
       .Where(file => MediaPathEligibility.ExistsSafely(file.Path))
       .ToList();
@@ -290,7 +302,8 @@ public sealed class DashboardService : IDashboardService
     double rankingCalidad,
     double rankingContenido,
     double rankingGusto,
-    string? categoryName) =>
+    string? categoryName,
+    IReadOnlyList<int>? actressIds = null) =>
     new()
     {
       Id = id,
@@ -300,7 +313,8 @@ public sealed class DashboardService : IDashboardService
       VecesAbierto = vecesAbierto,
       RankingGlobal = MediaFileRankingScale.ComputeGlobal(rankingCalidad, rankingContenido, rankingGusto),
       IsVideo = MediaFileExtensions.IsVideo(path),
-      CategoryName = categoryName
+      CategoryName = categoryName,
+      ActressIds = actressIds is { Count: > 0 } ? actressIds.ToList() : []
     };
 
   private static string? FormatCategoryNames(IReadOnlyList<string> categoryNames) =>

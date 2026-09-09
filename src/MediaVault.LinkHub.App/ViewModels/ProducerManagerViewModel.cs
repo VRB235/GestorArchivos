@@ -44,7 +44,9 @@ public partial class ProducerManagerViewModel : ViewModelBase, INavigableViewMod
 
     public string Title => "Productoras";
 
-    public string Subtitle => "Catálogo con logo del Link Manager · scrape de videos y etiquetado en Media Vault";
+    public string Subtitle => AppFeatureFlags.IsWebScrapingEnabled
+        ? "Catálogo con logo del Link Manager · scrape de videos y etiquetado en Media Vault"
+        : "Catálogo de productoras con logo del Link Manager y etiquetado en Media Vault";
 
     public ObservableCollection<ProducerCatalogItem> Catalog { get; } = [];
 

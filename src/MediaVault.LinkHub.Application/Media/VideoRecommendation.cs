@@ -31,17 +31,23 @@ public static class VideoRecommendation
 
     /// <summary>
     /// Elige hasta <paramref name="count"/> videos distintos con muestreo ponderado sin reemplazo.
+    /// No repite actrices dentro del lote (salvo que el video no tenga actrices etiquetadas).
     /// </summary>
     /// <param name="reuseWhenExhausted">
-    /// Si es true y al excluir no queda nada, reutiliza el pool completo (útil al refrescar).
+    /// Si es true y al excluir ids no queda nada, reutiliza el pool completo (útil al refrescar).
     /// Si es false, se detiene cuando no hay candidatos nuevos.
+    /// No fuerza repetición de actrices: si solo quedan videos de actrices ya usadas, se corta el lote.
+    /// </param>
+    /// <param name="seedUsedActressIds">
+    /// Actrices ya usadas en el lote (p. ej. picks previos de ranking) que no deben repetirse.
     /// </param>
     public static IReadOnlyList<MediaFileViewStats> PickWeightedMany(
         IReadOnlyList<MediaFileViewStats> videos,
         IReadOnlyCollection<int> excludeMediaFileIds,
         int count = DefaultPickCount,
         Random? random = null,
-        bool reuseWhenExhausted = true)
+        bool reuseWhenExhausted = true,
+        IReadOnlyCollection<int>? seedUsedActressIds = null)
     {
         if (videos.Count == 0 || count <= 0)
             return [];
@@ -62,14 +68,26 @@ public static class VideoRecommendation
             candidates = videos.ToList();
         }
 
+        var usedActresses = seedUsedActressIds is null || seedUsedActressIds.Count == 0
+            ? []
+            : seedUsedActressIds.ToHashSet();
+
         var picks = new List<MediaFileViewStats>(Math.Min(count, candidates.Count));
         while (picks.Count < count && candidates.Count > 0)
         {
-            var pick = PickWeightedFromCandidates(candidates, random);
+            var eligible = candidates
+                .Where(video => !RecommendationActressDiversity.ConflictsWithUsedActresses(video, usedActresses))
+                .ToList();
+
+            if (eligible.Count == 0)
+                break;
+
+            var pick = PickWeightedFromCandidates(eligible, random);
             if (pick is null)
                 break;
 
             picks.Add(pick);
+            RecommendationActressDiversity.RegisterActresses(pick, usedActresses);
             candidates.RemoveAll(video => video.Id == pick.Id);
         }
 

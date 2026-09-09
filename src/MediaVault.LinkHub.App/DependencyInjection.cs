@@ -26,7 +26,7 @@ public static class DependencyInjection
         services.AddTransient<SuggestionsViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<IHoverPreviewCaptureService, WebView2HoverPreviewCaptureService>();
-        services.AddTransient<IBrowserHtmlFetcher, WebView2HtmlFetcher>();
+        services.AddSingleton<IBrowserHtmlFetcher, WebView2HtmlFetcher>();
 
         services.AddTransient<MainWindow>();
 

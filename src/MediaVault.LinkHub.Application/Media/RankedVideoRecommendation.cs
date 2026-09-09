@@ -40,14 +40,16 @@ public static class RankedVideoRecommendation
             ?? excludeMediaFileIds.ToHashSet();
 
         var picks = new List<MediaFileViewStats>(count);
+        var usedActresses = new HashSet<int>();
         while (picks.Count < count)
         {
-            var pick = PickSingleByStarTiers(videoPool, excluded, random);
+            var pick = PickSingleByStarTiers(videoPool, excluded, usedActresses, random);
             if (pick is null)
                 break;
 
             picks.Add(pick);
             excluded.Add(pick.Id);
+            RecommendationActressDiversity.RegisterActresses(pick, usedActresses);
         }
 
         if (picks.Count < count)
@@ -57,12 +59,14 @@ public static class RankedVideoRecommendation
                 excluded,
                 count - picks.Count,
                 random,
-                reuseWhenExhausted: false);
+                reuseWhenExhausted: false,
+                seedUsedActressIds: usedActresses);
 
             foreach (var filler in fillers)
             {
                 picks.Add(filler);
                 excluded.Add(filler.Id);
+                RecommendationActressDiversity.RegisterActresses(filler, usedActresses);
             }
         }
 
@@ -72,6 +76,7 @@ public static class RankedVideoRecommendation
     private static MediaFileViewStats? PickSingleByStarTiers(
         IReadOnlyList<MediaFileViewStats> videos,
         HashSet<int> excluded,
+        HashSet<int> usedActresses,
         Random random)
     {
         var rankedVideos = videos
@@ -87,7 +92,8 @@ public static class RankedVideoRecommendation
             var pool = rankedVideos
                 .Where(video =>
                     GetRecommendationTier(video) == stars
-                    && !excluded.Contains(video.Id))
+                    && !excluded.Contains(video.Id)
+                    && !RecommendationActressDiversity.ConflictsWithUsedActresses(video, usedActresses))
                 .ToList();
 
             if (pool.Count == 0)

@@ -156,11 +156,36 @@ public sealed class RankedVideoRecommendationTests
         session.ShownMediaFileIds.Should().BeEmpty();
     }
 
+    [Fact]
+    public void PickByStarTiersMany_does_not_repeat_actresses_across_tiers()
+    {
+        var videos = new[]
+        {
+            CreateVideo(1, "five-a.mp4", ranking: 5, actressIds: [10]),
+            CreateVideo(2, "five-b.mp4", ranking: 5, actressIds: [10]),
+            CreateVideo(3, "four.mp4", ranking: 4, actressIds: [20]),
+            CreateVideo(4, "three.mp4", ranking: 3, actressIds: [30]),
+            CreateVideo(5, "two.mp4", ranking: 2, actressIds: [40]),
+            CreateVideo(6, "one.mp4", ranking: 1, actressIds: [50])
+        };
+
+        var picks = RankedVideoRecommendation.PickByStarTiersMany(
+            videos,
+            excludeMediaFileIds: [],
+            count: 5,
+            random: new Random(5));
+
+        picks.Should().HaveCount(5);
+        picks.SelectMany(video => video.ActressIds).Should().OnlyHaveUniqueItems();
+        picks.Count(video => video.ActressIds.Contains(10)).Should().Be(1);
+    }
+
     private static MediaFileViewStats CreateVideo(
         int id,
         string name,
         double ranking,
-        bool isVideo = true) =>
+        bool isVideo = true,
+        IReadOnlyList<int>? actressIds = null) =>
         new()
         {
             Id = id,
@@ -169,6 +194,7 @@ public sealed class RankedVideoRecommendationTests
             Extension = Path.GetExtension(name),
             RankingGlobal = ranking,
             VecesAbierto = 0,
-            IsVideo = isVideo
+            IsVideo = isVideo,
+            ActressIds = actressIds ?? []
         };
 }
