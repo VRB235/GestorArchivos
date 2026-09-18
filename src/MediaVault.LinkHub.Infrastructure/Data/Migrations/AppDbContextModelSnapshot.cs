@@ -497,6 +497,60 @@ namespace MediaVault.LinkHub.Infrastructure.Data.Migrations
                     b.ToTable("VideoCategories", (string)null);
                 });
 
+            modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.VideoDownload", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LocalPath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProgressPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SegmentsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SegmentsTotal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("VideoDownloads", (string)null);
+                });
+
             modelBuilder.Entity("MediaVault.LinkHub.Domain.Entities.WebLink", b =>
                 {
                     b.Property<int>("Id")

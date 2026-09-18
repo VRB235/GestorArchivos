@@ -406,6 +406,8 @@ public sealed class VideoScrapeService : IVideoScrapeService
                 NextPageSelector = hints.NextPageSelector,
                 MaxPages = 1,
                 WaitMs = hints.WaitMs,
+                ForceBrowser = hints.ForceBrowser,
+                PreferBrowserFetch = hints.PreferBrowserFetch,
                 UserAgent = hints.UserAgent,
                 ExtraHeaders = hints.ExtraHeaders,
                 BaseUrl = hints.BaseUrl

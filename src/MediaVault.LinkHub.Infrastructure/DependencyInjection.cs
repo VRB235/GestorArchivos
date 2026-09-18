@@ -30,6 +30,7 @@ public static class DependencyInjection
     services.AddSingleton<IRankedVideoRecommendationSession, RankedVideoRecommendationSession>();
 
     services.AddSingleton<SuggestionImageStorage>();
+    services.AddSingleton<VideoDownloadStorage>();
     services.AddSingleton<VideoScraperSession>();
     services.AddHttpClient("VideoScraper", client =>
     {
@@ -51,6 +52,12 @@ public static class DependencyInjection
       return new TransientHttpRetryHandler(inner, maxRetries: 3);
     });
 
+    services.AddHttpClient("HlsDownloader", client =>
+    {
+      // Playlists largas / segmentos lentos; el timeout por request se controla en la descarga.
+      client.Timeout = TimeSpan.FromMinutes(30);
+    });
+
     services.AddTransient<IVideoPageScraper>(sp =>
       new CssListVideoPageScraper(
         sp.GetRequiredService<System.Net.Http.IHttpClientFactory>(),
@@ -68,6 +75,7 @@ public static class DependencyInjection
     services.AddTransient<IProducerLinkService, ProducerLinkService>();
     services.AddTransient<IVideoScrapeService, VideoScrapeService>();
     services.AddTransient<IProducerService, ProducerService>();
+    services.AddSingleton<IVideoDownloadService, VideoDownloadService>();
 
     return services;
   }

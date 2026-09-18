@@ -18,6 +18,9 @@ public sealed class NavigationService : INavigationService
 
     public async Task NavigateToAsync<TViewModel>() where TViewModel : ViewModelBase
     {
+        if (CurrentViewModel is IDisposable disposable)
+            disposable.Dispose();
+
         var viewModel = _serviceProvider.GetRequiredService<TViewModel>();
         CurrentViewModel = viewModel;
         CurrentViewModelChanged?.Invoke(this, EventArgs.Empty);

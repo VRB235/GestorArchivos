@@ -38,6 +38,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Producer> Producers => Set<Producer>();
 
+    public DbSet<VideoDownload> VideoDownloads => Set<VideoDownload>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -54,6 +56,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ProducerLinkConfiguration());
         modelBuilder.ApplyConfiguration(new ScrapedVideoConfiguration());
         modelBuilder.ApplyConfiguration(new ProducerConfiguration());
+        modelBuilder.ApplyConfiguration(new VideoDownloadConfiguration());
     }
 
     /// <summary>

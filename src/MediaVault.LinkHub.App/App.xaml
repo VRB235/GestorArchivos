@@ -18,6 +18,12 @@
             <DataTemplate DataType="{x:Type vm:LinkManagerViewModel}">
                 <views:LinkManagerView />
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:VideoDownloadsViewModel}">
+                <views:VideoDownloadsView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ScrapingLabViewModel}">
+                <views:ScrapingLabView />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:MediaVaultViewModel}">
                 <views:MediaVaultView />
             </DataTemplate>

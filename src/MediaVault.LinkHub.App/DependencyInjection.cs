@@ -17,6 +17,8 @@ public static class DependencyInjection
         services.AddSingleton<MainViewModel>();
 
         services.AddTransient<LinkManagerViewModel>();
+        services.AddTransient<VideoDownloadsViewModel>();
+        services.AddTransient<ScrapingLabViewModel>();
         services.AddTransient<MediaVaultViewModel>();
         services.AddTransient<VideoCategoryManagerViewModel>();
         services.AddTransient<ActressesViewModel>();

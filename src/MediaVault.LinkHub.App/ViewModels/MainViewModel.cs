@@ -21,6 +21,8 @@ public partial class MainViewModel : ViewModelBase
         [
             new NavigationItem { Title = "Dashboard", Icon = "📊", Target = "dashboard" },
             new NavigationItem { Title = "Link Manager", Icon = "🔗", Target = "links" },
+            new NavigationItem { Title = "Descargas", Icon = "⬇️", Target = "downloads" },
+            new NavigationItem { Title = "Scraping Lab", Icon = "🧪", Target = "scraping-lab" },
             new NavigationItem { Title = "Media Vault", Icon = "🗂️", Target = "vault" },
             new NavigationItem { Title = "Categorías", Icon = "🏷️", Target = "categories" },
             new NavigationItem { Title = "Actrices", Icon = "🎭", Target = "actresses" },
@@ -67,6 +69,12 @@ public partial class MainViewModel : ViewModelBase
                 break;
             case "links":
                 await _navigationService.NavigateToAsync<LinkManagerViewModel>().ConfigureAwait(true);
+                break;
+            case "downloads":
+                await _navigationService.NavigateToAsync<VideoDownloadsViewModel>().ConfigureAwait(true);
+                break;
+            case "scraping-lab":
+                await _navigationService.NavigateToAsync<ScrapingLabViewModel>().ConfigureAwait(true);
                 break;
             case "vault":
                 await _navigationService.NavigateToAsync<MediaVaultViewModel>().ConfigureAwait(true);

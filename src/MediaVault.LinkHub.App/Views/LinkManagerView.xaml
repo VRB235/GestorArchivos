@@ -279,7 +279,7 @@
                                             Command="{Binding ProbeActressScrapeHintsCommand}"
                                             Margin="0,0,6,0"
                                             Padding="10,4"
-                                            ToolTip="Dry-run: 1 página contra una URL de actriz guardada (o la URL del sitio)." />
+                                            ToolTip="Dry-run rápido (1 página). Para depuración iterativa en sitios difíciles (SPA/WAF), use Scraping Lab." />
                                     <Button Content="Plantilla"
                                             Style="{StaticResource SecondaryButtonStyle}"
                                             Command="{Binding ApplyActressScrapeHintsTemplateCommand}"
@@ -313,7 +313,7 @@
                                             Command="{Binding ProbeProducerScrapeHintsCommand}"
                                             Margin="0,0,6,0"
                                             Padding="10,4"
-                                            ToolTip="Dry-run: 1 página contra un catálogo de productora guardado (o la URL del sitio)." />
+                                            ToolTip="Dry-run rápido (1 página). Para depuración iterativa en sitios difíciles (SPA/WAF), use Scraping Lab." />
                                     <Button Content="Plantilla"
                                             Style="{StaticResource SecondaryButtonStyle}"
                                             Command="{Binding ApplyProducerScrapeHintsTemplateCommand}"
