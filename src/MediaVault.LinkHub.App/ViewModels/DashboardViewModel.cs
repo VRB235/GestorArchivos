@@ -50,14 +50,17 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AverageGlobalRankingStars))]
+    [NotifyPropertyChangedFor(nameof(AverageGlobalRankingLabel))]
     private double _averageGlobalRanking;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AverageVideoRankingStars))]
+    [NotifyPropertyChangedFor(nameof(AverageVideoRankingLabel))]
     private double _averageVideoRanking;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AveragePhotoRankingStars))]
+    [NotifyPropertyChangedFor(nameof(AveragePhotoRankingLabel))]
     private double _averagePhotoRanking;
 
     public int AverageGlobalRankingStars =>
@@ -69,10 +72,26 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
     public int AveragePhotoRankingStars =>
         MediaFileRankingScale.ToDisplayStars(AveragePhotoRanking);
 
+    public string AverageGlobalRankingLabel => FormatRankingLabel(AverageGlobalRanking);
+
+    public string AverageVideoRankingLabel => FormatRankingLabel(AverageVideoRanking);
+
+    public string AveragePhotoRankingLabel => FormatRankingLabel(AveragePhotoRanking);
+
     [ObservableProperty]
     private int _totalMediaFiles;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VideosOpened))]
+    [NotifyPropertyChangedFor(nameof(VideosOpenedPercent))]
+    [NotifyPropertyChangedFor(nameof(VideosOpenedSummary))]
+    [NotifyPropertyChangedFor(nameof(VideosNeverOpenedSummary))]
+    [NotifyPropertyChangedFor(nameof(VideosRated))]
+    [NotifyPropertyChangedFor(nameof(VideosRatedPercent))]
+    [NotifyPropertyChangedFor(nameof(VideosRatedSummary))]
+    [NotifyPropertyChangedFor(nameof(VideosUnratedSummary))]
+    [NotifyPropertyChangedFor(nameof(AverageOpensPerVideo))]
+    [NotifyPropertyChangedFor(nameof(AverageOpensPerVideoLabel))]
     private int _totalVideos;
 
     [ObservableProperty]
@@ -85,17 +104,67 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
     private int _totalQuickNotes;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AverageOpensPerVideo))]
+    [NotifyPropertyChangedFor(nameof(AverageOpensPerVideoLabel))]
     private int _totalVideoOpens;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VideosOpened))]
+    [NotifyPropertyChangedFor(nameof(VideosOpenedPercent))]
+    [NotifyPropertyChangedFor(nameof(VideosOpenedSummary))]
+    [NotifyPropertyChangedFor(nameof(VideosNeverOpenedSummary))]
     private int _videosNeverOpened;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VideosRated))]
+    [NotifyPropertyChangedFor(nameof(VideosRatedPercent))]
+    [NotifyPropertyChangedFor(nameof(VideosRatedSummary))]
+    [NotifyPropertyChangedFor(nameof(VideosUnratedSummary))]
     private int _videosUnrated;
+
+    public int VideosOpened => Math.Max(0, TotalVideos - VideosNeverOpened);
+
+    public int VideosRated => Math.Max(0, TotalVideos - VideosUnrated);
+
+    public double VideosOpenedPercent => PercentOf(VideosOpened, TotalVideos);
+
+    public double VideosRatedPercent => PercentOf(VideosRated, TotalVideos);
+
+    public double AverageOpensPerVideo =>
+        TotalVideos <= 0 ? 0 : (double)TotalVideoOpens / TotalVideos;
+
+    public string VideosOpenedSummary =>
+        TotalVideos <= 0
+            ? "Sin videos indexados"
+            : $"{VideosOpened} de {TotalVideos} ({VideosOpenedPercent:0}%)";
+
+    public string VideosNeverOpenedSummary =>
+        VideosNeverOpened == 1 ? "1 pendiente sin abrir" : $"{VideosNeverOpened} pendientes sin abrir";
+
+    public string VideosRatedSummary =>
+        TotalVideos <= 0
+            ? "Sin videos indexados"
+            : $"{VideosRated} de {TotalVideos} ({VideosRatedPercent:0}%)";
+
+    public string VideosUnratedSummary =>
+        VideosUnrated == 1 ? "1 sin calificar" : $"{VideosUnrated} sin calificar";
+
+    public string AverageOpensPerVideoLabel =>
+        TotalVideos <= 0
+            ? "Sin videos indexados"
+            : $"{AverageOpensPerVideo:0.#} aperturas por video";
 
     public bool HasRecommendation => RecommendedVideos.Count > 0;
 
     public bool HasRankedRecommendation => RankedRecommendedVideos.Count > 0;
+
+    private static double PercentOf(int part, int total) =>
+        total <= 0 ? 0 : 100.0 * part / total;
+
+    private static string FormatRankingLabel(double average) =>
+        average <= 0
+            ? "Sin calificaciones"
+            : $"{average:0.0} / {MediaFileRankingScale.MaxStars}";
 
     public Task InitializeAsync() =>
         RunBusyCoreAsync(async () =>

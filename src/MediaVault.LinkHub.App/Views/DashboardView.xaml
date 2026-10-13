@@ -12,6 +12,37 @@
     <UserControl.Resources>
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
 
+        <Style x:Key="SummaryStatCardStyle" TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
+            <Setter Property="Margin" Value="4" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+
+        <Style x:Key="SummaryProgressBarStyle" TargetType="ProgressBar">
+            <Setter Property="Height" Value="6" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="100" />
+            <Setter Property="Background" Value="#12151E" />
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid ClipToBounds="True">
+                            <Border x:Name="PART_Track"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="3" />
+                            <Border x:Name="PART_Indicator"
+                                    HorizontalAlignment="Left"
+                                    Background="{TemplateBinding Foreground}"
+                                    CornerRadius="3" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <DataTemplate x:Key="DashboardBarChartTemplate">
             <lvc:CartesianChart Height="320"
                                 Background="Transparent"
@@ -343,80 +374,204 @@
                                Foreground="{StaticResource TextPrimaryBrush}" />
                 </Expander.Header>
 
-                <WrapPanel>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Archivos" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="{Binding TotalMediaFiles}" FontSize="28" FontWeight="Bold" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Videos" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="{Binding TotalVideos}" FontSize="28" FontWeight="Bold" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Fotos" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="{Binding TotalPhotos}" FontSize="28" FontWeight="Bold" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Enlaces" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="{Binding TotalWebLinks}" FontSize="28" FontWeight="Bold" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="150" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Notas" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="{Binding TotalQuickNotes}" FontSize="28" FontWeight="Bold" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="170" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Aperturas video" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="{Binding TotalVideoOpens}" FontSize="28" FontWeight="Bold" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="170" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Sin abrir" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="{Binding VideosNeverOpened}" FontSize="28" FontWeight="Bold" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="170" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Sin calificar" Style="{StaticResource LabelStyle}" />
-                            <TextBlock Text="{Binding VideosUnrated}" FontSize="28" FontWeight="Bold" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Ranking global" Style="{StaticResource LabelStyle}" />
-                            <controls:StarRatingControl Rating="{Binding AverageGlobalRankingStars, Mode=OneWay}"
-                                                        IsInteractive="False"
-                                                        Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Ranking videos" Style="{StaticResource LabelStyle}" />
-                            <controls:StarRatingControl Rating="{Binding AverageVideoRankingStars, Mode=OneWay}"
-                                                        IsInteractive="False"
-                                                        Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Width="190" Margin="0,0,12,12">
-                        <StackPanel>
-                            <TextBlock Text="Ranking fotos" Style="{StaticResource LabelStyle}" />
-                            <controls:StarRatingControl Rating="{Binding AveragePhotoRankingStars, Mode=OneWay}"
-                                                        IsInteractive="False"
-                                                        Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Border>
-                </WrapPanel>
+                <StackPanel>
+                    <TextBlock Text="Inventario"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,8" />
+                    <UniformGrid Columns="5" Margin="0,0,0,16">
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="&#xE8B7;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+                                    <TextBlock Text="Archivos"
+                                               Style="{StaticResource LabelStyle}"
+                                               Margin="0"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding TotalMediaFiles}" FontSize="26" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="&#xE714;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+                                    <TextBlock Text="Videos"
+                                               Style="{StaticResource LabelStyle}"
+                                               Margin="0"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding TotalVideos}" FontSize="26" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="&#xE91B;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+                                    <TextBlock Text="Fotos"
+                                               Style="{StaticResource LabelStyle}"
+                                               Margin="0"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding TotalPhotos}" FontSize="26" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="&#xE71B;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+                                    <TextBlock Text="Enlaces"
+                                               Style="{StaticResource LabelStyle}"
+                                               Margin="0"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding TotalWebLinks}" FontSize="26" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="&#xE70B;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+                                    <TextBlock Text="Notas"
+                                               Style="{StaticResource LabelStyle}"
+                                               Margin="0"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding TotalQuickNotes}" FontSize="26" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <TextBlock Text="Cobertura de videos"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,8" />
+                    <UniformGrid Columns="3" Margin="0,0,0,16">
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Vistos al menos una vez"
+                                           Style="{StaticResource LabelStyle}"
+                                           Margin="0,0,0,6" />
+                                <TextBlock Text="{Binding VideosOpenedSummary}"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <ProgressBar Style="{StaticResource SummaryProgressBarStyle}"
+                                             Value="{Binding VideosOpenedPercent}"
+                                             Margin="0,10,0,6" />
+                                <TextBlock Text="{Binding VideosNeverOpenedSummary}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="11" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Calificados"
+                                           Style="{StaticResource LabelStyle}"
+                                           Margin="0,0,0,6" />
+                                <TextBlock Text="{Binding VideosRatedSummary}"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <ProgressBar Style="{StaticResource SummaryProgressBarStyle}"
+                                             Value="{Binding VideosRatedPercent}"
+                                             Margin="0,10,0,6" />
+                                <TextBlock Text="{Binding VideosUnratedSummary}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="11" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Aperturas de video"
+                                           Style="{StaticResource LabelStyle}"
+                                           Margin="0,0,0,6" />
+                                <TextBlock Text="{Binding TotalVideoOpens}"
+                                           FontSize="26"
+                                           FontWeight="Bold" />
+                                <TextBlock Text="{Binding AverageOpensPerVideoLabel}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,8,0,0"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <TextBlock Text="Calidad promedio"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,8" />
+                    <UniformGrid Columns="3">
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Ranking global"
+                                           Style="{StaticResource LabelStyle}"
+                                           Margin="0,0,0,6" />
+                                <controls:StarRatingControl Rating="{Binding AverageGlobalRankingStars, Mode=OneWay}"
+                                                            IsInteractive="False" />
+                                <TextBlock Text="{Binding AverageGlobalRankingLabel}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,8,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Ranking videos"
+                                           Style="{StaticResource LabelStyle}"
+                                           Margin="0,0,0,6" />
+                                <controls:StarRatingControl Rating="{Binding AverageVideoRankingStars, Mode=OneWay}"
+                                                            IsInteractive="False" />
+                                <TextBlock Text="{Binding AverageVideoRankingLabel}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,8,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryStatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Ranking fotos"
+                                           Style="{StaticResource LabelStyle}"
+                                           Margin="0,0,0,6" />
+                                <controls:StarRatingControl Rating="{Binding AveragePhotoRankingStars, Mode=OneWay}"
+                                                            IsInteractive="False" />
+                                <TextBlock Text="{Binding AveragePhotoRankingLabel}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,8,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
             </Expander>
 
             <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="16">
