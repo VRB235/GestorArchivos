@@ -44,7 +44,10 @@ public partial class DashboardRecommendationItem : ObservableObject
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasThumbnail))]
     private ImageSource? _thumbnail;
+
+    public bool HasThumbnail => Thumbnail is not null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasResolution))]

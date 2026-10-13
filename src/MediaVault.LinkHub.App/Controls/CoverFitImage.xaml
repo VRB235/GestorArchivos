@@ -1,0 +1,24 @@
+<UserControl x:Class="MediaVault.LinkHub.App.Controls.CoverFitImage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Fondo difuminado (rellena el marco) + imagen nítida sin deformar (Uniform). -->
+    <Grid>
+        <Image x:Name="BackdropImage"
+               Stretch="UniformToFill"
+               Opacity="0.55"
+               RenderOptions.BitmapScalingMode="LowQuality"
+               IsHitTestVisible="False">
+            <Image.Effect>
+                <BlurEffect Radius="28" KernelType="Gaussian" />
+            </Image.Effect>
+        </Image>
+
+        <Border Background="#660D1117" IsHitTestVisible="False" />
+
+        <Image x:Name="ForegroundImage"
+               Stretch="Uniform"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               RenderOptions.BitmapScalingMode="HighQuality" />
+    </Grid>
+</UserControl>
