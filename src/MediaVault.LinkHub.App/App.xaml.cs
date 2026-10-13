@@ -2,9 +2,6 @@
 using System.Windows;
 using System.Windows.Threading;
 
-using LiveChartsCore;
-using LiveChartsCore.SkiaSharpView;
-
 using MediaVault.LinkHub.App.ViewModels;
 using MediaVault.LinkHub.App.Security;
 using MediaVault.LinkHub.Application.Services;
@@ -28,22 +25,24 @@ public partial class App : System.Windows.Application
         // Evita que la app se cierre al cerrar el diálogo de PIN (antes de abrir MainWindow).
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        LiveCharts.Configure(config =>
-            config.AddSkiaSharp().AddDefaultMappers());
-
-#if DEBUG
-        // En desarrollo (Debug) se omite PIN/contraseña para agilizar iteración.
-        AppSecurityContext.AccessMode = SecurityAccessMode.Full;
-#else
-        var securityGate = new Views.SecurityGateWindow();
-        if (securityGate.ShowDialog() != true)
+        // Gate según ambiente de datos (no solo configuración de compilación):
+        // Debug + MEDIAVAULT_ENVIRONMENT=Production → datos reales + PIN.
+        // Development (F5 habitual) → sin PIN para agilizar iteración.
+        if (SqliteDatabasePathProvider.IsDevelopment)
         {
-            Shutdown();
-            return;
+            AppSecurityContext.AccessMode = SecurityAccessMode.Full;
         }
+        else
+        {
+            var securityGate = new Views.SecurityGateWindow();
+            if (securityGate.ShowDialog() != true)
+            {
+                Shutdown();
+                return;
+            }
 
-        AppSecurityContext.AccessMode = securityGate.AccessMode;
-#endif
+            AppSecurityContext.AccessMode = securityGate.AccessMode;
+        }
 
         try
         {

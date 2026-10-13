@@ -5,7 +5,6 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-using MediaVault.LinkHub.App.Charts;
 using MediaVault.LinkHub.App.Shell;
 using MediaVault.LinkHub.App.ViewModels.Base;
 using MediaVault.LinkHub.Application.Media;
@@ -38,11 +37,7 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
     public string Title => "Dashboard & Estadísticas";
 
-    public string Subtitle => "Tops de videos, ranking y recomendación";
-
-    public ObservableCollection<DashboardChartPanelViewModel> PrimaryChartSections { get; } = [];
-
-    public ObservableCollection<DashboardChartPanelViewModel> SecondaryChartSections { get; } = [];
+    public string Subtitle => "Resumen, ranking y recomendación";
 
     public ObservableCollection<DashboardRecommendationItem> RecommendedVideos { get; } = [];
 
@@ -190,8 +185,6 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         VideosNeverOpened = stats.VideosNeverOpened;
         VideosUnrated = stats.VideosUnrated;
 
-        BuildChartSections(stats);
-
         // Ranking primero (pool más restringido); luego mixtas excluyen esos IDs.
         if (keepRanked)
             await RefreshPreservedRecommendationsAsync(RankedRecommendedVideos, showTierLabel: true).ConfigureAwait(true);
@@ -230,71 +223,6 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
             items.Add(item);
 
         OnPropertyChanged(showTierLabel ? nameof(HasRankedRecommendation) : nameof(HasRecommendation));
-    }
-
-    private void BuildChartSections(DashboardStatistics stats)
-    {
-        PrimaryChartSections.Clear();
-        SecondaryChartSections.Clear();
-
-        AddBarChart(
-            PrimaryChartSections,
-            "Top 10 videos más vistos",
-            "Sin videos abiertos desde la app. Abra videos en Media Vault.",
-            stats.Top10MostViewedVideos,
-            isExpanded: true,
-            panel => DashboardChartFactory.PopulateTopViewsChart(
-                stats.Top10MostViewedVideos,
-                panel,
-                onPointClicked: index => _ = OpenChartMediaFileAsync(panel, index)));
-
-        AddBarChart(
-            PrimaryChartSections,
-            "Top 10 videos mejor rankeados",
-            "Sin videos calificados. Use estrellas en Media Vault.",
-            stats.Top10BestRankedVideos,
-            isExpanded: true,
-            panel => DashboardChartFactory.PopulateTopRankedChart(
-                stats.Top10BestRankedVideos,
-                panel,
-                onPointClicked: index => _ = OpenChartMediaFileAsync(panel, index)));
-
-        AddPieChart(
-            SecondaryChartSections,
-            "Archivos por categoría",
-            "Sin archivos indexados o sin categorías asignadas.",
-            stats.VideoDistributionByCategory.Any(item => item.Count > 0),
-            isExpanded: false,
-            panel => DashboardChartFactory.PopulateMediaDistributionPieChart(
-                stats.VideoDistributionByCategory,
-                panel.Series));
-
-        AddColumnChart(
-            SecondaryChartSections,
-            "Ranking promedio por categoría",
-            "Califique archivos con categoría para ver este gráfico.",
-            stats.AverageRankingByVideoCategory.Count > 0,
-            isExpanded: false,
-            panel =>
-            {
-                DashboardChartFactory.PopulateCategoryRankingChart(
-                    stats.AverageRankingByVideoCategory,
-                    panel.Series,
-                    out var xAxes,
-                    out var yAxes);
-                panel.XAxes = xAxes;
-                panel.YAxes = yAxes;
-            });
-
-        AddPieChart(
-            SecondaryChartSections,
-            "Enlaces por categoría",
-            "Sin enlaces registrados. Agregue enlaces en Link Manager.",
-            stats.LinkDistributionByCategory.Any(item => item.Count > 0),
-            isExpanded: false,
-            panel => DashboardChartFactory.PopulateCategoryPieChart(
-                stats.LinkDistributionByCategory,
-                panel.Series));
     }
 
     [RelayCommand]
@@ -615,97 +543,4 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
             .ConfigureAwait(true);
     }
 
-    private void AddBarChart(
-        ObservableCollection<DashboardChartPanelViewModel> target,
-        string title,
-        string emptyMessage,
-        IReadOnlyList<MediaFileViewStats> data,
-        bool isExpanded,
-        Action<DashboardChartPanelViewModel> populate)
-    {
-        var panel = CreatePanel(title, emptyMessage, isPie: false, data.Count > 0, isExpanded);
-        panel.MediaFiles = data.ToArray();
-        populate(panel);
-        target.Add(panel);
-        _ = PrefetchChartMediaThumbnailsAsync(data);
-    }
-
-    private async Task PrefetchChartMediaThumbnailsAsync(IReadOnlyList<MediaFileViewStats> data)
-    {
-        try
-        {
-            await VideoThumbnailSessionBootstrap
-                .PrefetchWithDedicatedAsync(
-                    _mediaVaultService,
-                    data.Select(file =>
-                    {
-                        var folder = Path.GetDirectoryName(file.Path) ?? string.Empty;
-                        return (ItemKey: file.Path, FolderPath: folder);
-                    }))
-                .ConfigureAwait(false);
-        }
-        catch
-        {
-            // Prefetch cosmético para hover de gráficos.
-        }
-    }
-
-    private async Task OpenChartMediaFileAsync(DashboardChartPanelViewModel panel, int index)
-    {
-        if (index < 0 || index >= panel.MediaFiles.Length)
-            return;
-
-        var fileId = panel.MediaFiles[index].Id;
-
-        await ExecuteBusyAsync(async () =>
-        {
-            var opened = await _mediaVaultService.OpenFileAsync(fileId).ConfigureAwait(true);
-            if (opened is null)
-                throw new InvalidOperationException("No se pudo abrir el archivo. Verifique que exista en disco.");
-
-            await ReloadAsync(preserveRecommendation: true).ConfigureAwait(true);
-        }, "Abriendo archivo...").ConfigureAwait(true);
-    }
-
-    private void AddColumnChart(
-        ObservableCollection<DashboardChartPanelViewModel> target,
-        string title,
-        string emptyMessage,
-        bool hasData,
-        bool isExpanded,
-        Action<DashboardChartPanelViewModel> populate)
-    {
-        var panel = CreatePanel(title, emptyMessage, isPie: false, hasData, isExpanded);
-        populate(panel);
-        target.Add(panel);
-    }
-
-    private void AddPieChart(
-        ObservableCollection<DashboardChartPanelViewModel> target,
-        string title,
-        string emptyMessage,
-        bool hasData,
-        bool isExpanded,
-        Action<DashboardChartPanelViewModel> populate)
-    {
-        var panel = CreatePanel(title, emptyMessage, isPie: true, hasData, isExpanded);
-        populate(panel);
-        target.Add(panel);
-    }
-
-    private static DashboardChartPanelViewModel CreatePanel(
-        string title,
-        string emptyMessage,
-        bool isPie,
-        bool hasData,
-        bool isExpanded) =>
-        new()
-        {
-            Title = title,
-            EmptyMessage = emptyMessage,
-            IsPie = isPie,
-            HasData = hasData,
-            IsExpanded = isExpanded,
-            DrawMarginFrame = DashboardChartFactory.CreateDrawMarginFrame()
-        };
 }
