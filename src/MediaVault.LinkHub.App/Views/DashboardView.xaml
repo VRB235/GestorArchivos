@@ -70,15 +70,52 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Portada estilo HobbyXP + CoverFit (fondo blur + imagen Uniform sin deformar) -->
+        <!-- Carrusel horizontal: tarjetas de ancho fijo; la flecha derecha carga +5. -->
         <ItemsPanelTemplate x:Key="RecommendationCardsPanelTemplate">
-            <UniformGrid Columns="5" />
+            <StackPanel Orientation="Horizontal" />
         </ItemsPanelTemplate>
 
+        <Style x:Key="RecommendationCarouselArrowStyle" TargetType="Button">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="64" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="#F5F8FC" />
+            <Setter Property="Background" Value="#CC0D1117" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#E60D1117" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <DataTemplate x:Key="RecommendedVideoCoverCardTemplate">
-            <Border Height="248"
-                    Margin="4,0"
-                    HorizontalAlignment="Stretch"
+            <Border Width="{Binding DataContext.RecommendationCardWidth, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    Height="248"
+                    Margin="0,0,10,0"
                     Background="#152033"
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1"
@@ -164,9 +201,9 @@
         </DataTemplate>
 
         <DataTemplate x:Key="RankedRecommendedVideoCoverCardTemplate">
-            <Border Height="248"
-                    Margin="4,0"
-                    HorizontalAlignment="Stretch"
+            <Border Width="{Binding DataContext.RecommendationCardWidth, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    Height="248"
+                    Margin="0,0,10,0"
                     Background="#152033"
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1"
@@ -478,16 +515,38 @@
                                FontSize="16"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />
-                    <TextBlock Text="Hasta 5 videos. Mezcla ranking, aperturas y azar."
+                    <TextBlock Text="Lotes de 5. Flecha derecha: siguiente página o +5 nuevos. Mezcla ranking, aperturas y azar."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="12"
+                               TextWrapping="Wrap"
                                Margin="0,2,0,12" />
 
-                    <ItemsControl ItemsSource="{Binding RecommendedVideos}"
-                                  ItemTemplate="{StaticResource RecommendedVideoCoverCardTemplate}"
-                                  ItemsPanel="{StaticResource RecommendationCardsPanelTemplate}"
-                                  HorizontalContentAlignment="Stretch"
-                                  Visibility="{Binding HasRecommendation, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <Grid x:Name="MixedRecommendationHost"
+                          MinHeight="248"
+                          SizeChanged="RecommendationHost_OnSizeChanged"
+                          IsVisibleChanged="RecommendationHost_OnIsVisibleChanged"
+                          Visibility="{Binding HasRecommendation, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ScrollViewer x:Name="MixedRecommendationScroller"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Disabled"
+                                      PreviewMouseWheel="RecommendationScroller_OnPreviewMouseWheel">
+                            <ItemsControl ItemsSource="{Binding RecommendedVideos}"
+                                          ItemTemplate="{StaticResource RecommendedVideoCoverCardTemplate}"
+                                          ItemsPanel="{StaticResource RecommendationCardsPanelTemplate}" />
+                        </ScrollViewer>
+
+                        <Button Style="{StaticResource RecommendationCarouselArrowStyle}"
+                                Content="‹"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,0"
+                                ToolTip="Anterior"
+                                Click="MixedRecommendationPrev_OnClick" />
+                        <Button Style="{StaticResource RecommendationCarouselArrowStyle}"
+                                Content="›"
+                                HorizontalAlignment="Right"
+                                ToolTip="Siguiente / cargar 5 más"
+                                Click="MixedRecommendationNext_OnClick" />
+                    </Grid>
 
                     <StackPanel>
                         <StackPanel.Style>
@@ -506,7 +565,7 @@
                                    Margin="0,0,0,12" />
                     </StackPanel>
 
-                    <Button Content="Otras recomendaciones"
+                    <Button Content="Reiniciar recomendaciones"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding RefreshRecommendationCommand}"
                             HorizontalAlignment="Left"
@@ -521,17 +580,37 @@
                                FontSize="16"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" />
-                    <TextBlock Text="Hasta 5 videos: prioriza calificados (5★→1★); si faltan, completa con otros."
+                    <TextBlock Text="Lotes de 5 (5★→1★). Flecha derecha: siguiente página o +5 nuevos."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="12"
                                TextWrapping="Wrap"
                                Margin="0,2,0,12" />
 
-                    <ItemsControl ItemsSource="{Binding RankedRecommendedVideos}"
-                                  ItemTemplate="{StaticResource RankedRecommendedVideoCoverCardTemplate}"
-                                  ItemsPanel="{StaticResource RecommendationCardsPanelTemplate}"
-                                  HorizontalContentAlignment="Stretch"
-                                  Visibility="{Binding HasRankedRecommendation, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <Grid x:Name="RankedRecommendationHost"
+                          MinHeight="248"
+                          SizeChanged="RecommendationHost_OnSizeChanged"
+                          IsVisibleChanged="RecommendationHost_OnIsVisibleChanged"
+                          Visibility="{Binding HasRankedRecommendation, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ScrollViewer x:Name="RankedRecommendationScroller"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Disabled"
+                                      PreviewMouseWheel="RecommendationScroller_OnPreviewMouseWheel">
+                            <ItemsControl ItemsSource="{Binding RankedRecommendedVideos}"
+                                          ItemTemplate="{StaticResource RankedRecommendedVideoCoverCardTemplate}"
+                                          ItemsPanel="{StaticResource RecommendationCardsPanelTemplate}" />
+                        </ScrollViewer>
+
+                        <Button Style="{StaticResource RecommendationCarouselArrowStyle}"
+                                Content="‹"
+                                HorizontalAlignment="Left"
+                                ToolTip="Anterior"
+                                Click="RankedRecommendationPrev_OnClick" />
+                        <Button Style="{StaticResource RecommendationCarouselArrowStyle}"
+                                Content="›"
+                                HorizontalAlignment="Right"
+                                ToolTip="Siguiente / cargar 5 más"
+                                Click="RankedRecommendationNext_OnClick" />
+                    </Grid>
 
                     <StackPanel>
                         <StackPanel.Style>
@@ -550,7 +629,7 @@
                                    Margin="0,0,0,12" />
                     </StackPanel>
 
-                    <Button Content="Otras recomendaciones"
+                    <Button Content="Reiniciar recomendaciones"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding RefreshRankedRecommendationCommand}"
                             HorizontalAlignment="Left"

@@ -43,6 +43,10 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
     public ObservableCollection<DashboardRecommendationItem> RankedRecommendedVideos { get; } = [];
 
+    /// <summary>Ancho de tarjeta del carrusel: viewport / 5 para llenar la fila.</summary>
+    [ObservableProperty]
+    private double _recommendationCardWidth = 200;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AverageGlobalRankingStars))]
     [NotifyPropertyChangedFor(nameof(AverageGlobalRankingLabel))]
@@ -153,6 +157,16 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
     public bool HasRankedRecommendation => RankedRecommendedVideos.Count > 0;
 
+    /// <summary>Quedan candidatos para ampliar el carrusel mixto (+5).</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LoadMoreRecommendationsCommand))]
+    private bool _canLoadMoreRecommendations = true;
+
+    /// <summary>Quedan candidatos para ampliar el carrusel por ranking (+5).</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LoadMoreRankedRecommendationsCommand))]
+    private bool _canLoadMoreRankedRecommendations = true;
+
     private static double PercentOf(int part, int total) =>
         total <= 0 ? 0 : 100.0 * part / total;
 
@@ -227,15 +241,32 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
     [RelayCommand]
     private Task RefreshRecommendationAsync() =>
-        RunBusyCoreAsync(
-            () => LoadRecommendationAsync(excludeCurrent: true),
-            "Eligiendo otras recomendaciones...");
+        RunBusyCoreAsync(async () =>
+        {
+            CanLoadMoreRecommendations = true;
+            await LoadRecommendationAsync(excludeCurrent: true).ConfigureAwait(true);
+        }, "Eligiendo otras recomendaciones...");
 
     [RelayCommand]
     private Task RefreshRankedRecommendationAsync() =>
+        RunBusyCoreAsync(async () =>
+        {
+            _rankedSession.Reset();
+            CanLoadMoreRankedRecommendations = true;
+            await LoadRankedRecommendationAsync(advance: false).ConfigureAwait(true);
+        }, "Eligiendo otros rankeados...");
+
+    [RelayCommand(CanExecute = nameof(CanLoadMoreRecommendations))]
+    private Task LoadMoreRecommendationsAsync() =>
         RunBusyCoreAsync(
-            () => LoadRankedRecommendationAsync(advance: true),
-            "Eligiendo otros rankeados...");
+            () => AppendRecommendationsAsync(),
+            "Cargando más recomendaciones...");
+
+    [RelayCommand(CanExecute = nameof(CanLoadMoreRankedRecommendations))]
+    private Task LoadMoreRankedRecommendationsAsync() =>
+        RunBusyCoreAsync(
+            () => AppendRankedRecommendationsAsync(),
+            "Cargando más rankeados...");
 
     [RelayCommand]
     private async Task OpenRecommendedAsync(DashboardRecommendationItem? item)
@@ -307,20 +338,50 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
 
     private async Task LoadRecommendationAsync(bool excludeCurrent)
     {
+        var recommendations = await PickMixedRecommendationsAsync(
+                excludeCurrent: excludeCurrent,
+                appendMode: false)
+            .ConfigureAwait(true);
+
+        await SetRecommendationsAsync(recommendations).ConfigureAwait(true);
+        CanLoadMoreRecommendations = recommendations.Count > 0;
+    }
+
+    private async Task AppendRecommendationsAsync()
+    {
+        var batch = await PickMixedRecommendationsAsync(
+                excludeCurrent: true,
+                appendMode: true)
+            .ConfigureAwait(true);
+
+        if (batch.Count == 0)
+        {
+            CanLoadMoreRecommendations = false;
+            return;
+        }
+
+        await AppendRecommendationItemsAsync(batch, isRanked: false).ConfigureAwait(true);
+        CanLoadMoreRecommendations = batch.Count >= VideoRecommendation.DefaultPickCount;
+    }
+
+    private async Task<List<MediaFileViewStats>> PickMixedRecommendationsAsync(
+        bool excludeCurrent,
+        bool appendMode)
+    {
         const int count = VideoRecommendation.DefaultPickCount;
         var otherPanelIds = GetRankedRecommendedVideoIds();
         var selfIds = GetRecommendedVideoIds();
 
         var preferredExclude = new HashSet<int>(otherPanelIds);
-        if (excludeCurrent)
+        if (excludeCurrent || appendMode)
             preferredExclude.UnionWith(selfIds);
 
         var recommendations = (await _dashboardService
             .GetVideoRecommendationsAsync(preferredExclude, count, reuseWhenExhausted: false)
             .ConfigureAwait(true)).ToList();
 
-        // Si no hay suficientes sin solapar, completar permitiendo cruce con el otro panel.
-        if (recommendations.Count < count)
+        // Completar lote: en append no reutilizamos IDs ya mostrados; en refresh sí se permite cruce.
+        if (recommendations.Count < count && !appendMode)
         {
             var softExclude = new HashSet<int>(recommendations.Select(video => video.Id));
             if (excludeCurrent)
@@ -340,7 +401,7 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
             }
         }
 
-        await SetRecommendationsAsync(recommendations).ConfigureAwait(true);
+        return recommendations;
     }
 
     /// <param name="advance">
@@ -416,6 +477,40 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
             _rankedSession.SetCurrent(picked.Select(video => video.Id).ToArray());
 
         await SetRankedRecommendationsAsync(picked).ConfigureAwait(true);
+        CanLoadMoreRankedRecommendations = picked.Count > 0;
+    }
+
+    private async Task AppendRankedRecommendationsAsync()
+    {
+        const int count = RankedVideoRecommendation.DefaultPickCount;
+        var otherPanelIds = GetRecommendedVideoIds();
+        var preferredExclude = new HashSet<int>(otherPanelIds);
+        preferredExclude.UnionWith(GetRankedRecommendedVideoIds());
+        preferredExclude.UnionWith(_rankedSession.ShownMediaFileIds);
+
+        var picked = (await _dashboardService
+            .GetRankedVideoRecommendationsAsync(preferredExclude, count)
+            .ConfigureAwait(true)).ToList();
+
+        if (picked.Count == 0 && _rankedSession.ShownMediaFileIds.Count > 0)
+        {
+            // Catálogo agotado en este ciclo: no reiniciar solo por la flecha (el usuario usa «Otras»).
+            CanLoadMoreRankedRecommendations = false;
+            return;
+        }
+
+        if (picked.Count == 0)
+        {
+            CanLoadMoreRankedRecommendations = false;
+            return;
+        }
+
+        await AppendRecommendationItemsAsync(picked, isRanked: true).ConfigureAwait(true);
+
+        _rankedSession.SetCurrent(
+            RankedRecommendedVideos.Select(item => item.Video.Id).ToArray());
+
+        CanLoadMoreRankedRecommendations = picked.Count >= count;
     }
 
     private HashSet<int> GetRecommendedVideoIds() =>
@@ -432,18 +527,7 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         if (recommendations.Count == 0)
             return;
 
-        var generation = ++_recommendationThumbGeneration;
-        var items = recommendations
-            .Select(video => new DashboardRecommendationItem(video, showTierLabel: false))
-            .ToList();
-
-        foreach (var item in items)
-            RecommendedVideos.Add(item);
-
-        OnPropertyChanged(nameof(HasRecommendation));
-
-        // Miniaturas/resolución en segundo plano: no bloquean el fin de IsBusy ni el arranque.
-        _ = LoadRecommendationDetailsAsync(items, generation, isRanked: false);
+        await AppendRecommendationItemsAsync(recommendations, isRanked: false).ConfigureAwait(true);
     }
 
     private async Task SetRankedRecommendationsAsync(IReadOnlyList<MediaFileViewStats> recommendations)
@@ -454,17 +538,33 @@ public partial class DashboardViewModel : ViewModelBase, INavigableViewModel
         if (recommendations.Count == 0)
             return;
 
-        var generation = ++_rankedRecommendationThumbGeneration;
+        await AppendRecommendationItemsAsync(recommendations, isRanked: true).ConfigureAwait(true);
+    }
+
+    private Task AppendRecommendationItemsAsync(
+        IReadOnlyList<MediaFileViewStats> recommendations,
+        bool isRanked)
+    {
+        if (recommendations.Count == 0)
+            return Task.CompletedTask;
+
+        var generation = isRanked
+            ? ++_rankedRecommendationThumbGeneration
+            : ++_recommendationThumbGeneration;
+
+        var target = isRanked ? RankedRecommendedVideos : RecommendedVideos;
         var items = recommendations
-            .Select(video => new DashboardRecommendationItem(video, showTierLabel: true))
+            .Select(video => new DashboardRecommendationItem(video, showTierLabel: isRanked))
             .ToList();
 
         foreach (var item in items)
-            RankedRecommendedVideos.Add(item);
+            target.Add(item);
 
-        OnPropertyChanged(nameof(HasRankedRecommendation));
+        OnPropertyChanged(isRanked ? nameof(HasRankedRecommendation) : nameof(HasRecommendation));
 
-        _ = LoadRecommendationDetailsAsync(items, generation, isRanked: true);
+        // Miniaturas/resolución en segundo plano: no bloquean el fin de IsBusy ni el arranque.
+        _ = LoadRecommendationDetailsAsync(items, generation, isRanked);
+        return Task.CompletedTask;
     }
 
     private async Task LoadRecommendationDetailsAsync(
